@@ -13,6 +13,7 @@ import {
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import AccountManagementModule from "../admin/AccountManagementModule";
 import FinanceModule from "../finance/FinanceModule";
 import LandingContentAdmin from "../landing-admin/LandingContentAdmin";
 
@@ -1269,6 +1270,7 @@ export function SmpDataModule({ slug, role }: { slug: string; role: string }) {
   if (slug === "catatan-pelanggaran") return <PelanggaranModule role={role} />;
   if (slug === "capaian-siswa") return <CapaianModule />;
   if (slug === "presensi-online") return <PresensiModule />;
+  if (slug === "manajemen-akun") return <AccountManagementModule entity="smp" />;
   if (slug === "surat-keluar") return <SuratModule />;
   if (slug === "spmb") return <SpmbModule />;
   if (slug === "keuangan-tagihan") return <FinanceModule initialEntity="smp" />;

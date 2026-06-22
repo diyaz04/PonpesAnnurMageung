@@ -11,6 +11,7 @@ import {
   ScrollText,
   ShieldAlert,
   ScanFace,
+  UserCog,
   Users,
   X,
 } from "lucide-react";
@@ -37,6 +38,7 @@ const iconBySlug: Record<string, typeof Home> = {
   "capaian-siswa": ScrollText,
   "presensi-online": ScanFace,
   perizinan: FileText,
+  "manajemen-akun": UserCog,
   "surat-keluar": FileText,
   psb: GraduationCap,
   spmb: GraduationCap,

@@ -57,6 +57,12 @@ export const smpMenuItems: SmpMenuItem[] = [
     roles: ["superadmin", "admin", "guru"],
   },
   {
+    slug: "manajemen-akun",
+    label: "Manajemen Akun",
+    group: "Administrasi",
+    roles: ["superadmin"],
+  },
+  {
     slug: "surat-keluar",
     label: "Generate Surat Keluar",
     group: "Administrasi",

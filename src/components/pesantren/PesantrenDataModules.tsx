@@ -12,6 +12,7 @@ import {
 import { QRCodeCanvas } from "qrcode.react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import AccountManagementModule from "../admin/AccountManagementModule";
 import FinanceModule from "../finance/FinanceModule";
 import LandingContentAdmin from "../landing-admin/LandingContentAdmin";
 import { supabase } from "../../lib/supabase";
@@ -1949,6 +1950,7 @@ export function PesantrenDataModule({
   if (slug === "raport-santri") return <RaportModule role={role} />;
   if (slug === "catatan-pelanggaran") return <PelanggaranModule role={role} />;
   if (slug === "capaian-santri") return <CapaianModule />;
+  if (slug === "manajemen-akun") return <AccountManagementModule entity="pesantren" />;
   if (slug === "surat-keluar") return <SuratModule />;
   if (slug === "psb") return <PsbModule />;
   if (slug === "keuangan-tagihan") return <FinanceModule initialEntity="pesantren" />;
