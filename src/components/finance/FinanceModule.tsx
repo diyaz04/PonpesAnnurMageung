@@ -39,6 +39,7 @@ type Invoice = {
   anggota_id: string;
   jenis_tagihan_id: string | null;
   nama_tagihan: string | null;
+  catatan: string | null;
   kategori: ItemCategory;
   bisa_dicicil: boolean;
   nominal: number;
@@ -46,6 +47,10 @@ type Invoice = {
   jatuh_tempo: string | null;
   periode: string | null;
   sumber_pengaturan_id: string | null;
+  tabungan_target: number;
+  ditarik_at: string | null;
+  ditarik_oleh: string | null;
+  catatan_penarikan: string | null;
   jenis?: { nama: string } | null;
 };
 
@@ -226,6 +231,28 @@ function summarizeItems(items: SettingItem[]) {
       .filter((item) => item.masuk_tabungan)
       .reduce((sum, item) => sum + Number(item.nominal || 0), 0),
   };
+}
+
+function buildItemNote(items: SettingItem[]) {
+  return items
+    .map((item) => `${item.nama}: ${formatCurrency(item.nominal)}`)
+    .join("; ");
+}
+
+function duplicateInvoiceKey(invoice: {
+  entitas: Entity;
+  anggota_id: string;
+  kategori: ItemCategory;
+  nama_tagihan: string | null;
+  periode: string | null;
+}) {
+  return [
+    invoice.entitas,
+    invoice.anggota_id,
+    invoice.kategori,
+    invoice.nama_tagihan || "",
+    invoice.periode || "",
+  ].join("|");
 }
 
 function DataTable({
@@ -452,7 +479,7 @@ export default function FinanceModule({
   const settingSummary = summarizeItems(draftItems);
 
   const selectedMemberInvoices = invoices.filter(
-    (invoice) => invoice.anggota_id === selectedMember,
+    (invoice) => invoice.anggota_id === selectedMember && !invoice.ditarik_at,
   );
   const selectedInvoiceRow = invoices.find((invoice) => invoice.id === selectedInvoice);
   const selectedInvoicePayments = payments.filter(
@@ -462,6 +489,13 @@ export default function FinanceModule({
     (sum, payment) => sum + Number(payment.jumlah_bayar || 0),
     0,
   );
+  const selectedInvoiceSavingsCredited = savingsEntries
+    .filter(
+      (entry) =>
+        entry.tagihan_id === selectedInvoice &&
+        entry.tipe === "setoran_otomatis",
+    )
+    .reduce((sum, entry) => sum + Number(entry.nominal || 0), 0);
   const selectedRemaining = Math.max(
     Number(selectedInvoiceRow?.nominal || 0) - selectedPaid,
     0,
@@ -474,6 +508,7 @@ export default function FinanceModule({
     .reduce((sum, entry) => sum + Number(entry.nominal || 0), 0);
 
   const reportInvoices = invoices.filter((invoice) => {
+    if (invoice.ditarik_at) return false;
     const categoryMatch = report.kategori ? invoice.kategori === report.kategori : true;
     const member = members.find((item) => item.id === invoice.anggota_id);
     const scopeMatch =
@@ -618,28 +653,70 @@ export default function FinanceModule({
         (item) => item.anggota_id === member.id && item.aktif,
       );
       if (!setting) return [];
-      const items = settingItems.filter((item) => {
-        const categoryMatch =
-          invoiceForm.kategori === "semua"
-            ? item.kategori === "bulanan" ||
-              item.kategori === "tabungan" ||
-              item.kategori === "masuk_cicil"
-            : item.kategori === invoiceForm.kategori;
-        return item.pengaturan_id === setting.id && item.aktif && categoryMatch;
-      });
-      return items.map((item) => ({
-        entitas: activeEntity,
-        anggota_id: member.id,
-        jenis_tagihan_id: null,
-        nama_tagihan: item.nama,
-        kategori: item.masuk_tabungan ? "tabungan" : item.kategori,
-        bisa_dicicil: item.bisa_dicicil,
-        nominal: Number(item.nominal || 0),
-        status: "belum_lunas",
-        jatuh_tempo: invoiceForm.jatuh_tempo || null,
-        periode: invoiceForm.periode || null,
-        sumber_pengaturan_id: setting.id,
-      }));
+      const activeItems = settingItems.filter(
+        (item) => item.pengaturan_id === setting.id && item.aktif,
+      );
+      const monthlyItems = activeItems.filter(
+        (item) => item.kategori === "bulanan" || item.kategori === "tabungan",
+      );
+      const entranceItems = activeItems.filter(
+        (item) => item.kategori === "masuk_cicil",
+      );
+      const generatedRows = [];
+
+      if (
+        (invoiceForm.kategori === "bulanan" || invoiceForm.kategori === "semua") &&
+        monthlyItems.length
+      ) {
+        const nominal = monthlyItems.reduce(
+          (sum, item) => sum + Number(item.nominal || 0),
+          0,
+        );
+        generatedRows.push({
+          entitas: activeEntity,
+          anggota_id: member.id,
+          jenis_tagihan_id: null,
+          nama_tagihan: `Syahriyah ${invoiceForm.periode || ""}`.trim(),
+          catatan: buildItemNote(monthlyItems),
+          kategori: "bulanan" as ItemCategory,
+          bisa_dicicil: true,
+          nominal,
+          status: "belum_lunas" as const,
+          jatuh_tempo: invoiceForm.jatuh_tempo || null,
+          periode: invoiceForm.periode || null,
+          sumber_pengaturan_id: setting.id,
+          tabungan_target: monthlyItems
+            .filter((item) => item.masuk_tabungan)
+            .reduce((sum, item) => sum + Number(item.nominal || 0), 0),
+        });
+      }
+
+      if (
+        (invoiceForm.kategori === "masuk_cicil" || invoiceForm.kategori === "semua") &&
+        entranceItems.length
+      ) {
+        const nominal = entranceItems.reduce(
+          (sum, item) => sum + Number(item.nominal || 0),
+          0,
+        );
+        generatedRows.push({
+          entitas: activeEntity,
+          anggota_id: member.id,
+          jenis_tagihan_id: null,
+          nama_tagihan: `Biaya Masuk ${invoiceForm.periode || ""}`.trim(),
+          catatan: buildItemNote(entranceItems),
+          kategori: "masuk_cicil" as ItemCategory,
+          bisa_dicicil: true,
+          nominal,
+          status: "belum_lunas" as const,
+          jatuh_tempo: invoiceForm.jatuh_tempo || null,
+          periode: invoiceForm.periode || null,
+          sumber_pengaturan_id: setting.id,
+          tabungan_target: 0,
+        });
+      }
+
+      return generatedRows;
     });
 
     if (!rows.length) {
@@ -647,11 +724,24 @@ export default function FinanceModule({
       return;
     }
 
-    const { error } = await supabase.from("keu_tagihan").insert(rows);
+    const existingKeys = new Set(
+      invoices
+        .filter((invoice) => !invoice.ditarik_at)
+        .map((invoice) => duplicateInvoiceKey(invoice)),
+    );
+    const uniqueRows = rows.filter((row) => !existingKeys.has(duplicateInvoiceKey(row)));
+    const skippedRows = rows.length - uniqueRows.length;
+
+    if (!uniqueRows.length) {
+      setMessage("Tagihan untuk orang dan periode ini sudah ada, jadi tidak dibuat dobel.");
+      return;
+    }
+
+    const { error } = await supabase.from("keu_tagihan").insert(uniqueRows);
     setMessage(
       error
         ? error.message
-        : `${rows.length} tagihan dibuat dari pengaturan pembayaran tersimpan.`,
+        : `${uniqueRows.length} tagihan dibuat. ${skippedRows} dilewati karena sudah ada.`,
     );
     loadData();
   }
@@ -664,20 +754,66 @@ export default function FinanceModule({
       return;
     }
 
+    const nextInvoice = {
+      entitas: activeEntity,
+      anggota_id: invoiceForm.anggota_id,
+      kategori: "insidentil" as ItemCategory,
+      nama_tagihan: type.nama,
+      periode: invoiceForm.periode || null,
+    };
+    const alreadyExists = invoices.some(
+      (invoice) =>
+        !invoice.ditarik_at &&
+        duplicateInvoiceKey(invoice) === duplicateInvoiceKey(nextInvoice),
+    );
+    if (alreadyExists) {
+      setMessage("Tagihan insidentil ini sudah ada untuk anggota dan periode yang sama.");
+      return;
+    }
+
     const { error } = await supabase.from("keu_tagihan").insert({
       entitas: activeEntity,
       anggota_id: invoiceForm.anggota_id,
       jenis_tagihan_id: type.id,
       nama_tagihan: type.nama,
+      catatan: "Tagihan insidentil dari bendahara.",
       kategori: "insidentil",
       bisa_dicicil: true,
       nominal: type.nominal,
       status: "belum_lunas",
       jatuh_tempo: invoiceForm.jatuh_tempo || null,
       periode: invoiceForm.periode || null,
+      tabungan_target: 0,
     });
 
     setMessage(error ? error.message : "Tagihan insidentil dibuat.");
+    loadData();
+  }
+
+  async function retractInvoice(invoice: Invoice) {
+    const paid = payments
+      .filter((payment) => payment.tagihan_id === invoice.id)
+      .reduce((sum, payment) => sum + Number(payment.jumlah_bayar || 0), 0);
+    if (paid > 0) {
+      setMessage("Tagihan yang sudah punya pembayaran tidak bisa ditarik langsung.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Tarik tagihan ${invoiceLabel(invoice)}? Tagihan tidak akan dihitung lagi.`,
+    );
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from("keu_tagihan")
+      .update({
+        ditarik_at: new Date().toISOString(),
+        ditarik_oleh: user?.id || null,
+        catatan_penarikan: "Ditarik oleh bendahara karena koreksi tagihan.",
+      })
+      .eq("id", invoice.id);
+
+    setMessage(error ? error.message : "Tagihan berhasil ditarik dari perhitungan.");
     loadData();
   }
 
@@ -731,8 +867,8 @@ export default function FinanceModule({
       setMessage("Jumlah pembayaran melebihi sisa tagihan.");
       return;
     }
-    if (savingsAmount > 0 && selectedInvoiceRow.kategori === "tabungan") {
-      setMessage("Setoran tabungan kegiatan tidak bisa dibayar dari saldo tabungan yang sama.");
+    if (savingsAmount > 0 && Number(selectedInvoiceRow.tabungan_target || 0) > 0) {
+      setMessage("Syahriyah yang berisi tabungan kegiatan tidak bisa dibayar dari saldo tabungan.");
       return;
     }
     if (savingsAmount > selectedSavingsBalance) {
@@ -768,16 +904,29 @@ export default function FinanceModule({
     if (!paymentResult.error) {
       const paymentId = (paymentResult.data as Payment).id;
       const ledgerRows = [];
-      if (selectedInvoiceRow.kategori === "tabungan") {
+      const savingsTarget = Number(selectedInvoiceRow.tabungan_target || 0);
+      const savingsRemaining = Math.max(
+        savingsTarget - selectedInvoiceSavingsCredited,
+        0,
+      );
+      const willBePaidOff = selectedPaid + totalAmount >= Number(selectedInvoiceRow.nominal || 0);
+      const proportionalSavings = selectedInvoiceRow.nominal
+        ? Math.floor((totalAmount / Number(selectedInvoiceRow.nominal)) * savingsTarget)
+        : 0;
+      const savingsCredit = willBePaidOff
+        ? savingsRemaining
+        : Math.min(savingsRemaining, proportionalSavings);
+
+      if (savingsCredit > 0) {
         ledgerRows.push({
           entitas: activeEntity,
           anggota_id: selectedInvoiceRow.anggota_id,
           tagihan_id: selectedInvoiceRow.id,
           pembayaran_id: paymentId,
           tipe: "setoran_otomatis",
-          nominal: totalAmount,
+          nominal: savingsCredit,
           tanggal: paymentForm.tanggal_bayar,
-          catatan: `Setoran dari tagihan ${invoiceLabel(selectedInvoiceRow)}`,
+          catatan: `Setoran tabungan dari ${invoiceLabel(selectedInvoiceRow)}`,
           dibuat_oleh: user?.id || null,
         });
       }
@@ -1265,10 +1414,9 @@ export default function FinanceModule({
                 }
                 className={inputClass}
               >
-                <option value="bulanan">Bulanan saja</option>
-                <option value="tabungan">Tabungan kegiatan saja</option>
-                <option value="masuk_cicil">Biaya masuk/cicilan saja</option>
-                <option value="semua">Bulanan + biaya masuk</option>
+                <option value="bulanan">Syahriyah bulanan</option>
+                <option value="masuk_cicil">Biaya masuk/cicilan</option>
+                <option value="semua">Syahriyah + biaya masuk</option>
               </select>
               <input
                 type="month"
@@ -1401,6 +1549,50 @@ export default function FinanceModule({
                 </div>,
               ])}
             />
+            <DataTable
+              headers={["Periode", "NIS", "Nama", "Tagihan", "Nominal", "Status", "Aksi"]}
+              rows={invoices
+                .filter((invoice) => !invoice.ditarik_at)
+                .slice(0, 80)
+                .map((invoice) => {
+                  const member = members.find((item) => item.id === invoice.anggota_id);
+                  const paid = payments
+                    .filter((payment) => payment.tagihan_id === invoice.id)
+                    .reduce(
+                      (sum, payment) => sum + Number(payment.jumlah_bayar || 0),
+                      0,
+                    );
+                  return [
+                    invoice.periode || "-",
+                    member?.nis || "-",
+                    member?.nama_lengkap || "-",
+                    <div key={invoice.id}>
+                      <p className="font-semibold">{invoiceLabel(invoice)}</p>
+                      {invoice.catatan ? (
+                        <p className="mt-1 max-w-md text-xs leading-5 text-gray-500">
+                          {invoice.catatan}
+                        </p>
+                      ) : null}
+                    </div>,
+                    formatCurrency(invoice.nominal),
+                    invoice.status.replace("_", " "),
+                    paid > 0 ? (
+                      <span key="paid" className="text-xs text-gray-500">
+                        Sudah ada pembayaran
+                      </span>
+                    ) : (
+                      <button
+                        key="retract"
+                        type="button"
+                        onClick={() => retractInvoice(invoice)}
+                        className="rounded border px-3 py-2 text-sm font-semibold text-red-600"
+                      >
+                        Tarik
+                      </button>
+                    ),
+                  ];
+                })}
+            />
           </div>
         </div>
       ) : null}
@@ -1452,7 +1644,17 @@ export default function FinanceModule({
                 <p>Sudah dibayar: {formatCurrency(selectedPaid)}</p>
                 <p>Sisa: {formatCurrency(selectedRemaining)}</p>
                 <p>Saldo tabungan kegiatan: {formatCurrency(selectedSavingsBalance)}</p>
+                {Number(selectedInvoiceRow.tabungan_target || 0) > 0 ? (
+                  <p>
+                    Target tabungan dari tagihan ini:{" "}
+                    {formatCurrency(selectedInvoiceRow.tabungan_target)}; sudah masuk{" "}
+                    {formatCurrency(selectedInvoiceSavingsCredited)}
+                  </p>
+                ) : null}
                 <p>Kategori: {categoryLabels[selectedInvoiceRow.kategori]}</p>
+                {selectedInvoiceRow.catatan ? (
+                  <p>Rincian: {selectedInvoiceRow.catatan}</p>
+                ) : null}
               </div>
             ) : null}
             <form onSubmit={savePayment} className="mt-4 grid gap-3">

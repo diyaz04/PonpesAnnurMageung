@@ -22,6 +22,19 @@ type DashboardStats = {
   presensiHariIni: number;
 };
 
+type RecentInvoice = {
+  id: string;
+  anggota_id: string;
+  nama_tagihan: string | null;
+  nominal: number;
+  status: string;
+  jatuh_tempo: string | null;
+  periode: string | null;
+  created_at: string;
+  anggota_nama?: string;
+  nis?: string;
+};
+
 function monthStart() {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
@@ -102,10 +115,50 @@ function SmpDashboardHome({ role }: { role: string }) {
     pelanggaranBulanIni: 0,
     presensiHariIni: 0,
   });
+  const [recentInvoices, setRecentInvoices] = useState<RecentInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const showFinance = role === "superadmin" || role === "bendahara";
 
   useEffect(() => {
+    async function loadRecentInvoices() {
+      if (!showFinance) {
+        setRecentInvoices([]);
+        return;
+      }
+
+      const invoiceResult = await supabase
+        .from("keu_tagihan")
+        .select("id, anggota_id, nama_tagihan, nominal, status, jatuh_tempo, periode, created_at")
+        .eq("entitas", "smp")
+        .is("ditarik_at", null)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      const invoiceRows = (invoiceResult.data || []) as RecentInvoice[];
+      const memberIds = Array.from(new Set(invoiceRows.map((invoice) => invoice.anggota_id)));
+      const memberResult = memberIds.length
+        ? await supabase
+            .from("smp_siswa")
+            .select("id, nis, nama_lengkap")
+            .in("id", memberIds)
+        : { data: [] };
+      const memberMap = new Map(
+        ((memberResult.data || []) as Array<{ id: string; nis: string; nama_lengkap: string }>).map(
+          (member) => [member.id, member],
+        ),
+      );
+
+      setRecentInvoices(
+        invoiceRows.map((invoice) => {
+          const member = memberMap.get(invoice.anggota_id);
+          return {
+            ...invoice,
+            anggota_nama: member?.nama_lengkap,
+            nis: member?.nis,
+          };
+        }),
+      );
+    }
+
     async function loadStats() {
       setLoading(true);
       const [siswaAktif, alumni, pelanggaran, presensi, tagihan] =
@@ -133,9 +186,11 @@ function SmpDashboardHome({ role }: { role: string }) {
                 .select("id, nominal", { count: "exact" })
                 .eq("entitas", "smp")
                 .neq("status", "lunas")
+                .is("ditarik_at", null)
             : Promise.resolve({ data: [], count: null }),
         ]);
 
+      await loadRecentInvoices();
       setStats({
         totalSiswaAktif: siswaAktif.count || 0,
         totalAlumni: alumni.count || 0,
@@ -205,6 +260,57 @@ function SmpDashboardHome({ role }: { role: string }) {
           detail="Presensi yang sudah tercatat hari ini."
         />
       </div>
+
+      {showFinance ? (
+        <section className="rounded bg-white p-6 shadow-soft">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-gray-950">Tagihan Terbaru</h2>
+            <Link
+              to="/admin/smp/keuangan-tagihan"
+              className="text-sm font-semibold text-emerald-800"
+            >
+              Kelola tagihan
+            </Link>
+          </div>
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-100 text-sm">
+              <thead className="bg-gray-50 text-left text-xs uppercase tracking-[0.12em] text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Periode</th>
+                  <th className="px-4 py-3">Nama</th>
+                  <th className="px-4 py-3">Tagihan</th>
+                  <th className="px-4 py-3">Nominal</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {recentInvoices.length ? (
+                  recentInvoices.map((invoice) => (
+                    <tr key={invoice.id}>
+                      <td className="px-4 py-3">{invoice.periode || "-"}</td>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-gray-900">
+                          {invoice.anggota_nama || "-"}
+                        </p>
+                        <p className="text-xs text-gray-500">{invoice.nis || "-"}</p>
+                      </td>
+                      <td className="px-4 py-3">{invoice.nama_tagihan || "Tagihan"}</td>
+                      <td className="px-4 py-3">{formatCurrency(invoice.nominal)}</td>
+                      <td className="px-4 py-3">{invoice.status.replace("_", " ")}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
+                      Belum ada tagihan terbaru.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded bg-white p-6 shadow-soft">
         <h2 className="text-lg font-semibold text-gray-950">Akses Cepat</h2>
