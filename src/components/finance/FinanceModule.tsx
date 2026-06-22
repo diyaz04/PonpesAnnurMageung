@@ -1,9 +1,20 @@
-import { Download, FileText, Plus, Save, Search, Trash2 } from "lucide-react";
+import {
+  CalendarPlus,
+  FileText,
+  Plus,
+  Save,
+  Search,
+  Settings,
+  Trash2,
+  Wallet,
+} from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 
 type Entity = "pesantren" | "smp";
+type PaymentProfile = "santri_siswa" | "santri_non_siswa" | "siswa_saja" | "khusus";
+type ItemCategory = "bulanan" | "masuk_cicil" | "insidentil" | "tabungan";
 
 type BillType = {
   id: string;
@@ -27,9 +38,14 @@ type Invoice = {
   entitas: Entity;
   anggota_id: string;
   jenis_tagihan_id: string | null;
+  nama_tagihan: string | null;
+  kategori: ItemCategory;
+  bisa_dicicil: boolean;
   nominal: number;
   status: "belum_lunas" | "cicilan" | "lunas";
   jatuh_tempo: string | null;
+  periode: string | null;
+  sumber_pengaturan_id: string | null;
   jenis?: { nama: string } | null;
 };
 
@@ -42,8 +58,58 @@ type Payment = {
   kuitansi_url: string | null;
 };
 
+type PaymentSetting = {
+  id: string;
+  entitas: Entity;
+  anggota_id: string;
+  profil_pembayaran: PaymentProfile;
+  total_bulanan: number;
+  tabungan_bulanan: number;
+  aktif: boolean;
+  catatan: string | null;
+};
+
+type SettingItem = {
+  id?: string;
+  pengaturan_id?: string;
+  nama: string;
+  nominal: number;
+  kategori: ItemCategory;
+  bisa_dicicil: boolean;
+  masuk_tabungan: boolean;
+  aktif: boolean;
+  urutan: number;
+};
+
+type SavingsEntry = {
+  id: string;
+  entitas: Entity;
+  anggota_id: string;
+  tagihan_id: string | null;
+  pembayaran_id: string | null;
+  tipe: "setoran_otomatis" | "pemakaian_insidentil" | "penyesuaian";
+  nominal: number;
+  tanggal: string;
+  catatan: string | null;
+  created_at: string;
+};
+
 const inputClass =
   "min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-emerald-700";
+
+const categoryLabels: Record<ItemCategory, string> = {
+  bulanan: "Bulanan",
+  masuk_cicil: "Biaya masuk/cicilan",
+  insidentil: "Insidentil",
+  tabungan: "Tabungan kegiatan",
+};
+
+const profileLabels: Record<PaymentProfile, string> = {
+  santri_siswa: "Santri + siswa SMP",
+  santri_non_siswa: "Santri non-SMP",
+  siswa_saja: "Siswa SMP saja",
+  khusus: "Nominal khusus",
+};
 
 function formatCurrency(value: number | null | undefined) {
   return new Intl.NumberFormat("id-ID", {
@@ -70,6 +136,96 @@ function getMemberScope(member: Member, entity: Entity) {
   return entity === "pesantren"
     ? `Angkatan ${member.tahun_masuk}`
     : member.kelas || `Angkatan ${member.tahun_masuk}`;
+}
+
+function currentMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function parseAmount(value: string | number | null | undefined) {
+  return Number(value || 0);
+}
+
+function invoiceLabel(invoice: Invoice) {
+  return invoice.nama_tagihan || invoice.jenis?.nama || "Tagihan";
+}
+
+function defaultItems(profile: PaymentProfile, entity: Entity): SettingItem[] {
+  const pesantrenMonthly = [
+    ["Listrik", 25000, false],
+    ["Makan Bulanan", 280000, false],
+    ["Kebersihan", 10000, false],
+    ["Air Minum", 10000, false],
+  ] as const;
+  const pesantrenEntrance = [
+    ["Infaq Masuk", 600000],
+    ["Jas Almamater", 200000],
+    ["Seragam Putih", 120000],
+    ["Seragam Sarung", 100000],
+    ["Loker", 200000],
+  ] as const;
+  const smpMonthly = [
+    ["Tabungan Wajib", 40000, false],
+    ["Infaq Komputer", 20000, false],
+  ] as const;
+  const smpEntrance = [
+    ["Batik", 90000],
+    ["Kaos Olahraga", 90000],
+    ["Atribut", 20000],
+  ] as const;
+
+  const rows: SettingItem[] = [];
+  const pushItem = (
+    nama: string,
+    nominal: number,
+    kategori: ItemCategory,
+    masukTabungan = false,
+  ) => {
+    rows.push({
+      nama,
+      nominal,
+      kategori: masukTabungan ? "tabungan" : kategori,
+      bisa_dicicil: kategori !== "bulanan",
+      masuk_tabungan: masukTabungan,
+      aktif: true,
+      urutan: rows.length + 1,
+    });
+  };
+
+  if (entity === "pesantren") {
+    pesantrenEntrance.forEach(([nama, nominal]) => pushItem(nama, nominal, "masuk_cicil"));
+    pesantrenMonthly.forEach(([nama, nominal]) => pushItem(nama, nominal, "bulanan"));
+    pushItem(
+      "Tabungan Kegiatan",
+      profile === "santri_non_siswa" ? 75000 : 15000,
+      "tabungan",
+      true,
+    );
+  }
+
+  if (entity === "smp") {
+    smpEntrance.forEach(([nama, nominal]) => pushItem(nama, nominal, "masuk_cicil"));
+    smpMonthly.forEach(([nama, nominal]) => pushItem(nama, nominal, "bulanan"));
+  }
+
+  if (profile === "siswa_saja" && entity === "pesantren") return [];
+  if (profile === "santri_non_siswa" && entity === "smp") return [];
+  return rows;
+}
+
+function summarizeItems(items: SettingItem[]) {
+  const activeItems = items.filter((item) => item.aktif);
+  return {
+    monthly: activeItems
+      .filter((item) => item.kategori === "bulanan" || item.kategori === "tabungan")
+      .reduce((sum, item) => sum + Number(item.nominal || 0), 0),
+    entrance: activeItems
+      .filter((item) => item.kategori === "masuk_cicil")
+      .reduce((sum, item) => sum + Number(item.nominal || 0), 0),
+    savings: activeItems
+      .filter((item) => item.masuk_tabungan)
+      .reduce((sum, item) => sum + Number(item.nominal || 0), 0),
+  };
 }
 
 function DataTable({
@@ -124,29 +280,49 @@ export default function FinanceModule({
 }) {
   const { user } = useAuth();
   const [activeEntity, setActiveEntity] = useState<Entity>(initialEntity);
-  const [tab, setTab] = useState<"jenis" | "assign" | "bayar" | "laporan">("jenis");
+  const [tab, setTab] = useState<"pengaturan" | "tagihan" | "bayar" | "tabungan" | "laporan">(
+    "pengaturan",
+  );
   const [billTypes, setBillTypes] = useState<BillType[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [settings, setSettings] = useState<PaymentSetting[]>([]);
+  const [settingItems, setSettingItems] = useState<SettingItem[]>([]);
+  const [savingsEntries, setSavingsEntries] = useState<SavingsEntry[]>([]);
   const [message, setMessage] = useState("");
-  const [typeForm, setTypeForm] = useState<Partial<BillType>>({
-    nama: "",
-    nominal: 0,
-    berlaku_untuk: "semua",
-  });
-  const [assignForm, setAssignForm] = useState({
-    jenis_tagihan_id: "",
+  const [search, setSearch] = useState("");
+  const [selectedConfigMember, setSelectedConfigMember] = useState("");
+  const [configProfile, setConfigProfile] = useState<PaymentProfile>("santri_siswa");
+  const [configNote, setConfigNote] = useState("");
+  const [configActive, setConfigActive] = useState(true);
+  const [draftItems, setDraftItems] = useState<SettingItem[]>([]);
+  const [invoiceForm, setInvoiceForm] = useState({
     mode: "massal",
     scope: "semua",
     anggota_id: "",
+    kategori: "bulanan",
+    periode: currentMonth(),
     jatuh_tempo: "",
+  });
+  const [typeForm, setTypeForm] = useState<Partial<BillType>>({
+    nama: "",
+    nominal: 0,
+    berlaku_untuk: "insidentil",
   });
   const [selectedMember, setSelectedMember] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState("");
   const [paymentForm, setPaymentForm] = useState({
-    jumlah_bayar: "",
+    tunai: "",
+    dari_tabungan: "",
     tanggal_bayar: new Date().toISOString().slice(0, 10),
+    catatan: "",
+  });
+  const [savingsMember, setSavingsMember] = useState("");
+  const [savingsForm, setSavingsForm] = useState({
+    tipe: "setoran_otomatis",
+    nominal: "",
+    tanggal: new Date().toISOString().slice(0, 10),
     catatan: "",
   });
   const [report, setReport] = useState({
@@ -154,32 +330,43 @@ export default function FinanceModule({
       .toISOString()
       .slice(0, 10),
     to: new Date().toISOString().slice(0, 10),
-    jenis_tagihan_id: "",
+    kategori: "",
     scope: "semua",
   });
-  const [search, setSearch] = useState("");
 
   async function loadData(entity = activeEntity) {
     const memberTable = entity === "pesantren" ? "pp_santri" : "smp_siswa";
-    const [typeResult, memberResult, invoiceResult] = await Promise.all([
-      supabase
-        .from("keu_jenis_tagihan")
-        .select("*")
-        .eq("entitas", entity)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from(memberTable)
-        .select("*")
-        .in("status", ["aktif", "alumni", "keluar"])
-        .order("nama_lengkap"),
-      supabase
-        .from("keu_tagihan")
-        .select("*, jenis:keu_jenis_tagihan(nama)")
-        .eq("entitas", entity)
-        .order("created_at", { ascending: false }),
-    ]);
+    const [typeResult, memberResult, invoiceResult, settingResult, savingsResult] =
+      await Promise.all([
+        supabase
+          .from("keu_jenis_tagihan")
+          .select("*")
+          .eq("entitas", entity)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from(memberTable)
+          .select("*")
+          .in("status", ["aktif", "alumni", "keluar"])
+          .order("nama_lengkap"),
+        supabase
+          .from("keu_tagihan")
+          .select("*, jenis:keu_jenis_tagihan(nama)")
+          .eq("entitas", entity)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("keu_pengaturan_pembayaran")
+          .select("*")
+          .eq("entitas", entity)
+          .order("updated_at", { ascending: false }),
+        supabase
+          .from("keu_tabungan_kegiatan")
+          .select("*")
+          .eq("entitas", entity)
+          .order("tanggal", { ascending: false }),
+      ]);
 
     const invoiceRows = (invoiceResult.data || []) as Invoice[];
+    const settingRows = (settingResult.data || []) as PaymentSetting[];
     const paymentResult = invoiceRows.length
       ? await supabase
           .from("keu_pembayaran")
@@ -190,15 +377,33 @@ export default function FinanceModule({
           )
           .order("tanggal_bayar", { ascending: false })
       : { data: [] };
+    const itemResult = settingRows.length
+      ? await supabase
+          .from("keu_pengaturan_item")
+          .select("*")
+          .in(
+            "pengaturan_id",
+            settingRows.map((setting) => setting.id),
+          )
+          .order("urutan", { ascending: true })
+      : { data: [] };
 
     setBillTypes((typeResult.data || []) as BillType[]);
     setMembers((memberResult.data || []) as Member[]);
     setInvoices(invoiceRows);
     setPayments((paymentResult.data || []) as Payment[]);
+    setSettings(settingRows);
+    setSettingItems((itemResult.data || []) as SettingItem[]);
+    setSavingsEntries((savingsResult.data || []) as SavingsEntry[]);
   }
 
   useEffect(() => {
     loadData(activeEntity);
+    setSelectedConfigMember("");
+    setSelectedMember("");
+    setSelectedInvoice("");
+    setSavingsMember("");
+    setMessage("");
   }, [activeEntity]);
 
   const filteredMembers = useMemo(() => {
@@ -214,10 +419,41 @@ export default function FinanceModule({
     return ["semua", ...Array.from(new Set(values))];
   }, [activeEntity, members]);
 
+  const selectedSetting = settings.find(
+    (setting) => setting.anggota_id === selectedConfigMember,
+  );
+
+  useEffect(() => {
+    if (!selectedConfigMember) {
+      setDraftItems([]);
+      return;
+    }
+
+    const existing = settings.find((setting) => setting.anggota_id === selectedConfigMember);
+    if (existing) {
+      setConfigProfile(existing.profil_pembayaran);
+      setConfigNote(existing.catatan || "");
+      setConfigActive(existing.aktif);
+      setDraftItems(
+        settingItems
+          .filter((item) => item.pengaturan_id === existing.id)
+          .map((item) => ({ ...item })),
+      );
+      return;
+    }
+
+    const nextProfile = activeEntity === "smp" ? "siswa_saja" : "santri_siswa";
+    setConfigProfile(nextProfile);
+    setConfigNote("");
+    setConfigActive(true);
+    setDraftItems(defaultItems(nextProfile, activeEntity));
+  }, [activeEntity, selectedConfigMember, settingItems, settings]);
+
+  const settingSummary = summarizeItems(draftItems);
+
   const selectedMemberInvoices = invoices.filter(
     (invoice) => invoice.anggota_id === selectedMember,
   );
-
   const selectedInvoiceRow = invoices.find((invoice) => invoice.id === selectedInvoice);
   const selectedInvoicePayments = payments.filter(
     (payment) => payment.tagihan_id === selectedInvoice,
@@ -230,15 +466,19 @@ export default function FinanceModule({
     Number(selectedInvoiceRow?.nominal || 0) - selectedPaid,
     0,
   );
+  const selectedSavingsBalance = savingsEntries
+    .filter((entry) => entry.anggota_id === selectedMember)
+    .reduce((sum, entry) => sum + Number(entry.nominal || 0), 0);
+  const savingsTabBalance = savingsEntries
+    .filter((entry) => entry.anggota_id === savingsMember)
+    .reduce((sum, entry) => sum + Number(entry.nominal || 0), 0);
 
   const reportInvoices = invoices.filter((invoice) => {
-    const typeMatch = report.jenis_tagihan_id
-      ? invoice.jenis_tagihan_id === report.jenis_tagihan_id
-      : true;
+    const categoryMatch = report.kategori ? invoice.kategori === report.kategori : true;
     const member = members.find((item) => item.id === invoice.anggota_id);
     const scopeMatch =
       report.scope === "semua" || (member ? getMemberScope(member, activeEntity) === report.scope : false);
-    return typeMatch && scopeMatch;
+    return categoryMatch && scopeMatch;
   });
   const reportPayments = payments.filter(
     (payment) =>
@@ -247,6 +487,96 @@ export default function FinanceModule({
       reportInvoices.some((invoice) => invoice.id === payment.tagihan_id),
   );
   const arrears = reportInvoices.filter((invoice) => invoice.status !== "lunas");
+  const totalSavings = savingsEntries.reduce(
+    (sum, entry) => sum + Number(entry.nominal || 0),
+    0,
+  );
+
+  function updateDraftItem(index: number, changes: Partial<SettingItem>) {
+    setDraftItems((items) =>
+      items.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...changes } : item,
+      ),
+    );
+  }
+
+  function addDraftItem() {
+    setDraftItems((items) => [
+      ...items,
+      {
+        nama: "",
+        nominal: 0,
+        kategori: "insidentil",
+        bisa_dicicil: true,
+        masuk_tabungan: false,
+        aktif: true,
+        urutan: items.length + 1,
+      },
+    ]);
+  }
+
+  async function savePaymentSetting(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedConfigMember) {
+      setMessage("Pilih anggota dulu sebelum menyimpan pengaturan.");
+      return;
+    }
+
+    const cleanItems = draftItems
+      .map((item, index) => ({
+        ...item,
+        nama: item.nama.trim(),
+        nominal: Number(item.nominal || 0),
+        urutan: index + 1,
+      }))
+      .filter((item) => item.nama && item.nominal >= 0);
+    const summary = summarizeItems(cleanItems);
+    const payload = {
+      entitas: activeEntity,
+      anggota_id: selectedConfigMember,
+      profil_pembayaran: configProfile,
+      total_bulanan: summary.monthly,
+      tabungan_bulanan: summary.savings,
+      aktif: configActive,
+      catatan: configNote || null,
+    };
+
+    const settingResult = await supabase
+      .from("keu_pengaturan_pembayaran")
+      .upsert(payload, { onConflict: "entitas,anggota_id" })
+      .select()
+      .single();
+
+    if (settingResult.error || !settingResult.data) {
+      setMessage(settingResult.error?.message || "Pengaturan gagal disimpan.");
+      return;
+    }
+
+    const settingId = (settingResult.data as PaymentSetting).id;
+    await supabase.from("keu_pengaturan_item").delete().eq("pengaturan_id", settingId);
+
+    const itemResult = cleanItems.length
+      ? await supabase.from("keu_pengaturan_item").insert(
+          cleanItems.map((item) => ({
+            pengaturan_id: settingId,
+            nama: item.nama,
+            nominal: item.nominal,
+            kategori: item.kategori,
+            bisa_dicicil: item.bisa_dicicil,
+            masuk_tabungan: item.masuk_tabungan,
+            aktif: item.aktif,
+            urutan: item.urutan,
+          })),
+        )
+      : { error: null };
+
+    setMessage(
+      itemResult.error
+        ? itemResult.error.message
+        : `Pengaturan tersimpan. Bulanan ${formatCurrency(summary.monthly)}, tabungan ${formatCurrency(summary.savings)}.`,
+    );
+    loadData();
+  }
 
   async function saveBillType(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -254,66 +584,104 @@ export default function FinanceModule({
       entitas: activeEntity,
       nama: typeForm.nama,
       nominal: Number(typeForm.nominal || 0),
-      berlaku_untuk: typeForm.berlaku_untuk || "semua",
+      berlaku_untuk: typeForm.berlaku_untuk || "insidentil",
     };
     const result = typeForm.id
       ? await supabase.from("keu_jenis_tagihan").update(payload).eq("id", typeForm.id)
       : await supabase.from("keu_jenis_tagihan").insert(payload);
-    setMessage(result.error ? result.error.message : "Jenis tagihan tersimpan.");
-    setTypeForm({ nama: "", nominal: 0, berlaku_untuk: "semua" });
+    setMessage(result.error ? result.error.message : "Jenis tagihan insidentil tersimpan.");
+    setTypeForm({ nama: "", nominal: 0, berlaku_untuk: "insidentil" });
     loadData();
   }
 
   async function deleteBillType(id: string) {
     const { error } = await supabase.from("keu_jenis_tagihan").delete().eq("id", id);
-    setMessage(error ? error.message : "Jenis tagihan dihapus.");
+    setMessage(error ? error.message : "Jenis tagihan insidentil dihapus.");
     loadData();
   }
 
-  async function assignInvoices(event: FormEvent<HTMLFormElement>) {
+  async function generateInvoices(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const type = billTypes.find((item) => item.id === assignForm.jenis_tagihan_id);
-    if (!type) {
-      setMessage("Pilih jenis tagihan terlebih dahulu.");
-      return;
-    }
 
     const targetMembers =
-      assignForm.mode === "individual"
-        ? members.filter((member) => member.id === assignForm.anggota_id)
+      invoiceForm.mode === "individual"
+        ? members.filter((member) => member.id === invoiceForm.anggota_id)
         : members.filter((member) =>
-            assignForm.scope === "semua"
+            invoiceForm.scope === "semua"
               ? member.status === "aktif"
               : member.status === "aktif" &&
-                getMemberScope(member, activeEntity) === assignForm.scope,
+                getMemberScope(member, activeEntity) === invoiceForm.scope,
           );
 
-    if (!targetMembers.length) {
-      setMessage("Tidak ada anggota yang cocok untuk assign tagihan.");
+    const rows = targetMembers.flatMap((member) => {
+      const setting = settings.find(
+        (item) => item.anggota_id === member.id && item.aktif,
+      );
+      if (!setting) return [];
+      const items = settingItems.filter((item) => {
+        const categoryMatch =
+          invoiceForm.kategori === "semua"
+            ? item.kategori === "bulanan" ||
+              item.kategori === "tabungan" ||
+              item.kategori === "masuk_cicil"
+            : item.kategori === invoiceForm.kategori;
+        return item.pengaturan_id === setting.id && item.aktif && categoryMatch;
+      });
+      return items.map((item) => ({
+        entitas: activeEntity,
+        anggota_id: member.id,
+        jenis_tagihan_id: null,
+        nama_tagihan: item.nama,
+        kategori: item.masuk_tabungan ? "tabungan" : item.kategori,
+        bisa_dicicil: item.bisa_dicicil,
+        nominal: Number(item.nominal || 0),
+        status: "belum_lunas",
+        jatuh_tempo: invoiceForm.jatuh_tempo || null,
+        periode: invoiceForm.periode || null,
+        sumber_pengaturan_id: setting.id,
+      }));
+    });
+
+    if (!rows.length) {
+      setMessage("Belum ada pengaturan aktif yang cocok untuk dibuatkan tagihan.");
       return;
     }
 
-    const { error } = await supabase.from("keu_tagihan").insert(
-      targetMembers.map((member) => ({
-        entitas: activeEntity,
-        anggota_id: member.id,
-        jenis_tagihan_id: type.id,
-        nominal: type.nominal,
-        status: "belum_lunas",
-        jatuh_tempo: assignForm.jatuh_tempo || null,
-      })),
-    );
-
+    const { error } = await supabase.from("keu_tagihan").insert(rows);
     setMessage(
       error
         ? error.message
-        : `${targetMembers.length} tagihan berhasil ditugaskan.`,
+        : `${rows.length} tagihan dibuat dari pengaturan pembayaran tersimpan.`,
     );
+    loadData();
+  }
+
+  async function createIncidentalInvoice(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const type = billTypes.find((item) => item.id === typeForm.id);
+    if (!type || !invoiceForm.anggota_id) {
+      setMessage("Pilih jenis insidentil dan anggota dulu.");
+      return;
+    }
+
+    const { error } = await supabase.from("keu_tagihan").insert({
+      entitas: activeEntity,
+      anggota_id: invoiceForm.anggota_id,
+      jenis_tagihan_id: type.id,
+      nama_tagihan: type.nama,
+      kategori: "insidentil",
+      bisa_dicicil: true,
+      nominal: type.nominal,
+      status: "belum_lunas",
+      jatuh_tempo: invoiceForm.jatuh_tempo || null,
+      periode: invoiceForm.periode || null,
+    });
+
+    setMessage(error ? error.message : "Tagihan insidentil dibuat.");
     loadData();
   }
 
   async function makeReceiptPdf(payment: {
-    id?: string;
     jumlah_bayar: number;
     tanggal_bayar: string;
     catatan?: string | null;
@@ -330,9 +698,10 @@ export default function FinanceModule({
     doc.text(`Tanggal: ${formatDate(payment.tanggal_bayar)}`, 14, 32);
     doc.text(`Nama: ${member?.nama_lengkap || "-"}`, 14, 42);
     doc.text(`NIS: ${member?.nis || "-"}`, 14, 50);
-    doc.text(`Jenis Tagihan: ${selectedInvoiceRow.jenis?.nama || "-"}`, 14, 58);
-    doc.text(`Jumlah Bayar: ${formatCurrency(payment.jumlah_bayar)}`, 14, 66);
-    doc.text(`Catatan: ${payment.catatan || "-"}`, 14, 74);
+    doc.text(`Jenis Tagihan: ${invoiceLabel(selectedInvoiceRow)}`, 14, 58);
+    doc.text(`Kategori: ${categoryLabels[selectedInvoiceRow.kategori]}`, 14, 66);
+    doc.text(`Jumlah Bayar: ${formatCurrency(payment.jumlah_bayar)}`, 14, 74);
+    doc.text(`Catatan: ${payment.catatan || "-"}`, 14, 82);
     doc.text("Bendahara", 150, 118);
     doc.save(`kuitansi-${member?.nis || "pembayaran"}-${payment.tanggal_bayar}.pdf`);
 
@@ -351,37 +720,134 @@ export default function FinanceModule({
       return;
     }
 
-    const amount = Number(paymentForm.jumlah_bayar || 0);
-    if (amount <= 0) {
+    const cashAmount = parseAmount(paymentForm.tunai);
+    const savingsAmount = parseAmount(paymentForm.dari_tabungan);
+    const totalAmount = cashAmount + savingsAmount;
+    if (totalAmount <= 0) {
       setMessage("Jumlah pembayaran harus lebih dari 0.");
       return;
     }
+    if (totalAmount > selectedRemaining) {
+      setMessage("Jumlah pembayaran melebihi sisa tagihan.");
+      return;
+    }
+    if (savingsAmount > 0 && selectedInvoiceRow.kategori === "tabungan") {
+      setMessage("Setoran tabungan kegiatan tidak bisa dibayar dari saldo tabungan yang sama.");
+      return;
+    }
+    if (savingsAmount > selectedSavingsBalance) {
+      setMessage("Saldo tabungan kegiatan tidak cukup.");
+      return;
+    }
+
+    const catatanParts = [
+      paymentForm.catatan,
+      savingsAmount > 0 ? `Dari tabungan: ${formatCurrency(savingsAmount)}` : "",
+      cashAmount > 0 ? `Tunai/transfer: ${formatCurrency(cashAmount)}` : "",
+    ].filter(Boolean);
 
     const receiptPath = await makeReceiptPdf({
-      jumlah_bayar: amount,
+      jumlah_bayar: totalAmount,
       tanggal_bayar: paymentForm.tanggal_bayar,
-      catatan: paymentForm.catatan || null,
+      catatan: catatanParts.join(" | ") || null,
     });
 
-    const { error } = await supabase.from("keu_pembayaran").insert({
-      tagihan_id: selectedInvoiceRow.id,
-      jumlah_bayar: amount,
-      tanggal_bayar: paymentForm.tanggal_bayar,
-      bendahara_id: user?.id || null,
-      catatan: paymentForm.catatan || null,
-      kuitansi_url: receiptPath,
-    });
+    const paymentResult = await supabase
+      .from("keu_pembayaran")
+      .insert({
+        tagihan_id: selectedInvoiceRow.id,
+        jumlah_bayar: totalAmount,
+        tanggal_bayar: paymentForm.tanggal_bayar,
+        bendahara_id: user?.id || null,
+        catatan: catatanParts.join(" | ") || null,
+        kuitansi_url: receiptPath,
+      })
+      .select()
+      .single();
 
-    if (!error) {
+    if (!paymentResult.error) {
+      const paymentId = (paymentResult.data as Payment).id;
+      const ledgerRows = [];
+      if (selectedInvoiceRow.kategori === "tabungan") {
+        ledgerRows.push({
+          entitas: activeEntity,
+          anggota_id: selectedInvoiceRow.anggota_id,
+          tagihan_id: selectedInvoiceRow.id,
+          pembayaran_id: paymentId,
+          tipe: "setoran_otomatis",
+          nominal: totalAmount,
+          tanggal: paymentForm.tanggal_bayar,
+          catatan: `Setoran dari tagihan ${invoiceLabel(selectedInvoiceRow)}`,
+          dibuat_oleh: user?.id || null,
+        });
+      }
+      if (savingsAmount > 0) {
+        ledgerRows.push({
+          entitas: activeEntity,
+          anggota_id: selectedInvoiceRow.anggota_id,
+          tagihan_id: selectedInvoiceRow.id,
+          pembayaran_id: paymentId,
+          tipe: "pemakaian_insidentil",
+          nominal: -savingsAmount,
+          tanggal: paymentForm.tanggal_bayar,
+          catatan: `Dipakai untuk ${invoiceLabel(selectedInvoiceRow)}`,
+          dibuat_oleh: user?.id || null,
+        });
+      }
+      if (ledgerRows.length) {
+        await supabase.from("keu_tabungan_kegiatan").insert(ledgerRows);
+      }
       await supabase.rpc("sync_keu_tagihan_status", {
         p_tagihan_id: selectedInvoiceRow.id,
       });
     }
 
-    setMessage(error ? error.message : "Pembayaran tercatat dan kuitansi dibuat.");
+    setMessage(
+      paymentResult.error
+        ? paymentResult.error.message
+        : "Pembayaran tercatat, kuitansi dibuat, dan saldo tabungan tersinkron.",
+    );
     setPaymentForm({
-      jumlah_bayar: "",
+      tunai: "",
+      dari_tabungan: "",
       tanggal_bayar: new Date().toISOString().slice(0, 10),
+      catatan: "",
+    });
+    loadData();
+  }
+
+  async function saveSavingsAdjustment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!savingsMember) {
+      setMessage("Pilih anggota untuk pencatatan tabungan.");
+      return;
+    }
+    const rawAmount = parseAmount(savingsForm.nominal);
+    if (rawAmount <= 0) {
+      setMessage("Nominal tabungan harus lebih dari 0.");
+      return;
+    }
+    const isWithdrawal = savingsForm.tipe === "pemakaian_insidentil";
+    if (isWithdrawal && rawAmount > savingsTabBalance) {
+      setMessage("Saldo tabungan tidak cukup untuk pemakaian ini.");
+      return;
+    }
+
+    const { error } = await supabase.from("keu_tabungan_kegiatan").insert({
+      entitas: activeEntity,
+      anggota_id: savingsMember,
+      tipe: savingsForm.tipe,
+      nominal: isWithdrawal ? -rawAmount : rawAmount,
+      tanggal: savingsForm.tanggal,
+      catatan: savingsForm.catatan || null,
+      dibuat_oleh: user?.id || null,
+    });
+
+    setMessage(error ? error.message : "Catatan tabungan kegiatan tersimpan.");
+    setSavingsForm({
+      tipe: "setoran_otomatis",
+      nominal: "",
+      tanggal: new Date().toISOString().slice(0, 10),
       catatan: "",
     });
     loadData();
@@ -389,7 +855,7 @@ export default function FinanceModule({
 
   function exportCsv() {
     const csv = [
-      ["Entitas", "Tanggal", "NIS", "Nama", "Jenis", "Jumlah Bayar", "Status Tagihan"].join(","),
+      ["Entitas", "Tanggal", "NIS", "Nama", "Jenis", "Kategori", "Jumlah Bayar", "Status Tagihan"].join(","),
       ...reportPayments.map((payment) => {
         const invoice = invoices.find((item) => item.id === payment.tagihan_id);
         const member = members.find((item) => item.id === invoice?.anggota_id);
@@ -398,7 +864,8 @@ export default function FinanceModule({
           payment.tanggal_bayar,
           member?.nis || "",
           member?.nama_lengkap || "",
-          invoice?.jenis?.nama || "",
+          invoice ? invoiceLabel(invoice) : "",
+          invoice ? categoryLabels[invoice.kategori] : "",
           payment.jumlah_bayar,
           invoice?.status || "",
         ]
@@ -430,7 +897,9 @@ export default function FinanceModule({
       const invoice = invoices.find((item) => item.id === payment.tagihan_id);
       const member = members.find((item) => item.id === invoice?.anggota_id);
       doc.text(
-        `${index + 1}. ${payment.tanggal_bayar} - ${member?.nama_lengkap || "-"} - ${invoice?.jenis?.nama || "-"} - ${formatCurrency(payment.jumlah_bayar)}`,
+        `${index + 1}. ${payment.tanggal_bayar} - ${member?.nama_lengkap || "-"} - ${
+          invoice ? invoiceLabel(invoice) : "-"
+        } - ${formatCurrency(payment.jumlah_bayar)}`,
         14,
         y,
       );
@@ -454,11 +923,11 @@ export default function FinanceModule({
           Modul Keuangan Terpusat
         </p>
         <h1 className="mt-3 text-2xl font-semibold text-gray-950">
-          Keuangan & Tagihan
+          Keuangan, Tagihan & Tabungan Kegiatan
         </h1>
         <p className="mt-3 text-sm leading-6 text-gray-600">
-          Kelola jenis tagihan, assign tagihan, pencatatan pembayaran, kuitansi,
-          dan laporan untuk Pesantren dan SMP.
+          Bendahara mengatur paket pembayaran tiap orang terlebih dahulu, lalu tagihan
+          bulanan, biaya masuk cicilan, dan saldo tabungan kegiatan mengikuti pengaturan itu.
         </p>
       </div>
 
@@ -482,133 +951,285 @@ export default function FinanceModule({
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {[
-            ["jenis", "Jenis Tagihan"],
-            ["assign", "Penugasan"],
-            ["bayar", "Pembayaran"],
-            ["laporan", "Rekap & Laporan"],
-          ].map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setTab(key as typeof tab)}
-              className={[
-                "rounded px-4 py-2 text-sm font-semibold",
-                tab === key ? "bg-gold text-emerald-950" : "bg-gray-100 text-gray-700",
-              ].join(" ")}
-            >
-              {label}
-            </button>
-          ))}
+            ["pengaturan", "Pengaturan Orang", Settings],
+            ["tagihan", "Buat Tagihan", CalendarPlus],
+            ["bayar", "Pembayaran", FileText],
+            ["tabungan", "Tabungan", Wallet],
+            ["laporan", "Rekap & Laporan", FileText],
+          ].map(([key, label, Icon]) => {
+            const TabIcon = Icon as typeof FileText;
+            return (
+              <button
+                key={key as string}
+                type="button"
+                onClick={() => setTab(key as typeof tab)}
+                className={[
+                  "inline-flex items-center rounded px-4 py-2 text-sm font-semibold",
+                  tab === key ? "bg-gold text-emerald-950" : "bg-gray-100 text-gray-700",
+                ].join(" ")}
+              >
+                <TabIcon className="mr-2" size={16} />
+                {label as string}
+              </button>
+            );
+          })}
         </div>
         {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
       </div>
 
-      {tab === "jenis" ? (
-        <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
-          <form onSubmit={saveBillType} className="rounded bg-white p-5 shadow-soft">
-            <h2 className="text-lg font-semibold">Manajemen Jenis Tagihan</h2>
-            <div className="mt-4 grid gap-3">
+      {tab === "pengaturan" ? (
+        <div className="grid gap-5 xl:grid-cols-[460px_1fr]">
+          <form onSubmit={savePaymentSetting} className="rounded bg-white p-5 shadow-soft">
+            <h2 className="text-lg font-semibold">Pengaturan Pembayaran per Orang</h2>
+            <label className="relative mt-4 block">
+              <Search className="absolute left-3 top-3 text-gray-400" size={18} />
               <input
-                value={typeForm.nama || ""}
-                onChange={(event) =>
-                  setTypeForm((form) => ({ ...form, nama: event.target.value }))
-                }
-                placeholder="Nama tagihan, contoh SPP"
-                className={inputClass}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Cari nama atau NIS"
+                className={`${inputClass} w-full pl-10`}
               />
-              <input
-                type="number"
-                value={typeForm.nominal || 0}
-                onChange={(event) =>
-                  setTypeForm((form) => ({
-                    ...form,
-                    nominal: Number(event.target.value),
-                  }))
-                }
-                placeholder="Nominal"
-                className={inputClass}
-              />
-              <input
-                value={typeForm.berlaku_untuk || ""}
-                onChange={(event) =>
-                  setTypeForm((form) => ({
-                    ...form,
-                    berlaku_untuk: event.target.value,
-                  }))
-                }
-                placeholder="Berlaku untuk: semua / kelas / angkatan"
-                className={inputClass}
-              />
-            </div>
-            <button className="mt-4 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
-              <Save className="mr-2" size={17} />
-              Simpan Jenis
-            </button>
-          </form>
-          <DataTable
-            headers={["Nama", "Nominal", "Berlaku Untuk", "Aksi"]}
-            rows={billTypes.map((type) => [
-              type.nama,
-              formatCurrency(type.nominal),
-              type.berlaku_untuk,
-              <div key="actions" className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTypeForm(type)}
-                  className="rounded border px-3 py-2 text-sm font-semibold"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteBillType(type.id)}
-                  className="rounded border px-3 py-2 text-sm font-semibold text-red-600"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>,
-            ])}
-          />
-        </div>
-      ) : null}
-
-      {tab === "assign" ? (
-        <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
-          <form onSubmit={assignInvoices} className="rounded bg-white p-5 shadow-soft">
-            <h2 className="text-lg font-semibold">Penugasan Tagihan</h2>
-            <div className="mt-4 grid gap-3">
+            </label>
+            <select
+              value={selectedConfigMember}
+              onChange={(event) => setSelectedConfigMember(event.target.value)}
+              className={`${inputClass} mt-3 w-full`}
+            >
+              <option value="">Pilih anggota</option>
+              {filteredMembers.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.nama_lengkap} - {member.nis}
+                </option>
+              ))}
+            </select>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
               <select
-                value={assignForm.jenis_tagihan_id}
-                onChange={(event) =>
-                  setAssignForm((form) => ({
-                    ...form,
-                    jenis_tagihan_id: event.target.value,
-                  }))
-                }
+                value={configProfile}
+                onChange={(event) => {
+                  const profile = event.target.value as PaymentProfile;
+                  setConfigProfile(profile);
+                  setDraftItems(defaultItems(profile, activeEntity));
+                }}
                 className={inputClass}
               >
-                <option value="">Pilih jenis tagihan</option>
-                {billTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.nama} - {formatCurrency(type.nominal)}
+                {(Object.keys(profileLabels) as PaymentProfile[]).map((profile) => (
+                  <option key={profile} value={profile}>
+                    {profileLabels[profile]}
                   </option>
                 ))}
               </select>
+              <label className="flex min-h-11 items-center gap-2 rounded border border-gray-200 px-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={configActive}
+                  onChange={(event) => setConfigActive(event.target.checked)}
+                />
+                Aktif ditagihkan
+              </label>
+            </div>
+            <textarea
+              value={configNote}
+              onChange={(event) => setConfigNote(event.target.value)}
+              placeholder="Catatan khusus, subsidi, atau alasan nominal berbeda"
+              className={`${inputClass} mt-3 min-h-24 w-full py-3`}
+            />
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="rounded bg-emerald-50 p-3">
+                <p className="text-xs text-emerald-900">Bulanan</p>
+                <p className="font-semibold text-emerald-950">
+                  {formatCurrency(settingSummary.monthly)}
+                </p>
+              </div>
+              <div className="rounded bg-gold/20 p-3">
+                <p className="text-xs text-gold-dark">Tabungan/bln</p>
+                <p className="font-semibold text-gray-950">
+                  {formatCurrency(settingSummary.savings)}
+                </p>
+              </div>
+              <div className="rounded bg-gray-50 p-3">
+                <p className="text-xs text-gray-500">Biaya masuk</p>
+                <p className="font-semibold text-gray-950">
+                  {formatCurrency(settingSummary.entrance)}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+                <Save className="mr-2" size={17} />
+                Simpan Pengaturan
+              </button>
+              <button
+                type="button"
+                onClick={addDraftItem}
+                className="inline-flex items-center rounded border px-4 py-2 text-sm font-semibold"
+              >
+                <Plus className="mr-2" size={17} />
+                Tambah Item
+              </button>
+            </div>
+          </form>
+
+          <div className="grid gap-4">
+            <div className="overflow-hidden rounded bg-white shadow-soft">
+              <div className="border-b px-4 py-3">
+                <h3 className="font-semibold">Komponen Pembayaran</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-100 text-sm">
+                  <thead className="bg-gray-50 text-left text-xs uppercase tracking-[0.12em] text-gray-500">
+                    <tr>
+                      <th className="px-3 py-3">Nama</th>
+                      <th className="px-3 py-3">Nominal</th>
+                      <th className="px-3 py-3">Kategori</th>
+                      <th className="px-3 py-3">Cicil</th>
+                      <th className="px-3 py-3">Saldo</th>
+                      <th className="px-3 py-3">Aktif</th>
+                      <th className="px-3 py-3">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {draftItems.length ? (
+                      draftItems.map((item, index) => (
+                        <tr key={index}>
+                          <td className="px-3 py-2">
+                            <input
+                              value={item.nama}
+                              onChange={(event) =>
+                                updateDraftItem(index, { nama: event.target.value })
+                              }
+                              className={`${inputClass} w-48`}
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              value={item.nominal}
+                              onChange={(event) =>
+                                updateDraftItem(index, {
+                                  nominal: Number(event.target.value),
+                                })
+                              }
+                              className={`${inputClass} w-36`}
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <select
+                              value={item.kategori}
+                              onChange={(event) => {
+                                const kategori = event.target.value as ItemCategory;
+                                updateDraftItem(index, {
+                                  kategori,
+                                  masuk_tabungan:
+                                    kategori === "tabungan" ? item.masuk_tabungan : false,
+                                });
+                              }}
+                              className={`${inputClass} w-44`}
+                            >
+                              {(Object.keys(categoryLabels) as ItemCategory[]).map(
+                                (category) => (
+                                  <option key={category} value={category}>
+                                    {categoryLabels[category]}
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="checkbox"
+                              checked={item.bisa_dicicil}
+                              onChange={(event) =>
+                                updateDraftItem(index, {
+                                  bisa_dicicil: event.target.checked,
+                                })
+                              }
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="checkbox"
+                              checked={item.masuk_tabungan}
+                              onChange={(event) =>
+                                updateDraftItem(index, {
+                                  masuk_tabungan: event.target.checked,
+                                  kategori: event.target.checked ? "tabungan" : item.kategori,
+                                })
+                              }
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="checkbox"
+                              checked={item.aktif}
+                              onChange={(event) =>
+                                updateDraftItem(index, { aktif: event.target.checked })
+                              }
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDraftItems((items) =>
+                                  items.filter((_, itemIndex) => itemIndex !== index),
+                                )
+                              }
+                              className="rounded border px-3 py-2 text-red-600"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
+                          Pilih anggota atau terapkan template pembayaran.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <DataTable
+              headers={["NIS", "Nama", "Profil", "Bulanan", "Tabungan/bln", "Status"]}
+              rows={members.slice(0, 80).map((member) => {
+                const setting = settings.find((item) => item.anggota_id === member.id);
+                return [
+                  member.nis,
+                  member.nama_lengkap,
+                  setting ? profileLabels[setting.profil_pembayaran] : "Belum diatur",
+                  setting ? formatCurrency(setting.total_bulanan) : "-",
+                  setting ? formatCurrency(setting.tabungan_bulanan) : "-",
+                  setting?.aktif ? "Aktif" : "Belum aktif",
+                ];
+              })}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {tab === "tagihan" ? (
+        <div className="grid gap-5 xl:grid-cols-[460px_1fr]">
+          <form onSubmit={generateInvoices} className="rounded bg-white p-5 shadow-soft">
+            <h2 className="text-lg font-semibold">Buat Tagihan dari Pengaturan</h2>
+            <div className="mt-4 grid gap-3">
               <select
-                value={assignForm.mode}
+                value={invoiceForm.mode}
                 onChange={(event) =>
-                  setAssignForm((form) => ({ ...form, mode: event.target.value }))
+                  setInvoiceForm((form) => ({ ...form, mode: event.target.value }))
                 }
                 className={inputClass}
               >
                 <option value="massal">Massal</option>
                 <option value="individual">Individual</option>
               </select>
-              {assignForm.mode === "massal" ? (
+              {invoiceForm.mode === "massal" ? (
                 <select
-                  value={assignForm.scope}
+                  value={invoiceForm.scope}
                   onChange={(event) =>
-                    setAssignForm((form) => ({ ...form, scope: event.target.value }))
+                    setInvoiceForm((form) => ({ ...form, scope: event.target.value }))
                   }
                   className={inputClass}
                 >
@@ -620,9 +1241,9 @@ export default function FinanceModule({
                 </select>
               ) : (
                 <select
-                  value={assignForm.anggota_id}
+                  value={invoiceForm.anggota_id}
                   onChange={(event) =>
-                    setAssignForm((form) => ({
+                    setInvoiceForm((form) => ({
                       ...form,
                       anggota_id: event.target.value,
                     }))
@@ -637,11 +1258,31 @@ export default function FinanceModule({
                   ))}
                 </select>
               )}
+              <select
+                value={invoiceForm.kategori}
+                onChange={(event) =>
+                  setInvoiceForm((form) => ({ ...form, kategori: event.target.value }))
+                }
+                className={inputClass}
+              >
+                <option value="bulanan">Bulanan saja</option>
+                <option value="tabungan">Tabungan kegiatan saja</option>
+                <option value="masuk_cicil">Biaya masuk/cicilan saja</option>
+                <option value="semua">Bulanan + biaya masuk</option>
+              </select>
+              <input
+                type="month"
+                value={invoiceForm.periode}
+                onChange={(event) =>
+                  setInvoiceForm((form) => ({ ...form, periode: event.target.value }))
+                }
+                className={inputClass}
+              />
               <input
                 type="date"
-                value={assignForm.jatuh_tempo}
+                value={invoiceForm.jatuh_tempo}
                 onChange={(event) =>
-                  setAssignForm((form) => ({
+                  setInvoiceForm((form) => ({
                     ...form,
                     jatuh_tempo: event.target.value,
                   }))
@@ -650,31 +1291,122 @@ export default function FinanceModule({
               />
             </div>
             <button className="mt-4 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
-              <Plus className="mr-2" size={17} />
-              Assign Tagihan
+              <CalendarPlus className="mr-2" size={17} />
+              Buat Tagihan
             </button>
           </form>
-          <DataTable
-            headers={["NIS", "Nama", "Scope", "Status"]}
-            rows={members
-              .filter((member) =>
-                assignForm.scope === "semua"
-                  ? true
-                  : getMemberScope(member, activeEntity) === assignForm.scope,
-              )
-              .slice(0, 80)
-              .map((member) => [
-                member.nis,
-                member.nama_lengkap,
-                getMemberScope(member, activeEntity),
-                member.status,
+
+          <div className="grid gap-5">
+            <form onSubmit={saveBillType} className="rounded bg-white p-5 shadow-soft">
+              <h2 className="text-lg font-semibold">Jenis Tagihan Insidentil</h2>
+              <div className="mt-4 grid gap-3 md:grid-cols-[1fr_160px_150px]">
+                <input
+                  value={typeForm.nama || ""}
+                  onChange={(event) =>
+                    setTypeForm((form) => ({ ...form, nama: event.target.value }))
+                  }
+                  placeholder="Nama, contoh Rihlah / ujian / kitab"
+                  className={inputClass}
+                />
+                <input
+                  type="number"
+                  value={typeForm.nominal || 0}
+                  onChange={(event) =>
+                    setTypeForm((form) => ({
+                      ...form,
+                      nominal: Number(event.target.value),
+                    }))
+                  }
+                  className={inputClass}
+                />
+                <button className="inline-flex items-center justify-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+                  <Save className="mr-2" size={17} />
+                  Simpan
+                </button>
+              </div>
+            </form>
+
+            <form onSubmit={createIncidentalInvoice} className="rounded bg-white p-5 shadow-soft">
+              <h2 className="text-lg font-semibold">Assign Insidentil per Orang</h2>
+              <div className="mt-4 grid gap-3 md:grid-cols-4">
+                <select
+                  value={typeForm.id || ""}
+                  onChange={(event) =>
+                    setTypeForm((form) => ({ ...form, id: event.target.value }))
+                  }
+                  className={inputClass}
+                >
+                  <option value="">Pilih jenis</option>
+                  {billTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.nama} - {formatCurrency(type.nominal)}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={invoiceForm.anggota_id}
+                  onChange={(event) =>
+                    setInvoiceForm((form) => ({
+                      ...form,
+                      anggota_id: event.target.value,
+                    }))
+                  }
+                  className={inputClass}
+                >
+                  <option value="">Pilih anggota</option>
+                  {members.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.nama_lengkap} - {member.nis}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  value={invoiceForm.jatuh_tempo}
+                  onChange={(event) =>
+                    setInvoiceForm((form) => ({
+                      ...form,
+                      jatuh_tempo: event.target.value,
+                    }))
+                  }
+                  className={inputClass}
+                />
+                <button className="inline-flex items-center justify-center rounded bg-gold px-4 py-2 text-sm font-semibold text-emerald-950">
+                  <Plus className="mr-2" size={17} />
+                  Assign
+                </button>
+              </div>
+            </form>
+
+            <DataTable
+              headers={["Nama", "Nominal", "Aksi"]}
+              rows={billTypes.map((type) => [
+                type.nama,
+                formatCurrency(type.nominal),
+                <div key="actions" className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTypeForm(type)}
+                    className="rounded border px-3 py-2 text-sm font-semibold"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteBillType(type.id)}
+                    className="rounded border px-3 py-2 text-sm font-semibold text-red-600"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>,
               ])}
-          />
+            />
+          </div>
         </div>
       ) : null}
 
       {tab === "bayar" ? (
-        <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
+        <div className="grid gap-5 xl:grid-cols-[460px_1fr]">
           <div className="rounded bg-white p-5 shadow-soft">
             <h2 className="text-lg font-semibold">Pencatatan Pembayaran</h2>
             <label className="relative mt-4 block">
@@ -709,7 +1441,7 @@ export default function FinanceModule({
               <option value="">Pilih tagihan</option>
               {selectedMemberInvoices.map((invoice) => (
                 <option key={invoice.id} value={invoice.id}>
-                  {invoice.jenis?.nama || "Tagihan"} - {formatCurrency(invoice.nominal)} -{" "}
+                  {invoiceLabel(invoice)} - {formatCurrency(invoice.nominal)} -{" "}
                   {invoice.status}
                 </option>
               ))}
@@ -719,19 +1451,33 @@ export default function FinanceModule({
                 <p>Total tagihan: {formatCurrency(selectedInvoiceRow.nominal)}</p>
                 <p>Sudah dibayar: {formatCurrency(selectedPaid)}</p>
                 <p>Sisa: {formatCurrency(selectedRemaining)}</p>
+                <p>Saldo tabungan kegiatan: {formatCurrency(selectedSavingsBalance)}</p>
+                <p>Kategori: {categoryLabels[selectedInvoiceRow.kategori]}</p>
               </div>
             ) : null}
             <form onSubmit={savePayment} className="mt-4 grid gap-3">
               <input
                 type="number"
-                value={paymentForm.jumlah_bayar}
+                value={paymentForm.tunai}
                 onChange={(event) =>
                   setPaymentForm((form) => ({
                     ...form,
-                    jumlah_bayar: event.target.value,
+                    tunai: event.target.value,
                   }))
                 }
-                placeholder="Jumlah pembayaran"
+                placeholder="Dibayar tunai/transfer"
+                className={inputClass}
+              />
+              <input
+                type="number"
+                value={paymentForm.dari_tabungan}
+                onChange={(event) =>
+                  setPaymentForm((form) => ({
+                    ...form,
+                    dari_tabungan: event.target.value,
+                  }))
+                }
+                placeholder="Ambil dari tabungan kegiatan"
                 className={inputClass}
               />
               <input
@@ -774,6 +1520,90 @@ export default function FinanceModule({
         </div>
       ) : null}
 
+      {tab === "tabungan" ? (
+        <div className="grid gap-5 xl:grid-cols-[460px_1fr]">
+          <form onSubmit={saveSavingsAdjustment} className="rounded bg-white p-5 shadow-soft">
+            <h2 className="text-lg font-semibold">Ledger Tabungan Kegiatan</h2>
+            <select
+              value={savingsMember}
+              onChange={(event) => setSavingsMember(event.target.value)}
+              className={`${inputClass} mt-4 w-full`}
+            >
+              <option value="">Pilih anggota</option>
+              {members.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.nama_lengkap} - {member.nis}
+                </option>
+              ))}
+            </select>
+            <div className="mt-4 rounded bg-emerald-50 p-4">
+              <p className="text-sm text-emerald-900">Saldo tabungan kegiatan</p>
+              <p className="mt-2 text-2xl font-semibold text-emerald-950">
+                {formatCurrency(savingsTabBalance)}
+              </p>
+            </div>
+            <div className="mt-4 grid gap-3">
+              <select
+                value={savingsForm.tipe}
+                onChange={(event) =>
+                  setSavingsForm((form) => ({ ...form, tipe: event.target.value }))
+                }
+                className={inputClass}
+              >
+                <option value="setoran_otomatis">Setoran/penambahan</option>
+                <option value="pemakaian_insidentil">Pemakaian untuk insidentil</option>
+                <option value="penyesuaian">Penyesuaian saldo</option>
+              </select>
+              <input
+                type="number"
+                value={savingsForm.nominal}
+                onChange={(event) =>
+                  setSavingsForm((form) => ({ ...form, nominal: event.target.value }))
+                }
+                placeholder="Nominal"
+                className={inputClass}
+              />
+              <input
+                type="date"
+                value={savingsForm.tanggal}
+                onChange={(event) =>
+                  setSavingsForm((form) => ({ ...form, tanggal: event.target.value }))
+                }
+                className={inputClass}
+              />
+              <input
+                value={savingsForm.catatan}
+                onChange={(event) =>
+                  setSavingsForm((form) => ({ ...form, catatan: event.target.value }))
+                }
+                placeholder="Catatan"
+                className={inputClass}
+              />
+              <button className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+                <Wallet className="mr-2" size={17} />
+                Simpan Catatan Tabungan
+              </button>
+            </div>
+          </form>
+          <DataTable
+            headers={["Tanggal", "Tipe", "Nominal", "Catatan"]}
+            rows={savingsEntries
+              .filter((entry) => entry.anggota_id === savingsMember)
+              .map((entry) => [
+                formatDate(entry.tanggal),
+                entry.tipe.replace("_", " "),
+                <span
+                  key={entry.id}
+                  className={Number(entry.nominal) < 0 ? "text-red-700" : "text-emerald-800"}
+                >
+                  {formatCurrency(entry.nominal)}
+                </span>,
+                entry.catatan || "-",
+              ])}
+          />
+        </div>
+      ) : null}
+
       {tab === "laporan" ? (
         <div className="grid gap-5">
           <div className="rounded bg-white p-5 shadow-soft">
@@ -795,19 +1625,19 @@ export default function FinanceModule({
                 className={inputClass}
               />
               <select
-                value={report.jenis_tagihan_id}
+                value={report.kategori}
                 onChange={(event) =>
                   setReport((form) => ({
                     ...form,
-                    jenis_tagihan_id: event.target.value,
+                    kategori: event.target.value,
                   }))
                 }
                 className={inputClass}
               >
-                <option value="">Semua jenis</option>
-                {billTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.nama}
+                <option value="">Semua kategori</option>
+                {(Object.keys(categoryLabels) as ItemCategory[]).map((category) => (
+                  <option key={category} value={category}>
+                    {categoryLabels[category]}
                   </option>
                 ))}
               </select>
@@ -837,11 +1667,11 @@ export default function FinanceModule({
                   onClick={exportCsv}
                   className="rounded border px-3 py-2 text-sm font-semibold"
                 >
-                  Excel/CSV
+                  CSV
                 </button>
               </div>
             </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
               <div className="rounded bg-emerald-50 p-4">
                 <p className="text-sm text-emerald-900">Total pembayaran</p>
                 <p className="mt-2 text-xl font-semibold text-emerald-950">
@@ -875,10 +1705,16 @@ export default function FinanceModule({
                   )}
                 </p>
               </div>
+              <div className="rounded bg-gray-50 p-4">
+                <p className="text-sm text-gray-600">Saldo tabungan kegiatan</p>
+                <p className="mt-2 text-xl font-semibold text-gray-950">
+                  {formatCurrency(totalSavings)}
+                </p>
+              </div>
             </div>
           </div>
           <DataTable
-            headers={["Tanggal", "NIS", "Nama", "Jenis", "Jumlah"]}
+            headers={["Tanggal", "NIS", "Nama", "Jenis", "Kategori", "Jumlah"]}
             rows={reportPayments.map((payment) => {
               const invoice = invoices.find((item) => item.id === payment.tagihan_id);
               const member = members.find((item) => item.id === invoice?.anggota_id);
@@ -886,19 +1722,21 @@ export default function FinanceModule({
                 formatDate(payment.tanggal_bayar),
                 member?.nis || "-",
                 member?.nama_lengkap || "-",
-                invoice?.jenis?.nama || "-",
+                invoice ? invoiceLabel(invoice) : "-",
+                invoice ? categoryLabels[invoice.kategori] : "-",
                 formatCurrency(payment.jumlah_bayar),
               ];
             })}
           />
           <DataTable
-            headers={["NIS", "Nama", "Jenis", "Nominal", "Status", "Jatuh Tempo"]}
+            headers={["NIS", "Nama", "Jenis", "Kategori", "Nominal", "Status", "Jatuh Tempo"]}
             rows={arrears.map((invoice) => {
               const member = members.find((item) => item.id === invoice.anggota_id);
               return [
                 member?.nis || "-",
                 member?.nama_lengkap || "-",
-                invoice.jenis?.nama || "-",
+                invoiceLabel(invoice),
+                categoryLabels[invoice.kategori],
                 formatCurrency(invoice.nominal),
                 invoice.status.replace("_", " "),
                 formatDate(invoice.jatuh_tempo),
