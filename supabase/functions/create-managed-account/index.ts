@@ -73,23 +73,43 @@ Deno.serve(async (req) => {
       );
     }
 
-    const profileTable = entitas === "smp" ? "smp_profiles" : "pp_profiles";
-    const { data: requesterProfile } = await adminClient
-      .from(profileTable)
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
+    const [ppRequester, smpRequester] = await Promise.all([
+      adminClient
+        .from("pp_profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle(),
+      adminClient
+        .from("smp_profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle(),
+    ]);
 
-    if (!requesterProfile || requesterProfile.role !== "superadmin") {
+    const isSuperadmin =
+      ppRequester.data?.role === "superadmin" ||
+      smpRequester.data?.role === "superadmin";
+
+    if (!isSuperadmin) {
       return jsonResponse({ error: "Forbidden" }, 403);
     }
+
+    const profileTable = entitas === "smp" ? "smp_profiles" : "pp_profiles";
+    const profileTables =
+      role === "bendahara"
+        ? (["pp_profiles", "smp_profiles"] as const)
+        : ([profileTable] as const);
 
     const { data: created, error: createError } =
       await adminClient.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
-        user_metadata: { nama, entitas, role },
+        user_metadata: {
+          nama,
+          entitas: role === "bendahara" ? "keuangan" : entitas,
+          role,
+        },
       });
 
     if (createError || !created.user) {
@@ -98,14 +118,16 @@ Deno.serve(async (req) => {
 
     createdUserId = created.user.id;
 
-    const { error: profileError } = await adminClient.from(profileTable).upsert({
-      id: createdUserId,
-      role,
-      nama,
-    });
+    for (const tableName of profileTables) {
+      const { error: profileError } = await adminClient.from(tableName).upsert({
+        id: createdUserId,
+        role,
+        nama,
+      });
 
-    if (profileError) {
-      throw profileError;
+      if (profileError) {
+        throw profileError;
+      }
     }
 
     if (role === "guru") {
@@ -133,7 +155,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    return jsonResponse({ user_id: createdUserId, role, entitas });
+    return jsonResponse({
+      user_id: createdUserId,
+      role,
+      entitas: role === "bendahara" ? "keuangan" : entitas,
+    });
   } catch (error) {
     if (createdUserId) {
       try {

@@ -16,6 +16,7 @@ import {
   SectionSaranKritik,
   SeksiCekPembayaran,
 } from "../../components/public/LandingSections";
+import { smpLogoUrl } from "../../lib/brandLogos";
 import { supabase } from "../../lib/supabase";
 
 type ContentRow = {
@@ -255,7 +256,7 @@ export default function SmpLandingPage() {
     "Membentuk siswa berilmu, berkarakter, dan dekat dengan nilai keislaman.",
   );
   const heroImage = getContent("hero", "banner_url", fallbackHero);
-  const logoUrl = getContent("hero", "logo_url", "");
+  const logoUrl = getContent("hero", "logo_url", smpLogoUrl);
 
   return (
     <div className="bg-cream-50 text-gray-950">

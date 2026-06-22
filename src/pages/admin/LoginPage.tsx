@@ -1,7 +1,7 @@
-import { Eye, EyeOff, LogIn } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, LogIn } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "../../components/ui/Button";
 import { useAuth } from "../../contexts/AuthContext";
@@ -198,6 +198,14 @@ export default function LoginPage() {
             {isSubmitting ? "Memproses..." : "Masuk"}
           </Button>
         </form>
+
+        <Link
+          to="/"
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded border border-emerald-900/15 px-4 py-2.5 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50"
+        >
+          <ArrowLeft size={17} />
+          Kembali ke Landing Page
+        </Link>
       </section>
     </main>
   );

@@ -1,4 +1,4 @@
-import { Plus, RefreshCcw, Save, ShieldCheck, UserCog } from "lucide-react";
+import { RefreshCcw, Save, ShieldCheck, UserCog } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { AdminEntity } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
@@ -58,11 +58,13 @@ export default function AccountManagementModule({
 }) {
   const [profiles, setProfiles] = useState<AccountProfile[]>([]);
   const [form, setForm] = useState<AccountForm>(emptyForm);
+  const [targetEntity, setTargetEntity] = useState<AdminEntity>(entity);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const tableName = entity === "smp" ? "smp_profiles" : "pp_profiles";
+  const tableName = targetEntity === "smp" ? "smp_profiles" : "pp_profiles";
+  const targetIsLocked = form.role === "bendahara";
   const visibleProfiles = useMemo(
     () => profiles.filter((profile) => profile.role !== "superadmin"),
     [profiles],
@@ -106,7 +108,7 @@ export default function AccountManagementModule({
       "create-managed-account",
       {
         body: {
-          entitas: entity,
+          entitas: targetEntity,
           role: form.role,
           nama: form.nama,
           email: form.email,
@@ -124,7 +126,12 @@ export default function AccountManagementModule({
       return;
     }
 
-    setMessage(`Akun ${roleOptions.find((role) => role.value === form.role)?.label} berhasil dibuat.`);
+    const createdRole = roleOptions.find((role) => role.value === form.role)?.label;
+    setMessage(
+      form.role === "bendahara"
+        ? "Akun Bendahara terpusat berhasil dibuat."
+        : `Akun ${createdRole} ${entityLabel(targetEntity)} berhasil dibuat.`,
+    );
     setForm(emptyForm);
     loadProfiles();
   }
@@ -138,10 +145,11 @@ export default function AccountManagementModule({
         <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-gray-950">
-              Manajemen Akun {entityLabel(entity)}
+              Manajemen Akun
             </h1>
             <p className="mt-3 text-sm leading-6 text-gray-600">
-              Buat akun admin, bendahara, dan guru untuk area {entityLabel(entity)}.
+              Buat akun admin dan guru per lembaga. Bendahara dibuat sebagai akun
+              keuangan terpusat untuk Pesantren dan SMP.
             </p>
           </div>
           <span className="inline-flex w-fit items-center gap-2 rounded border border-emerald-900/15 px-3 py-2 text-sm font-semibold text-emerald-900">
@@ -174,6 +182,20 @@ export default function AccountManagementModule({
                   {role.label}
                 </option>
               ))}
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-gray-700">
+            Lembaga
+            <select
+              value={targetEntity}
+              disabled={targetIsLocked}
+              onChange={(event) =>
+                setTargetEntity(event.target.value as AdminEntity)
+              }
+              className={`${inputClass} disabled:bg-gray-100 disabled:text-gray-500`}
+            >
+              <option value="pesantren">Pesantren</option>
+              <option value="smp">SMP</option>
             </select>
           </label>
           <label className="grid gap-2 text-sm font-semibold text-gray-700">
@@ -221,7 +243,7 @@ export default function AccountManagementModule({
               className={inputClass}
             />
           </label>
-          {entity === "smp" && form.role === "guru" ? (
+          {targetEntity === "smp" && form.role === "guru" ? (
             <label className="grid gap-2 text-sm font-semibold text-gray-700">
               Mata pelajaran
               <input
@@ -261,11 +283,19 @@ export default function AccountManagementModule({
         {message ? (
           <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p>
         ) : null}
+        {targetIsLocked ? (
+          <p className="mt-3 text-sm leading-6 text-gray-600">
+            Akun bendahara tidak dipisah per lembaga. Satu akun bendahara akan
+            mendapat akses modul keuangan Pesantren dan SMP.
+          </p>
+        ) : null}
       </form>
 
       <div className="rounded bg-white p-5 shadow-soft">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-semibold text-gray-950">Akun Terdaftar</h2>
+          <h2 className="text-lg font-semibold text-gray-950">
+            Akun Terdaftar {entityLabel(targetEntity)}
+          </h2>
           <button
             type="button"
             onClick={loadProfiles}

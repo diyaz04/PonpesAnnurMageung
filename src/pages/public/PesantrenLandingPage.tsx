@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { pesantrenLogoUrl } from "../../lib/brandLogos";
 import { supabase } from "../../lib/supabase";
 
 type ContentRow = {
@@ -349,7 +350,7 @@ export default function PesantrenLandingPage() {
     "Membina santri berakhlak, berilmu, dan siap mengabdi untuk masyarakat.",
   );
   const heroImage = getContent("hero", "banner_url", fallbackHero);
-  const logoUrl = getContent("hero", "logo_url", "");
+  const logoUrl = getContent("hero", "logo_url", pesantrenLogoUrl);
 
   async function handleLookup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

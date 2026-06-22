@@ -19,6 +19,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../contexts/AuthContext";
+import { pesantrenLogoUrl, smpLogoUrl } from "../lib/brandLogos";
 import {
   getPesantrenMenuForRole,
   type PesantrenMenuItem,
@@ -71,7 +72,7 @@ export default function AdminLayout() {
       ? getSmpMenuForRole(profiles.smp?.role)
       : getPesantrenMenuForRole(profiles.pesantren?.role);
   const groupedMenu = groupMenu(activeMenu);
-  const brandInitial = activeEntity === "smp" ? "SMP" : "AN";
+  const brandLogo = activeEntity === "smp" ? smpLogoUrl : pesantrenLogoUrl;
   const brandLabel = activeEntity === "smp" ? "SMP" : "Pesantren";
 
   async function handleLogout() {
@@ -87,9 +88,11 @@ export default function AdminLayout() {
           className="flex items-center gap-3"
           onClick={() => setMobileOpen(false)}
         >
-          <span className="grid h-11 w-11 place-items-center rounded bg-emerald-800 text-sm font-semibold text-white">
-            {brandInitial}
-          </span>
+          <img
+            src={brandLogo}
+            alt={`Logo ${brandLabel}`}
+            className="h-11 w-11 rounded border border-emerald-900/10 bg-white object-contain p-1"
+          />
           <span>
             <span className="block text-sm font-semibold text-gray-950">
               Dashboard
