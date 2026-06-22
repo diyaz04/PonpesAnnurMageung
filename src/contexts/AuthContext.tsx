@@ -66,7 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profiles, setProfiles] = useState<ProfileMap>({});
   const [loading, setLoading] = useState(true);
   const userRef = useRef<User | null>(null);
-  const requestIdRef = useRef(0);
+
+  // requestIdRef dihapus karena menyebabkan race condition
+  // yang membuat refreshProfile return null padahal data ada
 
   const refreshProfile = useCallback(
     async (sessionUser: User | null = userRef.current) => {
@@ -76,15 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      const requestId = ++requestIdRef.current;
       const [pesantrenProfile, smpProfile] = await Promise.all([
         loadProfile(sessionUser.id, "pp_profiles", "pesantren"),
         loadProfile(sessionUser.id, "smp_profiles", "smp"),
       ]);
-
-      if (requestId !== requestIdRef.current) {
-        return null;
-      }
 
       const nextProfiles: ProfileMap = {};
 
