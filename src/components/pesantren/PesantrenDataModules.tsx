@@ -2,6 +2,7 @@ import {
   Download,
   Eye,
   FileText,
+  FileUp,
   Pencil,
   Plus,
   RefreshCcw,
@@ -12,6 +13,16 @@ import {
 import { QRCodeCanvas } from "qrcode.react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import {
+  downloadExcelTemplate,
+  excelCellToText,
+  normalizeGender,
+  normalizeStatus,
+  parseExcelDate,
+  parseExcelFile,
+  parseExcelNumber,
+  type ExcelColumn,
+} from "../../lib/excelImport";
 import AccountManagementModule from "../admin/AccountManagementModule";
 import FinanceModule from "../finance/FinanceModule";
 import LandingContentAdmin from "../landing-admin/LandingContentAdmin";
@@ -88,6 +99,31 @@ const emptySantri: Partial<Santri> = {
   no_hp_wali: "",
   status: "aktif",
 };
+
+type SantriImportKey =
+  | "nis"
+  | "kode_unik"
+  | "nama_lengkap"
+  | "jenis_kelamin"
+  | "tahun_masuk"
+  | "tanggal_lahir"
+  | "alamat"
+  | "nama_wali"
+  | "no_hp_wali"
+  | "status";
+
+const santriImportColumns: ExcelColumn<SantriImportKey>[] = [
+  { key: "nis", header: "NIS", example: "2526-L-0001" },
+  { key: "kode_unik", header: "Kode Unik", example: "ABC12345" },
+  { key: "nama_lengkap", header: "Nama Lengkap", required: true, example: "Ahmad Fauzi" },
+  { key: "jenis_kelamin", header: "Jenis Kelamin", required: true, example: "L" },
+  { key: "tahun_masuk", header: "Tahun Masuk", required: true, example: "2026" },
+  { key: "tanggal_lahir", header: "Tanggal Lahir", example: "2012-05-20" },
+  { key: "alamat", header: "Alamat", example: "Sariwangi, Tasikmalaya" },
+  { key: "nama_wali", header: "Nama Wali", example: "Bapak Abdullah" },
+  { key: "no_hp_wali", header: "No HP Wali", example: "081234567890" },
+  { key: "status", header: "Status", example: "aktif" },
+];
 
 const suratTemplates = [
   "Surat Keterangan Aktif / Masih Mondok",
@@ -195,6 +231,7 @@ function DataSantriModule() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [selectedCard, setSelectedCard] = useState<Santri | null>(null);
   const [message, setMessage] = useState("");
+  const [importing, setImporting] = useState(false);
 
   async function loadRows() {
     const { data } = await supabase
@@ -275,6 +312,102 @@ function DataSantriModule() {
     setPhotoFile(null);
     setMessage("Data santri tersimpan.");
     loadRows();
+  }
+
+  async function downloadSantriTemplate() {
+    await downloadExcelTemplate({
+      columns: santriImportColumns,
+      filename: "template-import-santri-pesantren.xlsx",
+      sheetName: "Import Santri",
+    });
+  }
+
+  async function importSantriExcel(file: File | null) {
+    if (!file) return;
+    setImporting(true);
+    setMessage("");
+
+    try {
+      const importedRows = await parseExcelFile(file, santriImportColumns);
+
+      if (!importedRows.length) {
+        setMessage("File Excel kosong atau belum berisi data santri.");
+        return;
+      }
+
+      const errors: string[] = [];
+      const nisSet = new Set(rows.map((row) => row.nis));
+      const codeSet = new Set(rows.map((row) => row.kode_unik));
+      const sequenceByYearGender = new Map<string, number>();
+
+      rows.forEach((row) => {
+        const key = `${row.tahun_masuk}-${row.jenis_kelamin}`;
+        sequenceByYearGender.set(key, (sequenceByYearGender.get(key) || 0) + 1);
+      });
+
+      const payloads = importedRows.map((row, index) => {
+        const rowNumber = index + 2;
+        const nama = excelCellToText(row.nama_lengkap);
+        const jenisKelamin = normalizeGender(row.jenis_kelamin) as Santri["jenis_kelamin"];
+        const tahunMasuk = parseExcelNumber(row.tahun_masuk);
+
+        if (!nama) errors.push(`Baris ${rowNumber}: Nama Lengkap wajib diisi.`);
+        if (!jenisKelamin) errors.push(`Baris ${rowNumber}: Jenis Kelamin harus L atau P.`);
+        if (!tahunMasuk) errors.push(`Baris ${rowNumber}: Tahun Masuk wajib angka.`);
+
+        const sequenceKey = `${tahunMasuk || new Date().getFullYear()}-${jenisKelamin || "L"}`;
+        const nextSequence = (sequenceByYearGender.get(sequenceKey) || 0) + 1;
+        sequenceByYearGender.set(sequenceKey, nextSequence);
+
+        let nis = excelCellToText(row.nis) || buildNis(Number(tahunMasuk), jenisKelamin, nextSequence);
+        let kodeUnik = excelCellToText(row.kode_unik) || randomCode();
+
+        while (nisSet.has(nis)) {
+          const next = (sequenceByYearGender.get(sequenceKey) || 0) + 1;
+          sequenceByYearGender.set(sequenceKey, next);
+          nis = buildNis(Number(tahunMasuk), jenisKelamin, next);
+        }
+
+        while (codeSet.has(kodeUnik)) {
+          kodeUnik = randomCode();
+        }
+
+        nisSet.add(nis);
+        codeSet.add(kodeUnik);
+
+        return {
+          nis,
+          kode_unik: kodeUnik,
+          nama_lengkap: nama,
+          jenis_kelamin: jenisKelamin,
+          tahun_masuk: Number(tahunMasuk),
+          tanggal_lahir: parseExcelDate(row.tanggal_lahir),
+          alamat: excelCellToText(row.alamat) || null,
+          nama_wali: excelCellToText(row.nama_wali) || null,
+          no_hp_wali: excelCellToText(row.no_hp_wali) || null,
+          foto_url: null,
+          status: normalizeStatus(row.status) as Santri["status"],
+        };
+      });
+
+      if (errors.length) {
+        setMessage(errors.slice(0, 5).join(" "));
+        return;
+      }
+
+      const { error } = await supabase.from("pp_santri").insert(payloads);
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      setMessage(`${payloads.length} data santri berhasil diimport dari Excel.`);
+      loadRows();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Import Excel gagal.");
+    } finally {
+      setImporting(false);
+    }
   }
 
   async function resetKode(row: Santri) {
@@ -446,6 +579,30 @@ function DataSantriModule() {
             <Plus className="mr-2" size={17} />
             Tambah
           </button>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={downloadSantriTemplate}
+            className="inline-flex items-center rounded border border-emerald-900/15 px-4 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"
+          >
+            <Download className="mr-2" size={17} />
+            Download Template Excel
+          </button>
+          <label className="inline-flex cursor-pointer items-center rounded border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50">
+            <FileUp className="mr-2" size={17} />
+            {importing ? "Mengimport..." : "Import Excel"}
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              disabled={importing}
+              onChange={(event) => {
+                importSantriExcel(event.target.files?.[0] || null);
+                event.target.value = "";
+              }}
+            />
+          </label>
         </div>
         {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
       </div>

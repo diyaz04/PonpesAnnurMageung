@@ -2,6 +2,7 @@ import {
   Camera,
   Download,
   FileText,
+  FileUp,
   Pencil,
   Plus,
   RefreshCcw,
@@ -12,6 +13,16 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import {
+  downloadExcelTemplate,
+  excelCellToText,
+  normalizeGender,
+  normalizeStatus,
+  parseExcelDate,
+  parseExcelFile,
+  parseExcelNumber,
+  type ExcelColumn,
+} from "../../lib/excelImport";
 import { supabase } from "../../lib/supabase";
 import AccountManagementModule from "../admin/AccountManagementModule";
 import FinanceModule from "../finance/FinanceModule";
@@ -101,6 +112,35 @@ const emptySiswa: Partial<Siswa> = {
   tahun_masuk: new Date().getFullYear(),
   status: "aktif",
 };
+
+type SiswaImportKey =
+  | "nis"
+  | "nisn"
+  | "kode_unik"
+  | "nama_lengkap"
+  | "jenis_kelamin"
+  | "kelas"
+  | "tahun_masuk"
+  | "tanggal_lahir"
+  | "alamat"
+  | "nama_wali"
+  | "no_hp_wali"
+  | "status";
+
+const siswaImportColumns: ExcelColumn<SiswaImportKey>[] = [
+  { key: "nis", header: "NIS", example: "2526-L-0001" },
+  { key: "nisn", header: "NISN", example: "0123456789" },
+  { key: "kode_unik", header: "Kode Unik", example: "ABC12345" },
+  { key: "nama_lengkap", header: "Nama Lengkap", required: true, example: "Siti Aminah" },
+  { key: "jenis_kelamin", header: "Jenis Kelamin", required: true, example: "P" },
+  { key: "kelas", header: "Kelas", example: "VII A" },
+  { key: "tahun_masuk", header: "Tahun Masuk", required: true, example: "2026" },
+  { key: "tanggal_lahir", header: "Tanggal Lahir", example: "2012-05-20" },
+  { key: "alamat", header: "Alamat", example: "Sariwangi, Tasikmalaya" },
+  { key: "nama_wali", header: "Nama Wali", example: "Ibu Halimah" },
+  { key: "no_hp_wali", header: "No HP Wali", example: "081234567890" },
+  { key: "status", header: "Status", example: "aktif" },
+];
 
 const suratTemplates = [
   "Surat Keterangan Aktif Sekolah",
@@ -237,6 +277,7 @@ function DataSiswaModule() {
   const [editing, setEditing] = useState<Partial<Siswa> | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
+  const [importing, setImporting] = useState(false);
 
   async function loadRows() {
     const { data } = await supabase
@@ -313,6 +354,108 @@ function DataSiswaModule() {
     loadRows();
   }
 
+  async function downloadSiswaTemplate() {
+    await downloadExcelTemplate({
+      columns: siswaImportColumns,
+      filename: "template-import-siswa-smp.xlsx",
+      sheetName: "Import Siswa",
+    });
+  }
+
+  async function importSiswaExcel(file: File | null) {
+    if (!file) return;
+    setImporting(true);
+    setMessage("");
+
+    try {
+      const importedRows = await parseExcelFile(file, siswaImportColumns);
+
+      if (!importedRows.length) {
+        setMessage("File Excel kosong atau belum berisi data siswa.");
+        return;
+      }
+
+      const errors: string[] = [];
+      const nisSet = new Set(rows.map((row) => row.nis));
+      const nisnSet = new Set(rows.map((row) => row.nisn).filter(Boolean));
+      const codeSet = new Set(rows.map((row) => row.kode_unik));
+      const sequenceByYearGender = new Map<string, number>();
+
+      rows.forEach((row) => {
+        const key = `${row.tahun_masuk}-${row.jenis_kelamin}`;
+        sequenceByYearGender.set(key, (sequenceByYearGender.get(key) || 0) + 1);
+      });
+
+      const payloads = importedRows.map((row, index) => {
+        const rowNumber = index + 2;
+        const nama = excelCellToText(row.nama_lengkap);
+        const jenisKelamin = normalizeGender(row.jenis_kelamin) as Siswa["jenis_kelamin"];
+        const tahunMasuk = parseExcelNumber(row.tahun_masuk);
+        const nisn = excelCellToText(row.nisn) || null;
+
+        if (!nama) errors.push(`Baris ${rowNumber}: Nama Lengkap wajib diisi.`);
+        if (!jenisKelamin) errors.push(`Baris ${rowNumber}: Jenis Kelamin harus L atau P.`);
+        if (!tahunMasuk) errors.push(`Baris ${rowNumber}: Tahun Masuk wajib angka.`);
+        if (nisn && nisnSet.has(nisn)) errors.push(`Baris ${rowNumber}: NISN duplikat.`);
+
+        const sequenceKey = `${tahunMasuk || new Date().getFullYear()}-${jenisKelamin || "L"}`;
+        const nextSequence = (sequenceByYearGender.get(sequenceKey) || 0) + 1;
+        sequenceByYearGender.set(sequenceKey, nextSequence);
+
+        let nis = excelCellToText(row.nis) || buildNis(Number(tahunMasuk), jenisKelamin, nextSequence);
+        let kodeUnik = excelCellToText(row.kode_unik) || randomCode();
+
+        while (nisSet.has(nis)) {
+          const next = (sequenceByYearGender.get(sequenceKey) || 0) + 1;
+          sequenceByYearGender.set(sequenceKey, next);
+          nis = buildNis(Number(tahunMasuk), jenisKelamin, next);
+        }
+
+        while (codeSet.has(kodeUnik)) {
+          kodeUnik = randomCode();
+        }
+
+        nisSet.add(nis);
+        if (nisn) nisnSet.add(nisn);
+        codeSet.add(kodeUnik);
+
+        return {
+          nis,
+          nisn,
+          kode_unik: kodeUnik,
+          nama_lengkap: nama,
+          jenis_kelamin: jenisKelamin,
+          kelas: excelCellToText(row.kelas) || null,
+          tahun_masuk: Number(tahunMasuk),
+          tanggal_lahir: parseExcelDate(row.tanggal_lahir),
+          alamat: excelCellToText(row.alamat) || null,
+          nama_wali: excelCellToText(row.nama_wali) || null,
+          no_hp_wali: excelCellToText(row.no_hp_wali) || null,
+          foto_url: null,
+          status: normalizeStatus(row.status) as Siswa["status"],
+        };
+      });
+
+      if (errors.length) {
+        setMessage(errors.slice(0, 5).join(" "));
+        return;
+      }
+
+      const { error } = await supabase.from("smp_siswa").insert(payloads);
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      setMessage(`${payloads.length} data siswa berhasil diimport dari Excel.`);
+      loadRows();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Import Excel gagal.");
+    } finally {
+      setImporting(false);
+    }
+  }
+
   async function resetKode(row: Siswa) {
     const kodeBaru = randomCode();
     const { error } = await supabase
@@ -379,6 +522,30 @@ function DataSiswaModule() {
             <Plus className="mr-2" size={17} />
             Tambah
           </button>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={downloadSiswaTemplate}
+            className="inline-flex items-center rounded border border-emerald-900/15 px-4 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"
+          >
+            <Download className="mr-2" size={17} />
+            Download Template Excel
+          </button>
+          <label className="inline-flex cursor-pointer items-center rounded border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50">
+            <FileUp className="mr-2" size={17} />
+            {importing ? "Mengimport..." : "Import Excel"}
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              disabled={importing}
+              onChange={(event) => {
+                importSiswaExcel(event.target.files?.[0] || null);
+                event.target.value = "";
+              }}
+            />
+          </label>
         </div>
         {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
       </div>
