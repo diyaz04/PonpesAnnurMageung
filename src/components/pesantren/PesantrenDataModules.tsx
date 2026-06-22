@@ -27,6 +27,12 @@ import AccountManagementModule from "../admin/AccountManagementModule";
 import FinanceModule from "../finance/FinanceModule";
 import LandingContentAdmin from "../landing-admin/LandingContentAdmin";
 import { supabase } from "../../lib/supabase";
+import {
+  downloadAllStudentCards,
+  downloadStudentBiodata,
+  downloadStudentCard,
+  type StudentDocumentData,
+} from "../../lib/studentDocuments";
 
 type Santri = {
   id: string;
@@ -221,6 +227,23 @@ async function imageToDataUrl(url: string) {
   });
 }
 
+function santriToDocumentData(row: Santri): StudentDocumentData {
+  return {
+    nama: row.nama_lengkap,
+    nomorInduk: row.nis,
+    nomorIndukLabel: "NIS",
+    kodeUnik: row.kode_unik,
+    jenisKelamin: row.jenis_kelamin,
+    tahunMasuk: row.tahun_masuk,
+    tanggalLahir: row.tanggal_lahir,
+    alamat: row.alamat,
+    namaWali: row.nama_wali,
+    noHpWali: row.no_hp_wali,
+    fotoUrl: row.foto_url,
+    status: row.status,
+  };
+}
+
 function DataSantriModule() {
   const { user } = useAuth();
   const [rows, setRows] = useState<Santri[]>([]);
@@ -232,6 +255,7 @@ function DataSantriModule() {
   const [selectedCard, setSelectedCard] = useState<Santri | null>(null);
   const [message, setMessage] = useState("");
   const [importing, setImporting] = useState(false);
+  const [generatingDocs, setGeneratingDocs] = useState(false);
 
   async function loadRows() {
     const { data } = await supabase
@@ -449,37 +473,34 @@ function DataSantriModule() {
   }
 
   async function downloadCard(row: Santri) {
-    const { jsPDF } = await import("jspdf");
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [86, 54] });
-    doc.setFillColor(6, 95, 70);
-    doc.rect(0, 0, 86, 16, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
-    doc.text("KARTU SANTRI", 6, 7);
-    doc.setFontSize(8);
-    doc.text("Pondok Pesantren An-Nur Mageung", 6, 12);
-    doc.setTextColor(17, 24, 39);
-    doc.setFontSize(8);
-    doc.text(`NIS: ${row.nis}`, 6, 24);
-    doc.text(`Nama: ${row.nama_lengkap}`, 6, 30, { maxWidth: 48 });
-    doc.text(`Kelas: Angkatan ${row.tahun_masuk}`, 6, 40);
-
-    if (row.foto_url) {
-      try {
-        doc.addImage(await imageToDataUrl(row.foto_url), "JPEG", 62, 19, 18, 22);
-      } catch {
-        doc.rect(62, 19, 18, 22);
-      }
-    } else {
-      doc.rect(62, 19, 18, 22);
+    setGeneratingDocs(true);
+    try {
+      await downloadStudentCard("pesantren", santriToDocumentData(row));
+    } finally {
+      setGeneratingDocs(false);
     }
+  }
 
-    const canvas = document.getElementById(`qr-${row.id}`) as HTMLCanvasElement | null;
-    if (canvas) {
-      doc.addImage(canvas.toDataURL("image/png"), "PNG", 65, 42, 13, 13);
+  async function downloadBiodata(row: Santri) {
+    setGeneratingDocs(true);
+    try {
+      await downloadStudentBiodata("pesantren", santriToDocumentData(row));
+    } finally {
+      setGeneratingDocs(false);
     }
+  }
 
-    doc.save(`kartu-santri-${row.nis}.pdf`);
+  async function downloadAllCards() {
+    setGeneratingDocs(true);
+    try {
+      await downloadAllStudentCards(
+        "pesantren",
+        filteredRows.map(santriToDocumentData),
+      );
+      setMessage(`${filteredRows.length} kartu santri masuk ke file PDF.`);
+    } finally {
+      setGeneratingDocs(false);
+    }
   }
 
   async function downloadCardImage(row: Santri) {
@@ -603,6 +624,15 @@ function DataSantriModule() {
               }}
             />
           </label>
+          <button
+            type="button"
+            disabled={generatingDocs || !filteredRows.length}
+            onClick={downloadAllCards}
+            className="inline-flex items-center rounded bg-gold px-4 py-2 text-sm font-semibold text-emerald-950 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
+          >
+            <Download className="mr-2" size={17} />
+            {generatingDocs ? "Membuat PDF..." : "Download Semua Kartu"}
+          </button>
         </div>
         {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
       </div>
@@ -807,9 +837,19 @@ function DataSantriModule() {
                         title="Kartu"
                         type="button"
                         onClick={() => setSelectedCard(row)}
+                        disabled={generatingDocs}
                         className="rounded border p-2 text-gray-700"
                       >
                         <Eye size={15} />
+                      </button>
+                      <button
+                        title="Biodata PDF"
+                        type="button"
+                        onClick={() => downloadBiodata(row)}
+                        disabled={generatingDocs}
+                        className="rounded border px-2 py-1 text-xs font-semibold text-emerald-800"
+                      >
+                        Biodata
                       </button>
                       <button
                         title="Reset kode"

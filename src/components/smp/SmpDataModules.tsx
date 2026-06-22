@@ -24,6 +24,12 @@ import {
   type ExcelColumn,
 } from "../../lib/excelImport";
 import { supabase } from "../../lib/supabase";
+import {
+  downloadAllStudentCards,
+  downloadStudentBiodata,
+  downloadStudentCard,
+  type StudentDocumentData,
+} from "../../lib/studentDocuments";
 import AccountManagementModule from "../admin/AccountManagementModule";
 import FinanceModule from "../finance/FinanceModule";
 import LandingContentAdmin from "../landing-admin/LandingContentAdmin";
@@ -177,6 +183,24 @@ function matchText(value: string | null | undefined, query: string) {
   return (value || "").toLowerCase().includes(query.toLowerCase());
 }
 
+function siswaToDocumentData(row: Siswa): StudentDocumentData {
+  return {
+    nama: row.nama_lengkap,
+    nomorInduk: row.nis,
+    nomorIndukLabel: "NIS",
+    kodeUnik: row.kode_unik,
+    jenisKelamin: row.jenis_kelamin,
+    tahunMasuk: row.tahun_masuk,
+    tanggalLahir: row.tanggal_lahir,
+    kelas: row.kelas,
+    alamat: row.alamat,
+    namaWali: row.nama_wali,
+    noHpWali: row.no_hp_wali,
+    fotoUrl: row.foto_url,
+    status: row.status,
+  };
+}
+
 function Field({
   label,
   children,
@@ -278,6 +302,7 @@ function DataSiswaModule() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
   const [importing, setImporting] = useState(false);
+  const [generatingDocs, setGeneratingDocs] = useState(false);
 
   async function loadRows() {
     const { data } = await supabase
@@ -456,6 +481,34 @@ function DataSiswaModule() {
     }
   }
 
+  async function downloadCard(row: Siswa) {
+    setGeneratingDocs(true);
+    try {
+      await downloadStudentCard("smp", siswaToDocumentData(row));
+    } finally {
+      setGeneratingDocs(false);
+    }
+  }
+
+  async function downloadBiodata(row: Siswa) {
+    setGeneratingDocs(true);
+    try {
+      await downloadStudentBiodata("smp", siswaToDocumentData(row));
+    } finally {
+      setGeneratingDocs(false);
+    }
+  }
+
+  async function downloadAllCards() {
+    setGeneratingDocs(true);
+    try {
+      await downloadAllStudentCards("smp", filteredRows.map(siswaToDocumentData));
+      setMessage(`${filteredRows.length} kartu siswa masuk ke file PDF.`);
+    } finally {
+      setGeneratingDocs(false);
+    }
+  }
+
   async function resetKode(row: Siswa) {
     const kodeBaru = randomCode();
     const { error } = await supabase
@@ -546,6 +599,15 @@ function DataSiswaModule() {
               }}
             />
           </label>
+          <button
+            type="button"
+            disabled={generatingDocs || !filteredRows.length}
+            onClick={downloadAllCards}
+            className="inline-flex items-center rounded bg-gold px-4 py-2 text-sm font-semibold text-emerald-950 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
+          >
+            <Download className="mr-2" size={17} />
+            {generatingDocs ? "Membuat PDF..." : "Download Semua Kartu"}
+          </button>
         </div>
         {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
       </div>
@@ -620,6 +682,20 @@ function DataSiswaModule() {
           row.status,
           <div key="actions" className="flex flex-wrap gap-2">
             <button onClick={() => setEditing(row)} className="rounded border p-2"><Pencil size={15} /></button>
+            <button
+              onClick={() => downloadCard(row)}
+              disabled={generatingDocs}
+              className="rounded border px-2 py-1 text-xs font-semibold text-gray-700"
+            >
+              Kartu
+            </button>
+            <button
+              onClick={() => downloadBiodata(row)}
+              disabled={generatingDocs}
+              className="rounded border px-2 py-1 text-xs font-semibold text-emerald-800"
+            >
+              Biodata
+            </button>
             <button onClick={() => resetKode(row)} className="rounded border p-2"><RefreshCcw size={15} /></button>
             <button onClick={() => updateStatus(row, "alumni")} className="rounded border px-2 py-1 text-xs font-semibold">Alumni</button>
             <button onClick={() => updateStatus(row, "keluar")} className="rounded border px-2 py-1 text-xs font-semibold">Keluar</button>
