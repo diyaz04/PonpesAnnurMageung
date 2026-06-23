@@ -1,849 +1,391 @@
-import {
-  CalendarDays,
-  CheckCircle2,
-  Download,
-  FileText,
-  ImageIcon,
-  MessageSquare,
-  Search,
-  X,
-} from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import React, { useState } from 'react';
+import { Shield, BookOpen, Users, ChevronRight, CheckCircle2, TrendingUp, Landmark, LineChart, GraduationCap, MapPin, Phone, Mail } from 'lucide-react';
+import { Button } from '../ui/Button';
 
-export type PublicEntity = "pesantren" | "smp";
-
-type NewsRow = {
-  id: string;
-  judul: string;
-  thumbnail_url: string | null;
-  konten: string | null;
-  excerpt: string | null;
-  tanggal: string | null;
-  created_at: string;
-};
-
-type AgendaRow = {
-  id: string;
-  judul: string;
-  tanggal: string;
-  lokasi: string | null;
-  deskripsi: string | null;
-};
-
-type GalleryRow = {
-  id: string;
-  album: string | null;
-  media_url: string;
-  tipe: "foto" | "video";
-};
-
-type LookupBill = {
-  id: string;
-  jenis_tagihan: string | null;
-  nominal: number;
-  status: "belum_lunas" | "cicilan" | "lunas";
-  jatuh_tempo: string | null;
-  total_dibayar: number;
-  sisa_tagihan: number;
-  riwayat_pembayaran: {
-    jumlah_bayar: number;
-    tanggal_bayar: string;
-    catatan: string | null;
-    kuitansi_url: string | null;
-  }[];
-};
-
-type LookupResult = {
-  status: "ok" | "not_found" | "rate_limited";
-  peserta?: {
-    foto_url: string | null;
-    nama: string;
-    nis: string;
-    kelas: string;
-    status: string;
-  };
-  santri?: {
-    foto_url: string | null;
-    nama: string;
-    nis: string;
-    kelas: string;
-    status: string;
-  };
-  tagihan?: LookupBill[];
-  raport?: {
-    mata_pelajaran: string;
-    periode: string;
-    nilai: string | null;
-  }[];
-};
-
-const fallbackImage =
-  "https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=1400&q=80";
-
-const fallbackGallery: GalleryRow[] = [
-  {
-    id: "fallback-1",
-    album: "Kegiatan",
-    media_url:
-      "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=900&q=80",
-    tipe: "foto",
-  },
-  {
-    id: "fallback-2",
-    album: "Fasilitas",
-    media_url:
-      "https://images.unsplash.com/photo-1517164850305-99a3e65bb47e?auto=format&fit=crop&w=900&q=80",
-    tipe: "foto",
-  },
-  {
-    id: "fallback-3",
-    album: "Belajar",
-    media_url:
-      "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=900&q=80",
-    tipe: "foto",
-  },
-];
-
-export function formatDate(value?: string | null) {
-  if (!value) return "Tanggal menyusul";
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-export function formatCurrency(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value || 0);
-}
-
-function makeExcerpt(row: NewsRow, entityLabel: string) {
-  if (row.excerpt) return row.excerpt;
-  if (!row.konten) return `Baca informasi terbaru dari ${entityLabel}.`;
-  return row.konten.replace(/<[^>]+>/g, "").slice(0, 150);
-}
-
-function getClientLookupKey(entitas: PublicEntity) {
-  const storageKey = `${entitas}_public_lookup_key`;
-  const existing = window.localStorage.getItem(storageKey);
-  if (existing) return existing;
-  const next =
-    "web-" +
-    (window.crypto?.randomUUID?.() ||
-      Math.random().toString(36).slice(2) + Date.now().toString(36));
-  window.localStorage.setItem(storageKey, next);
-  return next;
-}
-
-function isLookupLimited(entitas: PublicEntity) {
-  const key = `${entitas}_lookup_attempts`;
-  const now = Date.now();
-  const attempts = JSON.parse(window.localStorage.getItem(key) || "[]") as number[];
-  const recent = attempts.filter((timestamp) => now - timestamp < 60_000);
-  if (recent.length >= 5) {
-    window.localStorage.setItem(key, JSON.stringify(recent));
-    return true;
-  }
-  recent.push(now);
-  window.localStorage.setItem(key, JSON.stringify(recent));
-  return false;
-}
-
-export function SectionBerita({
-  entitas,
-  entityLabel,
-  detailBasePath,
-}: {
-  entitas: PublicEntity;
-  entityLabel: string;
-  detailBasePath: string;
-}) {
-  const [news, setNews] = useState<NewsRow[]>([]);
-
-  useEffect(() => {
-    async function loadNews() {
-      const { data } = await supabase
-        .from("lp_berita")
-        .select("id, judul, thumbnail_url, konten, excerpt, tanggal, created_at")
-        .eq("entitas", entitas)
-        .order("tanggal", { ascending: false })
-        .limit(6);
-
-      if (data) setNews(data as NewsRow[]);
-    }
-
-    loadNews();
-  }, [entitas]);
-
+// SMP Maarif NU Landing Page Components
+export function SmpHero() {
   return (
-    <section id="berita" className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-dark">
-        Berita & Artikel
-      </p>
-      <h2 className="mt-3 text-3xl font-semibold text-gray-950">
-        Kabar terbaru {entityLabel}.
-      </h2>
-      <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {news.length ? (
-          news.map((item) => (
-            <Link
-              key={item.id}
-              to={`${detailBasePath}/${item.id}`}
-              className="overflow-hidden rounded bg-white shadow-soft transition hover:-translate-y-1 hover:shadow-lg"
-            >
-              <img
-                src={item.thumbnail_url || fallbackImage}
-                alt={item.judul}
-                className="aspect-[16/10] w-full object-cover"
-              />
-              <div className="p-5">
-                <p className="text-sm text-emerald-800">
-                  {formatDate(item.tanggal || item.created_at)}
-                </p>
-                <h3 className="mt-2 text-lg font-semibold leading-7 text-gray-950">
-                  {item.judul}
-                </h3>
-                <p className="mt-3 text-sm leading-6 text-gray-600">
-                  {makeExcerpt(item, entityLabel)}
-                </p>
-              </div>
-            </Link>
-          ))
-        ) : (
-          <div className="rounded bg-white p-6 text-sm text-gray-600 shadow-soft md:col-span-2 lg:col-span-3">
-            Berita {entityLabel} belum tersedia.
+    <div className="relative bg-[#001524] text-white min-h-[90vh] flex items-center pt-16">
+      {/* Background with overlay */}
+      <div 
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-40"
+        style={{
+          backgroundImage: 'url("https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop")'
+        }}
+      ></div>
+      
+      <div className="container mx-auto px-4 z-10 grid md:grid-cols-2 gap-12 items-center">
+        <div className="max-w-2xl">
+          <div className="inline-block bg-[#E5B869]/20 text-[#E5B869] px-4 py-1.5 rounded-full text-sm font-semibold mb-6 border border-[#E5B869]/30">
+            Penerimaan Peserta Didik Baru 2024/2025
           </div>
-        )}
-      </div>
-    </section>
-  );
-}
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight font-serif">
+            Generasi Cerdas, <br/>
+            <span className="text-[#E5B869]">Berakhlak Mulia</span>
+          </h1>
+          <p className="text-xl mb-10 text-gray-300 leading-relaxed max-w-lg">
+            SMP Maarif NU Ponpes Annur Mageung membentuk karakter unggul dengan perpaduan pendidikan nasional dan nilai-nilai kepesantrenan.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <Button size="lg" className="bg-[#E5B869] hover:bg-[#D4A055] text-[#001524] font-bold text-lg px-8">
+              Daftar Sekarang
+            </Button>
+            <Button size="lg" variant="outline" className="border-[#E5B869] text-[#E5B869] hover:bg-[#E5B869]/10 text-lg px-8">
+              Jelajahi Profil
+            </Button>
+          </div>
+        </div>
+        
+        <div className="hidden md:grid grid-cols-2 gap-4">
+           {/* Card 1 */}
+           <div className="bg-[#001e33]/80 backdrop-blur-sm p-6 rounded-2xl border border-white/10 hover:border-[#E5B869]/50 transition-colors transform translate-y-8">
+             <div className="w-12 h-12 bg-[#E5B869]/20 rounded-xl flex items-center justify-center mb-4 text-[#E5B869]">
+               <BookOpen className="w-6 h-6" />
+             </div>
+             <h3 className="text-xl font-bold mb-2">Kurikulum Merdeka</h3>
+             <p className="text-sm text-gray-400">Pembelajaran adaptif yang fokus pada pengembangan karakter dan kompetensi.</p>
+           </div>
+           
+           {/* Card 2 */}
+           <div className="bg-[#001e33]/80 backdrop-blur-sm p-6 rounded-2xl border border-white/10 hover:border-[#E5B869]/50 transition-colors">
+             <div className="w-12 h-12 bg-[#E5B869]/20 rounded-xl flex items-center justify-center mb-4 text-[#E5B869]">
+               <Shield className="w-6 h-6" />
+             </div>
+             <h3 className="text-xl font-bold mb-2">Pendidikan Karakter</h3>
+             <p className="text-sm text-gray-400">Terintegrasi dengan nilai-nilai ahlussunnah wal jamaah an-nahdliyah.</p>
+           </div>
 
-export function SectionAgenda({
-  entitas,
-  entityLabel,
-}: {
-  entitas: PublicEntity;
-  entityLabel: string;
-}) {
-  const [agenda, setAgenda] = useState<AgendaRow[]>([]);
-
-  useEffect(() => {
-    async function loadAgenda() {
-      const today = new Date().toISOString().slice(0, 10);
-      const { data } = await supabase
-        .from("lp_agenda")
-        .select("id, judul, tanggal, lokasi, deskripsi")
-        .eq("entitas", entitas)
-        .gte("tanggal", today)
-        .order("tanggal", { ascending: true })
-        .limit(8);
-
-      if (data) setAgenda(data as AgendaRow[]);
-    }
-
-    loadAgenda();
-  }, [entitas]);
-
-  return (
-    <section id="agenda" className="bg-white py-16">
-      <div className="mx-auto max-w-7xl px-4 lg:px-6">
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-dark">
-          Agenda
-        </p>
-        <h2 className="mt-3 text-3xl font-semibold text-gray-950">
-          Kegiatan terdekat.
-        </h2>
-        <div className="mt-8 grid gap-4">
-          {agenda.length ? (
-            agenda.map((item) => (
-              <article
-                key={item.id}
-                className="grid gap-4 rounded border border-emerald-900/10 bg-cream-50 p-5 md:grid-cols-[180px_1fr]"
-              >
-                <div className="flex items-center gap-3 text-emerald-900">
-                  <CalendarDays size={22} />
-                  <span className="font-semibold">{formatDate(item.tanggal)}</span>
-                </div>
+           {/* Card 3 */}
+           <div className="bg-[#E5B869] text-[#001524] p-6 rounded-2xl col-span-2 transform -translate-y-4 shadow-xl">
+             <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-950">
-                    {item.judul}
-                  </h3>
-                  {item.lokasi ? (
-                    <p className="mt-1 text-sm font-medium text-emerald-800">
-                      {item.lokasi}
-                    </p>
-                  ) : null}
-                  {item.deskripsi ? (
-                    <p className="mt-2 text-sm leading-6 text-gray-600">
-                      {item.deskripsi}
-                    </p>
-                  ) : null}
+                  <h3 className="text-2xl font-bold mb-1">Akretditasi A</h3>
+                  <p className="text-[#001524]/80 font-medium">Badan Akreditasi Nasional</p>
                 </div>
-              </article>
-            ))
-          ) : (
-            <div className="rounded border border-emerald-900/10 bg-cream-50 p-6 text-sm text-gray-600">
-              Agenda {entityLabel} belum tersedia.
-            </div>
-          )}
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+                  <span className="text-3xl font-black">A</span>
+                </div>
+             </div>
+           </div>
         </div>
       </div>
-    </section>
+
+      {/* Stats Bar */}
+      <div className="absolute bottom-0 left-0 right-0 bg-[#001524] border-t border-white/10">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/10">
+            <div className="py-6 px-4 text-center">
+              <div className="text-3xl font-bold text-[#E5B869] mb-1">15+</div>
+              <div className="text-sm text-gray-400">Tahun Berdiri</div>
+            </div>
+            <div className="py-6 px-4 text-center">
+              <div className="text-3xl font-bold text-[#E5B869] mb-1">450+</div>
+              <div className="text-sm text-gray-400">Siswa Aktif</div>
+            </div>
+            <div className="py-6 px-4 text-center">
+              <div className="text-3xl font-bold text-[#E5B869] mb-1">45+</div>
+              <div className="text-sm text-gray-400">Tenaga Pendidik</div>
+            </div>
+            <div className="py-6 px-4 text-center">
+              <div className="text-3xl font-bold text-[#E5B869] mb-1">100%</div>
+              <div className="text-sm text-gray-400">Lulusan Melanjutkan</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-export function SectionGaleri({ entitas }: { entitas: PublicEntity }) {
-  const [gallery, setGallery] = useState<GalleryRow[]>([]);
-  const [activeAlbum, setActiveAlbum] = useState("Semua");
-  const [lightbox, setLightbox] = useState<GalleryRow | null>(null);
-
-  useEffect(() => {
-    async function loadGallery() {
-      const { data } = await supabase
-        .from("lp_galeri")
-        .select("id, album, media_url, tipe")
-        .eq("entitas", entitas)
-        .order("created_at", { ascending: false })
-        .limit(12);
-
-      setGallery(data?.length ? (data as GalleryRow[]) : fallbackGallery);
+export function SmpFeatures() {
+  const features = [
+    {
+      icon: <GraduationCap className="w-8 h-8" />,
+      title: "Guru Profesional",
+      description: "Tenaga pendidik tersertifikasi dengan kualifikasi S1 & S2."
+    },
+    {
+      icon: <BookOpen className="w-8 h-8" />,
+      title: "Fasilitas Lengkap",
+      description: "Laboratorium komputer, IPA, dan perpustakaan digital."
+    },
+    {
+      icon: <Users className="w-8 h-8" />,
+      title: "Ekstrakurikuler",
+      description: "Beragam pilihan ekskul untuk pengembangan bakat siswa."
+    },
+    {
+      icon: <TrendingUp className="w-8 h-8" />,
+      title: "Prestasi Akademik",
+      description: "Pembinaan intensif untuk olimpiade dan kompetisi."
     }
-
-    loadGallery();
-  }, [entitas]);
-
-  const albums = useMemo(
-    () => ["Semua", ...Array.from(new Set(gallery.map((item) => item.album || "Umum")))],
-    [gallery],
-  );
-
-  const filteredGallery = useMemo(() => {
-    if (activeAlbum === "Semua") return gallery;
-    return gallery.filter((item) => (item.album || "Umum") === activeAlbum);
-  }, [activeAlbum, gallery]);
+  ];
 
   return (
-    <section id="galeri" className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-dark">
-        Galeri
-      </p>
-      <h2 className="mt-3 text-3xl font-semibold text-gray-950">
-        Dokumentasi kegiatan dan fasilitas.
-      </h2>
-      <div className="mt-6 flex gap-2 overflow-x-auto pb-2">
-        {albums.map((album) => (
-          <button
-            key={album}
-            type="button"
-            onClick={() => setActiveAlbum(album)}
-            className={[
-              "shrink-0 rounded border px-4 py-2 text-sm font-semibold",
-              activeAlbum === album
-                ? "border-emerald-800 bg-emerald-800 text-white"
-                : "border-emerald-900/15 bg-white text-gray-700",
-            ].join(" ")}
-          >
-            {album}
-          </button>
-        ))}
-      </div>
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredGallery.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setLightbox(item)}
-            className="group overflow-hidden rounded bg-white text-left shadow-soft"
-          >
-            {item.tipe === "video" ? (
-              <div className="grid aspect-[4/3] place-items-center bg-emerald-950 text-white">
-                <ImageIcon size={32} />
+    <section className="py-24 bg-gray-50">
+      <div className="container mx-auto px-4">
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <h2 className="text-sm font-bold text-[#E5B869] tracking-wider uppercase mb-3">Keunggulan Kami</h2>
+          <h3 className="text-3xl md:text-4xl font-bold text-[#001524] mb-6 font-serif">Mengapa Memilih SMP Maarif NU?</h3>
+          <p className="text-gray-600 text-lg">
+            Kami berkomitmen memberikan pendidikan terbaik yang mengintegrasikan kecerdasan intelektual, emosional, dan spiritual.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-4 gap-8">
+          {features.map((feature, index) => (
+            <div key={index} className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 group">
+              <div className="w-16 h-16 bg-[#001524] text-[#E5B869] rounded-2xl flex items-center justify-center mb-6 group-hover:bg-[#E5B869] group-hover:text-[#001524] transition-colors">
+                {feature.icon}
               </div>
-            ) : (
-              <img
-                src={item.media_url}
-                alt={item.album || "Galeri"}
-                className="aspect-[4/3] w-full object-cover transition group-hover:scale-105"
-              />
-            )}
-            <div className="p-4">
-              <p className="text-sm font-semibold text-emerald-900">
-                {item.album || "Umum"}
-              </p>
-              <p className="mt-1 text-sm text-gray-600">
-                {item.tipe === "video" ? "Video" : "Foto"}
-              </p>
+              <h4 className="text-xl font-bold text-[#001524] mb-3">{feature.title}</h4>
+              <p className="text-gray-600 leading-relaxed">{feature.description}</p>
             </div>
-          </button>
-        ))}
-      </div>
-
-      {lightbox ? (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4"
-          role="dialog"
-          aria-modal="true"
-        >
-          <button
-            type="button"
-            aria-label="Tutup galeri"
-            onClick={() => setLightbox(null)}
-            className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded bg-white text-gray-950"
-          >
-            <X size={20} />
-          </button>
-          {lightbox.tipe === "video" ? (
-            <video
-              src={lightbox.media_url}
-              controls
-              className="max-h-[84vh] w-full max-w-5xl rounded bg-black"
-            />
-          ) : (
-            <img
-              src={lightbox.media_url}
-              alt={lightbox.album || "Galeri"}
-              className="max-h-[84vh] w-full max-w-5xl rounded object-contain"
-            />
-          )}
+          ))}
         </div>
-      ) : null}
+      </div>
     </section>
   );
 }
 
-export function SeksiCekPembayaran({
-  entitas,
-  personLabel,
-  recordLabel,
-}: {
-  entitas: PublicEntity;
-  personLabel: string;
-  recordLabel: string;
-}) {
-  const [lookupCode, setLookupCode] = useState("");
-  const [lookup, setLookup] = useState<LookupResult | null>(null);
-  const [lookupError, setLookupError] = useState("");
-  const [lookupLoading, setLookupLoading] = useState(false);
-
-  const participant = lookup?.peserta || lookup?.santri;
-
-  async function handleLookup(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLookup(null);
-    setLookupError("");
-
-    const trimmedCode = lookupCode.trim();
-    if (!trimmedCode) {
-      setLookupError(`Masukkan kode unik ${personLabel} terlebih dahulu.`);
-      return;
+export function SmpPrograms() {
+  const programs = [
+    {
+      image: "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?q=80&w=2070&auto=format&fit=crop",
+      title: "Program Tahfidz",
+      category: "Keagamaan",
+      description: "Bimbingan hafalan Al-Qur'an terpadu dengan target minimal 3 Juz selama masa pendidikan SMP."
+    },
+    {
+      image: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=2022&auto=format&fit=crop",
+      title: "English & Arabic Club",
+      category: "Bahasa",
+      description: "Pembiasaan bahasa asing untuk mempersiapkan siswa bersaing di era global."
+    },
+    {
+      image: "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2032&auto=format&fit=crop",
+      title: "Science & Tech",
+      category: "Akademik",
+      description: "Pengembangan kemampuan sains dan teknologi melalui eksperimen dan proyek terapan."
     }
-
-    if (isLookupLimited(entitas)) {
-      setLookupError("Terlalu banyak percobaan. Silakan coba lagi dalam 1 menit.");
-      return;
-    }
-
-    setLookupLoading(true);
-    const rpcName =
-      entitas === "pesantren"
-        ? "lookup_pesantren_student_record"
-        : "lookup_smp_student_record";
-    const { data, error } = await supabase.rpc(rpcName, {
-      p_kode_unik: trimmedCode,
-      p_client_key: getClientLookupKey(entitas),
-    });
-
-    if (error) {
-      const fallback = await supabase.rpc("get_public_payment_status", {
-        p_kode_unik: trimmedCode,
-      });
-      setLookupLoading(false);
-
-      const rows = (fallback.data || []).filter(
-        (item: Record<string, unknown>) => item.entitas === entitas,
-      );
-      if (fallback.error || !rows.length) {
-        setLookupError("Kode tidak valid atau data belum tersedia.");
-        return;
-      }
-
-      setLookup({
-        status: "ok",
-        peserta: {
-          foto_url: null,
-          nama: rows[0].anggota_nama,
-          nis: "-",
-          kelas: "-",
-          status: "aktif",
-        },
-        tagihan: rows.map((item: Record<string, unknown>) => ({
-          id: String(item.tagihan_id),
-          jenis_tagihan: String(item.jenis_tagihan || "Tagihan"),
-          nominal: Number(item.nominal || 0),
-          status: item.status as LookupBill["status"],
-          jatuh_tempo: String(item.jatuh_tempo || ""),
-          total_dibayar: Number(item.total_dibayar || 0),
-          sisa_tagihan: Number(item.sisa_tagihan || 0),
-          riwayat_pembayaran: [],
-        })),
-        raport: [],
-      });
-      return;
-    }
-
-    setLookupLoading(false);
-    const result = data as LookupResult;
-    if (result.status === "rate_limited") {
-      setLookupError("Terlalu banyak percobaan. Silakan coba lagi dalam 1 menit.");
-      return;
-    }
-    if (result.status !== "ok") {
-      setLookupError("Kode tidak valid atau data belum tersedia.");
-      return;
-    }
-    setLookup(result);
-  }
-
-  async function downloadSummary() {
-    if (!participant) return;
-
-    const { jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text(`Rekap Pembayaran dan ${recordLabel}`, 14, 18);
-    doc.setFontSize(11);
-    doc.text(`Nama: ${participant.nama}`, 14, 32);
-    doc.text(`NIS: ${participant.nis}`, 14, 39);
-    doc.text(`Kelas/Angkatan: ${participant.kelas}`, 14, 46);
-    doc.text(`Status: ${participant.status}`, 14, 53);
-
-    let y = 68;
-    doc.setFontSize(13);
-    doc.text("Tagihan", 14, y);
-    y += 8;
-    doc.setFontSize(10);
-    (lookup?.tagihan || []).forEach((bill, index) => {
-      if (y > 270) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.text(
-        `${index + 1}. ${bill.jenis_tagihan || "Tagihan"} - ${bill.status} - ${formatCurrency(
-          bill.sisa_tagihan,
-        )}`,
-        14,
-        y,
-      );
-      y += 7;
-    });
-
-    y += 6;
-    doc.setFontSize(13);
-    doc.text("Ringkasan Raport", 14, y);
-    y += 8;
-    doc.setFontSize(10);
-    (lookup?.raport || []).slice(0, 12).forEach((item) => {
-      if (y > 270) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.text(
-        `${item.mata_pelajaran} (${item.periode}): ${item.nilai || "-"}`,
-        14,
-        y,
-      );
-      y += 7;
-    });
-
-    doc.save(`rekap-${participant.nis || personLabel}.pdf`);
-  }
+  ];
 
   return (
-    <section id="cek-santri" className="bg-emerald-950 py-16 text-white">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 lg:grid-cols-[0.85fr_1.15fr] lg:px-6">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-soft">
-            Cek Pembayaran & {recordLabel}
+    <section className="py-24 bg-white">
+      <div className="container mx-auto px-4">
+        <div className="flex flex-col md:flex-row justify-between items-end mb-12">
+          <div className="max-w-2xl">
+            <h2 className="text-sm font-bold text-[#E5B869] tracking-wider uppercase mb-3">Program Unggulan</h2>
+            <h3 className="text-3xl md:text-4xl font-bold text-[#001524] font-serif">Pengembangan Potensi Siswa</h3>
+          </div>
+          <Button variant="outline" className="mt-6 md:mt-0 border-[#001524] text-[#001524] hover:bg-[#001524] hover:text-white">
+            Lihat Semua Program
+          </Button>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-8">
+          {programs.map((program, index) => (
+            <div key={index} className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm group">
+              <div className="relative h-56 overflow-hidden">
+                <img 
+                  src={program.image} 
+                  alt={program.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute top-4 left-4 bg-[#E5B869] text-[#001524] text-xs font-bold px-3 py-1 rounded-full">
+                  {program.category}
+                </div>
+              </div>
+              <div className="p-8">
+                <h4 className="text-xl font-bold text-[#001524] mb-3">{program.title}</h4>
+                <p className="text-gray-600 mb-6">{program.description}</p>
+                <Button className="w-full bg-[#001524] hover:bg-[#001524]/90 text-white">
+                  Pelajari Lebih Lanjut
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// Ponpes Annur Mageung Landing Page Components
+export function PesantrenHero() {
+  return (
+    <div className="relative bg-[#001524] text-white min-h-[90vh] flex items-center pt-16">
+      <div 
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-40"
+        style={{
+          backgroundImage: 'url("https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?q=80&w=2076&auto=format&fit=crop")'
+        }}
+      ></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-[#001524] to-transparent z-0"></div>
+      
+      <div className="container mx-auto px-4 z-10">
+        <div className="max-w-3xl">
+          <div className="inline-flex items-center gap-2 bg-[#E5B869]/10 text-[#E5B869] px-4 py-2 rounded-full text-sm font-semibold mb-8 border border-[#E5B869]/20">
+            <span className="w-2 h-2 rounded-full bg-[#E5B869] animate-pulse"></span>
+            Pendaftaran Santri Baru Telah Dibuka
+          </div>
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight font-serif">
+            Mencetak Ulama <br/>
+            <span className="text-[#E5B869] italic">Amilin</span>
+          </h1>
+          <p className="text-xl mb-10 text-gray-300 leading-relaxed max-w-2xl">
+            Pondok Pesantren Annur Mageung memadukan kajian kitab kuning salaf dengan sistem pendidikan modern untuk membentuk generasi islami yang tangguh.
           </p>
-          <h2 className="mt-3 text-3xl font-semibold">
-            Masukkan kode unik untuk melihat data {personLabel}.
-          </h2>
-          <p className="mt-4 leading-7 text-emerald-50">
-            Sistem hanya menampilkan data jika kode unik cocok. Percobaan
-            dibatasi untuk melindungi data {personLabel}.
-          </p>
-          <form onSubmit={handleLookup} className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <input
-              value={lookupCode}
-              onChange={(event) => setLookupCode(event.target.value)}
-              placeholder={`Kode unik ${personLabel}`}
-              className="min-h-12 flex-1 rounded border border-white/20 bg-white px-4 text-gray-950 outline-none focus:ring-2 focus:ring-gold"
+          <div className="flex flex-wrap gap-4">
+            <Button size="lg" className="bg-[#E5B869] hover:bg-[#D4A055] text-[#001524] font-bold text-lg px-8">
+              Pendaftaran Online
+            </Button>
+            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white hover:text-[#001524] text-lg px-8">
+              Profil Pesantren
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Info Cards Overlay */}
+      <div className="absolute -bottom-16 left-0 right-0 z-20 hidden md:block">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-3 gap-6">
+            <div className="bg-white p-6 rounded-xl shadow-xl border-t-4 border-[#E5B869] transform transition-transform hover:-translate-y-2">
+              <div className="w-12 h-12 bg-[#001524]/5 rounded-lg flex items-center justify-center mb-4 text-[#001524]">
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-[#001524] mb-2">Kajian Kitab Kuning</h3>
+              <p className="text-gray-600 text-sm">Sistem sorogan dan bandongan klasik dengan kurikulum berjenjang.</p>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-xl border-t-4 border-[#001524] transform transition-transform hover:-translate-y-2">
+              <div className="w-12 h-12 bg-[#001524]/5 rounded-lg flex items-center justify-center mb-4 text-[#001524]">
+                <Landmark className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-[#001524] mb-2">Pendidikan Formal</h3>
+              <p className="text-gray-600 text-sm">Terintegrasi dengan SMP dan jenjang pendidikan formal lainnya.</p>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-xl border-t-4 border-[#E5B869] transform transition-transform hover:-translate-y-2">
+              <div className="w-12 h-12 bg-[#001524]/5 rounded-lg flex items-center justify-center mb-4 text-[#001524]">
+                <Shield className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-[#001524] mb-2">Pembinaan Akhlak</h3>
+              <p className="text-gray-600 text-sm">Penanaman nilai adab dan kedisiplinan 24 jam di lingkungan asrama.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function PesantrenAbout() {
+  return (
+    <section className="py-24 bg-gray-50 pt-32 md:pt-40">
+      <div className="container mx-auto px-4">
+        <div className="grid md:grid-cols-2 gap-16 items-center">
+          <div className="relative">
+            <div className="absolute inset-0 bg-[#E5B869] rounded-2xl transform rotate-3 scale-105 opacity-20"></div>
+            <img 
+              src="https://images.unsplash.com/photo-1604928141064-207cea6f571f?q=80&w=2070&auto=format&fit=crop" 
+              alt="Santri mengaji" 
+              className="relative rounded-2xl shadow-xl z-10 w-full object-cover h-[500px]"
             />
-            <button
-              type="submit"
-              disabled={lookupLoading}
-              className="inline-flex min-h-12 items-center justify-center rounded bg-gold px-5 text-sm font-semibold text-emerald-950 transition hover:bg-gold-soft disabled:opacity-70"
-            >
-              <Search className="mr-2" size={18} />
-              {lookupLoading ? "Memeriksa..." : "Cek Data"}
-            </button>
-          </form>
-          {lookupError ? (
-            <p className="mt-3 rounded bg-red-50 px-4 py-3 text-sm text-red-700">
-              {lookupError}
+            <div className="absolute -bottom-8 -right-8 bg-[#001524] text-white p-6 rounded-xl shadow-xl z-20 hidden md:block">
+              <div className="text-4xl font-bold text-[#E5B869] mb-1">1998</div>
+              <div className="text-sm font-medium">Tahun Berdiri</div>
+            </div>
+          </div>
+          
+          <div>
+            <h2 className="text-sm font-bold text-[#E5B869] tracking-wider uppercase mb-3">Tentang Pesantren</h2>
+            <h3 className="text-3xl md:text-4xl font-bold text-[#001524] mb-6 font-serif">Membangun Tradisi Keilmuan Pesantren Salaf</h3>
+            <p className="text-gray-600 text-lg mb-6 leading-relaxed">
+              Pondok Pesantren Annur Mageung didirikan dengan niat luhur untuk melestarikan tradisi keilmuan Islam ahlussunnah wal jamaah.
             </p>
-          ) : null}
-        </div>
-
-        <div className="rounded bg-white p-5 text-gray-950 shadow-soft">
-          {participant ? (
-            <div className="grid gap-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                {participant.foto_url ? (
-                  <img
-                    src={participant.foto_url}
-                    alt={participant.nama}
-                    className="h-24 w-24 rounded object-cover"
-                  />
-                ) : (
-                  <div className="grid h-24 w-24 place-items-center rounded bg-emerald-50 text-emerald-900">
-                    <FileText size={28} />
-                  </div>
-                )}
-                <div>
-                  <h3 className="text-xl font-semibold">{participant.nama}</h3>
-                  <p className="mt-1 text-sm text-gray-600">
-                    NIS {participant.nis} - {participant.kelas}
-                  </p>
-                  <p className="mt-2 inline-flex rounded bg-emerald-50 px-3 py-1 text-sm font-semibold capitalize text-emerald-800">
-                    {participant.status}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h4 className="font-semibold">Status & Riwayat Tagihan</h4>
-                  <button
-                    type="button"
-                    onClick={downloadSummary}
-                    className="inline-flex items-center rounded border border-emerald-900/15 px-3 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"
-                  >
-                    <Download className="mr-2" size={16} />
-                    Unduh Rekap PDF
-                  </button>
-                </div>
-                <div className="mt-4 grid gap-3">
-                  {lookup?.tagihan?.length ? (
-                    lookup.tagihan.map((bill) => (
-                      <article key={bill.id} className="rounded border border-gray-200 p-4">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <p className="font-semibold">
-                              {bill.jenis_tagihan || "Tagihan"}
-                            </p>
-                            <p className="mt-1 text-sm text-gray-600">
-                              Jatuh tempo {formatDate(bill.jatuh_tempo)}
-                            </p>
-                          </div>
-                          <span className="rounded bg-emerald-50 px-3 py-1 text-sm font-semibold capitalize text-emerald-800">
-                            {bill.status.replace("_", " ")}
-                          </span>
-                        </div>
-                        <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
-                          <p>Nominal: {formatCurrency(bill.nominal)}</p>
-                          <p>Dibayar: {formatCurrency(bill.total_dibayar)}</p>
-                          <p>Sisa: {formatCurrency(bill.sisa_tagihan)}</p>
-                        </div>
-                        {bill.riwayat_pembayaran.length ? (
-                          <div className="mt-3 border-t border-gray-100 pt-3">
-                            {bill.riwayat_pembayaran.map((payment, index) => (
-                              <div
-                                key={`${payment.tanggal_bayar}-${index}`}
-                                className="flex flex-col gap-2 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
-                              >
-                                <span>
-                                  {formatDate(payment.tanggal_bayar)} -{" "}
-                                  {formatCurrency(payment.jumlah_bayar)}
-                                </span>
-                                {payment.kuitansi_url ? (
-                                  <a
-                                    href={payment.kuitansi_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center font-semibold text-emerald-800"
-                                  >
-                                    Unduh Kuitansi
-                                    <Download className="ml-1" size={14} />
-                                  </a>
-                                ) : null}
-                              </div>
-                            ))}
-                          </div>
-                        ) : null}
-                      </article>
-                    ))
-                  ) : (
-                    <p className="rounded bg-gray-50 p-4 text-sm text-gray-600">
-                      Tagihan belum tersedia.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold">Ringkasan Raport</h4>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {lookup?.raport?.length ? (
-                    lookup.raport.slice(0, 8).map((item) => (
-                      <div
-                        key={`${item.mata_pelajaran}-${item.periode}`}
-                        className="rounded bg-cream-50 p-3 text-sm"
-                      >
-                        <p className="font-semibold">{item.mata_pelajaran}</p>
-                        <p className="mt-1 text-gray-600">
-                          {item.periode}: {item.nilai || "-"}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="rounded bg-gray-50 p-4 text-sm text-gray-600 sm:col-span-2">
-                      Ringkasan raport belum tersedia.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="grid min-h-[360px] place-items-center rounded border border-dashed border-emerald-900/20 bg-cream-50 p-6 text-center">
-              <div>
-                <CheckCircle2 className="mx-auto text-emerald-800" size={36} />
-                <p className="mt-4 font-semibold text-gray-950">
-                  Data akan muncul setelah kode valid.
-                </p>
-                <p className="mt-2 text-sm leading-6 text-gray-600">
-                  Tidak ada data yang ditampilkan sebelum kode unik berhasil
-                  diverifikasi.
-                </p>
-              </div>
-            </div>
-          )}
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              Kami memadukan sistem pendidikan salafiyah yang berfokus pada penguasaan kitab kuning dengan sistem pendidikan modern untuk menjawab tantangan zaman tanpa meninggalkan jati diri santri.
+            </p>
+            
+            <ul className="space-y-4 mb-8">
+              {[
+                "Pengajian Kitab Kuning Rutin",
+                "Tahfidzul Qur'an",
+                "Pengembangan Bahasa Arab & Inggris",
+                "Kemandirian & Wirausaha Santri"
+              ].map((item, i) => (
+                <li key={i} className="flex items-center text-gray-700">
+                  <CheckCircle2 className="w-5 h-5 text-[#E5B869] mr-3 flex-shrink-0" />
+                  <span className="font-medium">{item}</span>
+                </li>
+              ))}
+            </ul>
+            
+            <Button className="bg-[#001524] hover:bg-[#001524]/90 text-white px-8">
+              Sejarah Lengkap
+            </Button>
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-export function SectionSaranKritik({
-  entitas,
-  entityLabel,
-}: {
-  entitas: PublicEntity;
-  entityLabel: string;
-}) {
-  const [form, setForm] = useState({ nama: "", kontak: "", pesan: "" });
-  const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setStatus("");
-
-    if (!form.pesan.trim()) {
-      setStatus("Pesan wajib diisi.");
-      return;
-    }
-
-    setLoading(true);
-    const { error } = await supabase.from("lp_saran_kritik").insert({
-      entitas,
-      nama: form.nama.trim() || null,
-      kontak: form.kontak.trim() || null,
-      pesan: form.pesan.trim(),
-    });
-    setLoading(false);
-
-    if (error) {
-      setStatus("Saran belum terkirim. Silakan coba lagi.");
-      return;
-    }
-
-    setForm({ nama: "", kontak: "", pesan: "" });
-    setStatus("Terima kasih. Saran dan kritik sudah tersimpan.");
-  }
-
+export function ContactSection() {
   return (
-    <section
-      id="saran"
-      className="mx-auto grid max-w-7xl gap-8 px-4 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:px-6"
-    >
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-dark">
-          Saran & Kritik
-        </p>
-        <h2 className="mt-3 text-3xl font-semibold text-gray-950">
-          Sampaikan masukan untuk {entityLabel}.
-        </h2>
-        <p className="mt-4 leading-7 text-gray-600">
-          Setiap pesan akan masuk ke data saran dan kritik untuk ditinjau oleh
-          pengelola.
-        </p>
+    <section className="py-24 bg-[#001524] text-white relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-[#E5B869] rounded-full mix-blend-multiply filter blur-3xl opacity-20 transform translate-x-1/2 -translate-y-1/2"></div>
+      <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 transform -translate-x-1/2 translate-y-1/2"></div>
+      
+      <div className="container mx-auto px-4 relative z-10">
+        <div className="max-w-4xl mx-auto text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6 font-serif">Mari Bergabung Bersama Kami</h2>
+          <p className="text-gray-300 text-lg">
+            Untuk informasi lebih lanjut mengenai pendaftaran atau program kami, jangan ragu untuk menghubungi panitia penerimaan santri/siswa baru.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-8 rounded-2xl text-center hover:bg-white/10 transition-colors">
+            <div className="w-14 h-14 bg-[#E5B869]/20 rounded-full flex items-center justify-center mx-auto mb-6 text-[#E5B869]">
+              <MapPin className="w-7 h-7" />
+            </div>
+            <h4 className="text-xl font-bold mb-3">Lokasi</h4>
+            <p className="text-gray-400 text-sm">
+              Jl. Pesantren No. 1, Mageung,<br />
+              Kec. Karanganyar, Kab. Demak,<br />
+              Jawa Tengah
+            </p>
+          </div>
+          
+          <div className="bg-[#E5B869] text-[#001524] p-8 rounded-2xl text-center shadow-xl transform md:-translate-y-4">
+            <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-6 text-[#001524]">
+              <Phone className="w-7 h-7" />
+            </div>
+            <h4 className="text-xl font-bold mb-3">Telepon / WhatsApp</h4>
+            <p className="font-medium mb-1">Admin SMP: 0812-3456-7890</p>
+            <p className="font-medium">Admin Ponpes: 0812-0987-6543</p>
+            <Button className="w-full mt-6 bg-[#001524] hover:bg-[#001e33] text-white">
+              Hubungi Sekarang
+            </Button>
+          </div>
+          
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-8 rounded-2xl text-center hover:bg-white/10 transition-colors">
+            <div className="w-14 h-14 bg-[#E5B869]/20 rounded-full flex items-center justify-center mx-auto mb-6 text-[#E5B869]">
+              <Mail className="w-7 h-7" />
+            </div>
+            <h4 className="text-xl font-bold mb-3">Email</h4>
+            <p className="text-gray-400 text-sm mb-1">
+              info@smpmaarifnu.sch.id
+            </p>
+            <p className="text-gray-400 text-sm">
+              admin@annurmageung.com
+            </p>
+          </div>
+        </div>
       </div>
-      <form onSubmit={handleSubmit} className="rounded bg-white p-6 shadow-soft">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-2 text-sm font-semibold text-gray-700">
-            Nama
-            <input
-              value={form.nama}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, nama: event.target.value }))
-              }
-              className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-emerald-700"
-            />
-          </label>
-          <label className="grid gap-2 text-sm font-semibold text-gray-700">
-            Kontak (opsional)
-            <input
-              value={form.kontak}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, kontak: event.target.value }))
-              }
-              className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-emerald-700"
-            />
-          </label>
-        </div>
-        <label className="mt-4 grid gap-2 text-sm font-semibold text-gray-700">
-          Pesan
-          <textarea
-            value={form.pesan}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, pesan: event.target.value }))
-            }
-            rows={5}
-            className="rounded border border-gray-200 px-3 py-3 font-normal outline-none focus:ring-2 focus:ring-emerald-700"
-          />
-        </label>
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <button
-            type="submit"
-            disabled={loading}
-            className="inline-flex items-center justify-center rounded bg-emerald-800 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-900 disabled:opacity-70"
-          >
-            <MessageSquare className="mr-2" size={18} />
-            {loading ? "Mengirim..." : "Kirim Pesan"}
-          </button>
-          {status ? (
-            <p className="text-sm font-medium text-emerald-800">{status}</p>
-          ) : null}
-        </div>
-      </form>
     </section>
   );
 }
+```eof
+
