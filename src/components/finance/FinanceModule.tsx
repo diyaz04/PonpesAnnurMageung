@@ -300,6 +300,38 @@ function DataTable({
   );
 }
 
+function SubTabBar<T extends string>({
+  value,
+  onChange,
+  items,
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  items: Array<{ value: T; label: string }>;
+}) {
+  return (
+    <div className="rounded bg-white p-3 shadow-soft">
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => onChange(item.value)}
+            className={[
+              "rounded px-4 py-2 text-sm font-semibold",
+              value === item.value
+                ? "bg-emerald-800 text-white"
+                : "bg-gray-100 text-gray-700",
+            ].join(" ")}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function FinanceModule({
   initialEntity = "pesantren",
 }: {
@@ -309,6 +341,17 @@ export default function FinanceModule({
   const [activeEntity, setActiveEntity] = useState<Entity>(initialEntity);
   const [tab, setTab] = useState<"pengaturan" | "tagihan" | "bayar" | "tabungan" | "laporan">(
     "pengaturan",
+  );
+  const [pengaturanTab, setPengaturanTab] = useState<"konfigurasi" | "daftar">(
+    "konfigurasi",
+  );
+  const [tagihanTab, setTagihanTab] = useState<"generate" | "insidentil" | "daftar">(
+    "generate",
+  );
+  const [bayarTab, setBayarTab] = useState<"catat" | "riwayat">("catat");
+  const [tabunganTab, setTabunganTab] = useState<"catat" | "riwayat">("catat");
+  const [laporanTab, setLaporanTab] = useState<"ringkasan" | "pembayaran" | "tunggakan">(
+    "ringkasan",
   );
   const [billTypes, setBillTypes] = useState<BillType[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -1127,8 +1170,18 @@ export default function FinanceModule({
       </div>
 
       {tab === "pengaturan" ? (
-        <div className="grid gap-5 xl:grid-cols-[460px_1fr]">
-          <form onSubmit={savePaymentSetting} className="rounded bg-white p-5 shadow-soft">
+        <div className="grid gap-4">
+          <SubTabBar
+            value={pengaturanTab}
+            onChange={setPengaturanTab}
+            items={[
+              { value: "konfigurasi", label: "Pengaturan & Komponen" },
+              { value: "daftar", label: "Daftar Hasil Konfigurasi" },
+            ]}
+          />
+          {pengaturanTab === "konfigurasi" ? (
+            <div className="grid gap-5 xl:grid-cols-[460px_1fr]">
+              <form onSubmit={savePaymentSetting} className="rounded bg-white p-5 shadow-soft">
             <h2 className="text-lg font-semibold">Pengaturan Pembayaran per Orang</h2>
             <label className="relative mt-4 block">
               <Search className="absolute left-3 top-3 text-gray-400" size={18} />
@@ -1216,9 +1269,9 @@ export default function FinanceModule({
                 Tambah Item
               </button>
             </div>
-          </form>
+              </form>
 
-          <div className="grid gap-4">
+              <div className="grid gap-4">
             <div className="overflow-hidden rounded bg-white shadow-soft">
               <div className="border-b px-4 py-3">
                 <h3 className="font-semibold">Komponen Pembayaran</h3>
@@ -1341,6 +1394,9 @@ export default function FinanceModule({
                 </table>
               </div>
             </div>
+              </div>
+            </div>
+          ) : (
             <DataTable
               headers={["NIS", "Nama", "Profil", "Bulanan", "Tabungan/bln", "Status"]}
               rows={members.slice(0, 80).map((member) => {
@@ -1355,159 +1411,88 @@ export default function FinanceModule({
                 ];
               })}
             />
-          </div>
+          )}
         </div>
       ) : null}
 
       {tab === "tagihan" ? (
-        <div className="grid gap-5 xl:grid-cols-[460px_1fr]">
-          <form onSubmit={generateInvoices} className="rounded bg-white p-5 shadow-soft">
-            <h2 className="text-lg font-semibold">Buat Tagihan dari Pengaturan</h2>
-            <div className="mt-4 grid gap-3">
-              <select
-                value={invoiceForm.mode}
-                onChange={(event) =>
-                  setInvoiceForm((form) => ({ ...form, mode: event.target.value }))
-                }
-                className={inputClass}
-              >
-                <option value="massal">Massal</option>
-                <option value="individual">Individual</option>
-              </select>
-              {invoiceForm.mode === "massal" ? (
-                <select
-                  value={invoiceForm.scope}
-                  onChange={(event) =>
-                    setInvoiceForm((form) => ({ ...form, scope: event.target.value }))
-                  }
-                  className={inputClass}
-                >
-                  {scopes.map((scope) => (
-                    <option key={scope} value={scope}>
-                      {scope}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <select
-                  value={invoiceForm.anggota_id}
-                  onChange={(event) =>
-                    setInvoiceForm((form) => ({
-                      ...form,
-                      anggota_id: event.target.value,
-                    }))
-                  }
-                  className={inputClass}
-                >
-                  <option value="">Pilih anggota</option>
-                  {members.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.nama_lengkap} - {member.nis}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <select
-                value={invoiceForm.kategori}
-                onChange={(event) =>
-                  setInvoiceForm((form) => ({ ...form, kategori: event.target.value }))
-                }
-                className={inputClass}
-              >
-                <option value="bulanan">Syahriyah bulanan</option>
-                <option value="masuk_cicil">Biaya masuk/cicilan</option>
-                <option value="semua">Syahriyah + biaya masuk</option>
-              </select>
-              <input
-                type="month"
-                value={invoiceForm.periode}
-                onChange={(event) =>
-                  setInvoiceForm((form) => ({ ...form, periode: event.target.value }))
-                }
-                className={inputClass}
-              />
-              <input
-                type="date"
-                value={invoiceForm.jatuh_tempo}
-                onChange={(event) =>
-                  setInvoiceForm((form) => ({
-                    ...form,
-                    jatuh_tempo: event.target.value,
-                  }))
-                }
-                className={inputClass}
-              />
-            </div>
-            <button className="mt-4 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
-              <CalendarPlus className="mr-2" size={17} />
-              Buat Tagihan
-            </button>
-          </form>
+        <div className="grid gap-4">
+          <SubTabBar
+            value={tagihanTab}
+            onChange={setTagihanTab}
+            items={[
+              { value: "generate", label: "Generate Tagihan" },
+              { value: "insidentil", label: "Tagihan Insidentil" },
+              { value: "daftar", label: "Daftar Tagihan" },
+            ]}
+          />
 
-          <div className="grid gap-5">
-            <form onSubmit={saveBillType} className="rounded bg-white p-5 shadow-soft">
-              <h2 className="text-lg font-semibold">Jenis Tagihan Insidentil</h2>
-              <div className="mt-4 grid gap-3 md:grid-cols-[1fr_160px_150px]">
-                <input
-                  value={typeForm.nama || ""}
+          {tagihanTab === "generate" ? (
+            <form onSubmit={generateInvoices} className="rounded bg-white p-5 shadow-soft">
+              <h2 className="text-lg font-semibold">Buat Tagihan dari Pengaturan</h2>
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <select
+                  value={invoiceForm.mode}
                   onChange={(event) =>
-                    setTypeForm((form) => ({ ...form, nama: event.target.value }))
+                    setInvoiceForm((form) => ({ ...form, mode: event.target.value }))
                   }
-                  placeholder="Nama, contoh Rihlah / ujian / kitab"
                   className={inputClass}
-                />
-                <input
-                  type="number"
-                  value={typeForm.nominal || 0}
+                >
+                  <option value="massal">Massal</option>
+                  <option value="individual">Individual</option>
+                </select>
+                {invoiceForm.mode === "massal" ? (
+                  <select
+                    value={invoiceForm.scope}
+                    onChange={(event) =>
+                      setInvoiceForm((form) => ({ ...form, scope: event.target.value }))
+                    }
+                    className={inputClass}
+                  >
+                    {scopes.map((scope) => (
+                      <option key={scope} value={scope}>
+                        {scope}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    value={invoiceForm.anggota_id}
+                    onChange={(event) =>
+                      setInvoiceForm((form) => ({
+                        ...form,
+                        anggota_id: event.target.value,
+                      }))
+                    }
+                    className={inputClass}
+                  >
+                    <option value="">Pilih anggota</option>
+                    {members.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.nama_lengkap} - {member.nis}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <select
+                  value={invoiceForm.kategori}
                   onChange={(event) =>
-                    setTypeForm((form) => ({
-                      ...form,
-                      nominal: Number(event.target.value),
-                    }))
+                    setInvoiceForm((form) => ({ ...form, kategori: event.target.value }))
+                  }
+                  className={inputClass}
+                >
+                  <option value="bulanan">Syahriyah bulanan</option>
+                  <option value="masuk_cicil">Biaya masuk/cicilan</option>
+                  <option value="semua">Syahriyah + biaya masuk</option>
+                </select>
+                <input
+                  type="month"
+                  value={invoiceForm.periode}
+                  onChange={(event) =>
+                    setInvoiceForm((form) => ({ ...form, periode: event.target.value }))
                   }
                   className={inputClass}
                 />
-                <button className="inline-flex items-center justify-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
-                  <Save className="mr-2" size={17} />
-                  Simpan
-                </button>
-              </div>
-            </form>
-
-            <form onSubmit={createIncidentalInvoice} className="rounded bg-white p-5 shadow-soft">
-              <h2 className="text-lg font-semibold">Assign Insidentil per Orang</h2>
-              <div className="mt-4 grid gap-3 md:grid-cols-4">
-                <select
-                  value={typeForm.id || ""}
-                  onChange={(event) =>
-                    setTypeForm((form) => ({ ...form, id: event.target.value }))
-                  }
-                  className={inputClass}
-                >
-                  <option value="">Pilih jenis</option>
-                  {billTypes.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.nama} - {formatCurrency(type.nominal)}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={invoiceForm.anggota_id}
-                  onChange={(event) =>
-                    setInvoiceForm((form) => ({
-                      ...form,
-                      anggota_id: event.target.value,
-                    }))
-                  }
-                  className={inputClass}
-                >
-                  <option value="">Pilih anggota</option>
-                  {members.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.nama_lengkap} - {member.nis}
-                    </option>
-                  ))}
-                </select>
                 <input
                   type="date"
                   value={invoiceForm.jatuh_tempo}
@@ -1519,36 +1504,124 @@ export default function FinanceModule({
                   }
                   className={inputClass}
                 />
-                <button className="inline-flex items-center justify-center rounded bg-gold px-4 py-2 text-sm font-semibold text-emerald-950">
-                  <Plus className="mr-2" size={17} />
-                  Assign
-                </button>
               </div>
+              <button className="mt-4 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+                <CalendarPlus className="mr-2" size={17} />
+                Buat Tagihan
+              </button>
             </form>
+          ) : null}
 
-            <DataTable
-              headers={["Nama", "Nominal", "Aksi"]}
-              rows={billTypes.map((type) => [
-                type.nama,
-                formatCurrency(type.nominal),
-                <div key="actions" className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setTypeForm(type)}
-                    className="rounded border px-3 py-2 text-sm font-semibold"
-                  >
-                    Edit
+          {tagihanTab === "insidentil" ? (
+            <div className="grid gap-5">
+              <form onSubmit={saveBillType} className="rounded bg-white p-5 shadow-soft">
+                <h2 className="text-lg font-semibold">Jenis Tagihan Insidentil</h2>
+                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_160px_150px]">
+                  <input
+                    value={typeForm.nama || ""}
+                    onChange={(event) =>
+                      setTypeForm((form) => ({ ...form, nama: event.target.value }))
+                    }
+                    placeholder="Nama, contoh Rihlah / ujian / kitab"
+                    className={inputClass}
+                  />
+                  <input
+                    type="number"
+                    value={typeForm.nominal || 0}
+                    onChange={(event) =>
+                      setTypeForm((form) => ({
+                        ...form,
+                        nominal: Number(event.target.value),
+                      }))
+                    }
+                    className={inputClass}
+                  />
+                  <button className="inline-flex items-center justify-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+                    <Save className="mr-2" size={17} />
+                    Simpan
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => deleteBillType(type.id)}
-                    className="rounded border px-3 py-2 text-sm font-semibold text-red-600"
+                </div>
+              </form>
+
+              <form onSubmit={createIncidentalInvoice} className="rounded bg-white p-5 shadow-soft">
+                <h2 className="text-lg font-semibold">Assign Insidentil per Orang</h2>
+                <div className="mt-4 grid gap-3 md:grid-cols-4">
+                  <select
+                    value={typeForm.id || ""}
+                    onChange={(event) =>
+                      setTypeForm((form) => ({ ...form, id: event.target.value }))
+                    }
+                    className={inputClass}
                   >
-                    <Trash2 size={15} />
+                    <option value="">Pilih jenis</option>
+                    {billTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.nama} - {formatCurrency(type.nominal)}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={invoiceForm.anggota_id}
+                    onChange={(event) =>
+                      setInvoiceForm((form) => ({
+                        ...form,
+                        anggota_id: event.target.value,
+                      }))
+                    }
+                    className={inputClass}
+                  >
+                    <option value="">Pilih anggota</option>
+                    {members.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.nama_lengkap} - {member.nis}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="date"
+                    value={invoiceForm.jatuh_tempo}
+                    onChange={(event) =>
+                      setInvoiceForm((form) => ({
+                        ...form,
+                        jatuh_tempo: event.target.value,
+                      }))
+                    }
+                    className={inputClass}
+                  />
+                  <button className="inline-flex items-center justify-center rounded bg-gold px-4 py-2 text-sm font-semibold text-emerald-950">
+                    <Plus className="mr-2" size={17} />
+                    Assign
                   </button>
-                </div>,
-              ])}
-            />
+                </div>
+              </form>
+
+              <DataTable
+                headers={["Nama", "Nominal", "Aksi"]}
+                rows={billTypes.map((type) => [
+                  type.nama,
+                  formatCurrency(type.nominal),
+                  <div key="actions" className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTypeForm(type)}
+                      className="rounded border px-3 py-2 text-sm font-semibold"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteBillType(type.id)}
+                      className="rounded border px-3 py-2 text-sm font-semibold text-red-600"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>,
+                ])}
+              />
+            </div>
+          ) : null}
+
+          {tagihanTab === "daftar" ? (
             <DataTable
               headers={["Periode", "NIS", "Nama", "Tagihan", "Nominal", "Status", "Aksi"]}
               rows={invoices
@@ -1593,13 +1666,22 @@ export default function FinanceModule({
                   ];
                 })}
             />
-          </div>
+          ) : null}
         </div>
       ) : null}
 
       {tab === "bayar" ? (
-        <div className="grid gap-5 xl:grid-cols-[460px_1fr]">
-          <div className="rounded bg-white p-5 shadow-soft">
+        <div className="grid gap-4">
+          <SubTabBar
+            value={bayarTab}
+            onChange={setBayarTab}
+            items={[
+              { value: "catat", label: "Catat Pembayaran" },
+              { value: "riwayat", label: "Riwayat Pembayaran" },
+            ]}
+          />
+          {bayarTab === "catat" ? (
+            <div className="rounded bg-white p-5 shadow-soft">
             <h2 className="text-lg font-semibold">Pencatatan Pembayaran</h2>
             <label className="relative mt-4 block">
               <Search className="absolute left-3 top-3 text-gray-400" size={18} />
@@ -1709,22 +1791,73 @@ export default function FinanceModule({
                 Catat & Generate Kuitansi
               </button>
             </form>
-          </div>
-          <DataTable
-            headers={["Tanggal", "Jumlah", "Catatan", "Kuitansi"]}
-            rows={selectedInvoicePayments.map((payment) => [
-              formatDate(payment.tanggal_bayar),
-              formatCurrency(payment.jumlah_bayar),
-              payment.catatan || "-",
-              payment.kuitansi_url || "-",
-            ])}
-          />
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              <div className="rounded bg-white p-5 shadow-soft">
+                <h2 className="text-lg font-semibold">Riwayat Pembayaran</h2>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Cari anggota"
+                    className={inputClass}
+                  />
+                  <select
+                    value={selectedMember}
+                    onChange={(event) => {
+                      setSelectedMember(event.target.value);
+                      setSelectedInvoice("");
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">Pilih anggota</option>
+                    {filteredMembers.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.nama_lengkap} - {member.nis}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedInvoice}
+                    onChange={(event) => setSelectedInvoice(event.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">Pilih tagihan</option>
+                    {selectedMemberInvoices.map((invoice) => (
+                      <option key={invoice.id} value={invoice.id}>
+                        {invoiceLabel(invoice)} - {formatCurrency(invoice.nominal)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <DataTable
+                headers={["Tanggal", "Jumlah", "Catatan", "Kuitansi"]}
+                rows={selectedInvoicePayments.map((payment) => [
+                  formatDate(payment.tanggal_bayar),
+                  formatCurrency(payment.jumlah_bayar),
+                  payment.catatan || "-",
+                  payment.kuitansi_url || "-",
+                ])}
+              />
+            </div>
+          )}
         </div>
       ) : null}
 
       {tab === "tabungan" ? (
-        <div className="grid gap-5 xl:grid-cols-[460px_1fr]">
-          <form onSubmit={saveSavingsAdjustment} className="rounded bg-white p-5 shadow-soft">
+        <div className="grid gap-4">
+          <SubTabBar
+            value={tabunganTab}
+            onChange={setTabunganTab}
+            items={[
+              { value: "catat", label: "Catat Tabungan" },
+              { value: "riwayat", label: "Riwayat Tabungan" },
+            ]}
+          />
+          {tabunganTab === "catat" ? (
+            <form onSubmit={saveSavingsAdjustment} className="rounded bg-white p-5 shadow-soft">
             <h2 className="text-lg font-semibold">Ledger Tabungan Kegiatan</h2>
             <select
               value={savingsMember}
@@ -1786,28 +1919,64 @@ export default function FinanceModule({
                 Simpan Catatan Tabungan
               </button>
             </div>
-          </form>
-          <DataTable
-            headers={["Tanggal", "Tipe", "Nominal", "Catatan"]}
-            rows={savingsEntries
-              .filter((entry) => entry.anggota_id === savingsMember)
-              .map((entry) => [
-                formatDate(entry.tanggal),
-                entry.tipe.replace("_", " "),
-                <span
-                  key={entry.id}
-                  className={Number(entry.nominal) < 0 ? "text-red-700" : "text-emerald-800"}
-                >
-                  {formatCurrency(entry.nominal)}
-                </span>,
-                entry.catatan || "-",
-              ])}
-          />
+            </form>
+          ) : (
+            <div className="grid gap-4">
+              <div className="rounded bg-white p-5 shadow-soft">
+                <h2 className="text-lg font-semibold">Riwayat Tabungan Kegiatan</h2>
+                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_220px]">
+                  <select
+                    value={savingsMember}
+                    onChange={(event) => setSavingsMember(event.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">Pilih anggota</option>
+                    {members.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.nama_lengkap} - {member.nis}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="rounded bg-emerald-50 px-4 py-3">
+                    <p className="text-xs text-emerald-900">Saldo</p>
+                    <p className="font-semibold text-emerald-950">
+                      {formatCurrency(savingsTabBalance)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <DataTable
+                headers={["Tanggal", "Tipe", "Nominal", "Catatan"]}
+                rows={savingsEntries
+                  .filter((entry) => entry.anggota_id === savingsMember)
+                  .map((entry) => [
+                    formatDate(entry.tanggal),
+                    entry.tipe.replace("_", " "),
+                    <span
+                      key={entry.id}
+                      className={Number(entry.nominal) < 0 ? "text-red-700" : "text-emerald-800"}
+                    >
+                      {formatCurrency(entry.nominal)}
+                    </span>,
+                    entry.catatan || "-",
+                  ])}
+              />
+            </div>
+          )}
         </div>
       ) : null}
 
       {tab === "laporan" ? (
-        <div className="grid gap-5">
+        <div className="grid gap-4">
+          <SubTabBar
+            value={laporanTab}
+            onChange={setLaporanTab}
+            items={[
+              { value: "ringkasan", label: "Ringkasan" },
+              { value: "pembayaran", label: "Data Pembayaran" },
+              { value: "tunggakan", label: "Data Tunggakan" },
+            ]}
+          />
           <div className="rounded bg-white p-5 shadow-soft">
             <div className="grid gap-3 md:grid-cols-5">
               <input
@@ -1873,6 +2042,9 @@ export default function FinanceModule({
                 </button>
               </div>
             </div>
+          </div>
+
+          {laporanTab === "ringkasan" ? (
             <div className="mt-4 grid gap-3 md:grid-cols-4">
               <div className="rounded bg-emerald-50 p-4">
                 <p className="text-sm text-emerald-900">Total pembayaran</p>
@@ -1914,8 +2086,10 @@ export default function FinanceModule({
                 </p>
               </div>
             </div>
-          </div>
-          <DataTable
+          ) : null}
+
+          {laporanTab === "pembayaran" ? (
+            <DataTable
             headers={["Tanggal", "NIS", "Nama", "Jenis", "Kategori", "Jumlah"]}
             rows={reportPayments.map((payment) => {
               const invoice = invoices.find((item) => item.id === payment.tagihan_id);
@@ -1930,7 +2104,10 @@ export default function FinanceModule({
               ];
             })}
           />
-          <DataTable
+          ) : null}
+
+          {laporanTab === "tunggakan" ? (
+            <DataTable
             headers={["NIS", "Nama", "Jenis", "Kategori", "Nominal", "Status", "Jatuh Tempo"]}
             rows={arrears.map((invoice) => {
               const member = members.find((item) => item.id === invoice.anggota_id);
@@ -1945,6 +2122,7 @@ export default function FinanceModule({
               ];
             })}
           />
+          ) : null}
         </div>
       ) : null}
     </section>
