@@ -815,6 +815,36 @@ export default function FinanceModule({
     loadData();
   }
 
+  function editPaymentSetting(member: Member) {
+    setSelectedConfigMember(member.id);
+    setPengaturanTab("konfigurasi");
+    setMessage("Konfigurasi dimuat. Silakan ubah lalu simpan.");
+  }
+
+  async function deletePaymentSetting(setting: PaymentSetting, memberName: string) {
+    const confirmed = window.confirm(
+      `Hapus konfigurasi pembayaran ${memberName}? Tagihan yang sudah pernah dibuat tidak ikut dihapus.`,
+    );
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from("keu_pengaturan_pembayaran")
+      .delete()
+      .eq("id", setting.id);
+
+    if (!error && selectedSetting?.id === setting.id) {
+      setSelectedConfigMember("");
+      setDraftItems([]);
+      setConfigNote("");
+      setConfigActive(true);
+      setConfigPreset("santri_siswa_400");
+      setConfigProfile("santri_siswa");
+    }
+
+    setMessage(error ? error.message : "Konfigurasi pembayaran dihapus.");
+    loadData();
+  }
+
   async function saveBillType(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const payload = {
@@ -1661,7 +1691,7 @@ export default function FinanceModule({
             </div>
           ) : (
             <DataTable
-              headers={["NIS", "Nama", "Profil", "Bulanan", "Tabungan/bln", "Status"]}
+              headers={["NIS", "Nama", "Profil", "Bulanan", "Tabungan/bln", "Status", "Aksi"]}
               rows={members.slice(0, 80).map((member) => {
                 const memberIds = [member.id, ...(member.related_ids || [])];
                 const setting = settings.find((item) => memberIds.includes(item.anggota_id));
@@ -1672,6 +1702,33 @@ export default function FinanceModule({
                   setting ? formatCurrency(setting.total_bulanan) : "-",
                   setting ? formatCurrency(setting.tabungan_bulanan) : "-",
                   setting?.aktif ? "Aktif" : "Belum aktif",
+                  setting ? (
+                    <div key="actions" className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => editPaymentSetting(member)}
+                        className="rounded border px-3 py-2 text-sm font-semibold"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deletePaymentSetting(setting, member.nama_lengkap)}
+                        className="rounded border px-3 py-2 text-sm font-semibold text-red-600"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      key="configure"
+                      type="button"
+                      onClick={() => editPaymentSetting(member)}
+                      className="rounded border px-3 py-2 text-sm font-semibold text-emerald-800"
+                    >
+                      Atur
+                    </button>
+                  ),
                 ];
               })}
             />
