@@ -28,10 +28,10 @@ export function SmpHero() {
             SMP Maarif NU Ponpes Annur Mageung membentuk karakter unggul dengan perpaduan pendidikan nasional dan nilai-nilai kepesantrenan.
           </p>
           <div className="flex flex-wrap gap-4">
-            <Button size="lg" className="bg-[#E5B869] hover:bg-[#D4A055] text-[#001524] font-bold text-lg px-8">
+            <Button className="bg-[#E5B869] hover:bg-[#D4A055] text-[#001524] font-bold text-lg px-8">
               Daftar Sekarang
             </Button>
-            <Button size="lg" variant="outline" className="border-[#E5B869] text-[#E5B869] hover:bg-[#E5B869]/10 text-lg px-8">
+            <Button variant="secondary" className="border-[#E5B869] text-[#E5B869] hover:bg-[#E5B869]/10 text-lg px-8">
               Jelajahi Profil
             </Button>
           </div>
@@ -179,7 +179,7 @@ export function SmpPrograms() {
             <h2 className="text-sm font-bold text-[#E5B869] tracking-wider uppercase mb-3">Program Unggulan</h2>
             <h3 className="text-3xl md:text-4xl font-bold text-[#001524] font-serif">Pengembangan Potensi Siswa</h3>
           </div>
-          <Button variant="outline" className="border-[#001524] text-[#001524] hidden md:flex">
+          <Button variant="secondary" className="border-[#001524] text-[#001524] hidden md:flex">
             Lihat Semua Program
           </Button>
         </div>
@@ -237,10 +237,10 @@ export function PesantrenHero() {
             Pondok Pesantren Annur Mageung memadukan kajian kitab kuning salaf dengan sistem pendidikan modern untuk membentuk generasi islami yang tangguh.
           </p>
           <div className="flex flex-wrap gap-4">
-            <Button size="lg" className="bg-[#E5B869] hover:bg-[#D4A055] text-[#001524] font-bold text-lg px-8">
+            <Button className="bg-[#E5B869] hover:bg-[#D4A055] text-[#001524] font-bold text-lg px-8">
               Pendaftaran Online
             </Button>
-            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white hover:text-[#001524] text-lg px-8">
+            <Button variant="secondary" className="border-white/20 text-white hover:bg-white hover:text-[#001524] text-lg px-8">
               Profil Pesantren
             </Button>
           </div>
