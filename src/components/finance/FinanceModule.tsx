@@ -253,6 +253,46 @@ function isPaymentSelectableInvoice(invoice: Invoice) {
   return invoice.kategori === "insidentil";
 }
 
+function toLegacyInvoiceRow(row: Record<string, unknown>) {
+  const {
+    nama_tagihan,
+    catatan,
+    kategori,
+    bisa_dicicil,
+    periode,
+    sumber_pengaturan_id,
+    tabungan_target,
+    ditarik_at,
+    ditarik_oleh,
+    catatan_penarikan,
+    ...legacyRow
+  } = row;
+  void nama_tagihan;
+  void catatan;
+  void kategori;
+  void bisa_dicicil;
+  void periode;
+  void sumber_pengaturan_id;
+  void tabungan_target;
+  void ditarik_at;
+  void ditarik_oleh;
+  void catatan_penarikan;
+  return legacyRow;
+}
+
+function isMissingInvoiceColumnError(message?: string) {
+  return Boolean(
+    message &&
+      (message.includes("schema cache") ||
+        message.includes("Could not find") ||
+        message.includes("column")) &&
+      (message.includes("keu_tagihan") ||
+        message.includes("catatan") ||
+        message.includes("tabungan_target") ||
+        message.includes("nama_tagihan")),
+  );
+}
+
 function defaultItems(preset: PaymentPreset): SettingItem[] {
   const pesantrenMonthlyBase = [
     ["Listrik", 25000, false],
@@ -988,11 +1028,23 @@ export default function FinanceModule({
       return;
     }
 
-    const { error } = await supabase.from("keu_tagihan").insert(uniqueRows);
+    let usedLegacyFallback = false;
+    let insertResult = await supabase.from("keu_tagihan").insert(uniqueRows);
+    if (insertResult.error && isMissingInvoiceColumnError(insertResult.error.message)) {
+      usedLegacyFallback = true;
+      insertResult = await supabase
+        .from("keu_tagihan")
+        .insert(uniqueRows.map((row) => toLegacyInvoiceRow(row)));
+    }
+
     setMessage(
-      error
-        ? error.message
-        : `${uniqueRows.length} tagihan dibuat. ${skippedRows} dilewati karena sudah ada.`,
+      insertResult.error
+        ? `Gagal membuat tagihan: ${insertResult.error.message}`
+        : `Berhasil membuat ${uniqueRows.length} tagihan. ${skippedRows} dilewati karena sudah ada.${
+            usedLegacyFallback
+              ? " Catatan rincian belum tersimpan karena kolom SQL terbaru belum dijalankan."
+              : ""
+          }`,
     );
     loadData();
   }
@@ -1022,7 +1074,7 @@ export default function FinanceModule({
       return;
     }
 
-    const { error } = await supabase.from("keu_tagihan").insert({
+    const incidentalPayload = {
       entitas: activeEntity,
       anggota_id: invoiceForm.anggota_id,
       jenis_tagihan_id: type.id,
@@ -1035,9 +1087,26 @@ export default function FinanceModule({
       jatuh_tempo: invoiceForm.jatuh_tempo || null,
       periode: invoiceForm.periode || null,
       tabungan_target: 0,
-    });
+    };
 
-    setMessage(error ? error.message : "Tagihan insidentil dibuat.");
+    let usedLegacyFallback = false;
+    let result = await supabase.from("keu_tagihan").insert(incidentalPayload);
+    if (result.error && isMissingInvoiceColumnError(result.error.message)) {
+      usedLegacyFallback = true;
+      result = await supabase
+        .from("keu_tagihan")
+        .insert(toLegacyInvoiceRow(incidentalPayload));
+    }
+
+    setMessage(
+      result.error
+        ? `Gagal membuat tagihan insidentil: ${result.error.message}`
+        : `Berhasil membuat tagihan insidentil.${
+            usedLegacyFallback
+              ? " Catatan rincian belum tersimpan karena kolom SQL terbaru belum dijalankan."
+              : ""
+          }`,
+    );
     loadData();
   }
 
