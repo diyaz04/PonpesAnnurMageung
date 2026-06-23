@@ -246,6 +246,13 @@ function invoiceLabel(invoice: Invoice) {
   return invoice.nama_tagihan || invoice.jenis?.nama || "Tagihan";
 }
 
+function isPaymentSelectableInvoice(invoice: Invoice) {
+  const label = invoiceLabel(invoice).toLowerCase();
+  if (invoice.kategori === "bulanan") return label.startsWith("syahriyah");
+  if (invoice.kategori === "masuk_cicil") return label.startsWith("biaya masuk");
+  return invoice.kategori === "insidentil";
+}
+
 function defaultItems(preset: PaymentPreset): SettingItem[] {
   const pesantrenMonthlyBase = [
     ["Listrik", 25000, false],
@@ -508,6 +515,7 @@ export default function FinanceModule({
   const [selectedInvoice, setSelectedInvoice] = useState("");
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
   const [paymentForm, setPaymentForm] = useState({
+    mode: "lunas",
     tunai: "",
     dari_tabungan: "",
     tanggal_bayar: new Date().toISOString().slice(0, 10),
@@ -637,6 +645,16 @@ export default function FinanceModule({
     return ["semua", ...Array.from(new Set(values))];
   }, [activeEntity, members]);
 
+  function paidForInvoice(invoiceId: string) {
+    return payments
+      .filter((payment) => payment.tagihan_id === invoiceId)
+      .reduce((sum, payment) => sum + Number(payment.jumlah_bayar || 0), 0);
+  }
+
+  function remainingForInvoice(invoice: Invoice) {
+    return Math.max(Number(invoice.nominal || 0) - paidForInvoice(invoice.id), 0);
+  }
+
   const selectedConfigMemberIds = memberIdsFor(selectedConfigMember);
   const selectedSetting = settings.find((setting) =>
     selectedConfigMemberIds.includes(setting.anggota_id),
@@ -675,7 +693,11 @@ export default function FinanceModule({
   const settingSummary = summarizeItems(draftItems);
 
   const selectedMemberInvoices = invoices.filter(
-    (invoice) => memberIdsFor(selectedMember).includes(invoice.anggota_id) && !invoice.ditarik_at,
+    (invoice) =>
+      memberIdsFor(selectedMember).includes(invoice.anggota_id) &&
+      !invoice.ditarik_at &&
+      isPaymentSelectableInvoice(invoice) &&
+      remainingForInvoice(invoice) > 0,
   );
   const activeInvoices = invoices.filter((invoice) => !invoice.ditarik_at);
   const visibleActiveInvoices = activeInvoices.slice(0, 80);
@@ -687,10 +709,7 @@ export default function FinanceModule({
   const selectedInvoicePayments = payments.filter(
     (payment) => payment.tagihan_id === selectedInvoice,
   );
-  const selectedPaid = selectedInvoicePayments.reduce(
-    (sum, payment) => sum + Number(payment.jumlah_bayar || 0),
-    0,
-  );
+  const selectedPaid = selectedInvoiceRow ? paidForInvoice(selectedInvoiceRow.id) : 0;
   const selectedInvoiceSavingsCredited = savingsEntries
     .filter(
       (entry) =>
@@ -1200,8 +1219,11 @@ export default function FinanceModule({
       return;
     }
 
-    const cashAmount = parseAmount(paymentForm.tunai);
     const savingsAmount = parseAmount(paymentForm.dari_tabungan);
+    const cashAmount =
+      paymentForm.mode === "lunas"
+        ? Math.max(selectedRemaining - savingsAmount, 0)
+        : parseAmount(paymentForm.tunai);
     const totalAmount = cashAmount + savingsAmount;
     if (totalAmount <= 0) {
       setMessage("Jumlah pembayaran harus lebih dari 0.");
@@ -1301,6 +1323,7 @@ export default function FinanceModule({
         : "Pembayaran tercatat, kuitansi dibuat, dan saldo tabungan tersinkron.",
     );
     setPaymentForm({
+      mode: "lunas",
       tunai: "",
       dari_tabungan: "",
       tanggal_bayar: new Date().toISOString().slice(0, 10),
@@ -1971,15 +1994,11 @@ export default function FinanceModule({
                 </div>
               </div>
               <DataTable
-                headers={["Pilih", "Periode", "NIS", "Nama", "Tagihan", "Nominal", "Status", "Aksi"]}
+                headers={["Pilih", "Periode", "NIS", "Nama", "Tagihan", "Total", "Terbayar", "Sisa", "Status", "Aksi"]}
                 rows={visibleActiveInvoices.map((invoice) => {
                   const member = memberByAnyId(invoice.anggota_id);
-                  const paid = payments
-                    .filter((payment) => payment.tagihan_id === invoice.id)
-                    .reduce(
-                      (sum, payment) => sum + Number(payment.jumlah_bayar || 0),
-                      0,
-                    );
+                  const paid = paidForInvoice(invoice.id);
+                  const remaining = remainingForInvoice(invoice);
                   return [
                     <input
                       key={`select-${invoice.id}`}
@@ -2001,6 +2020,8 @@ export default function FinanceModule({
                       ) : null}
                     </div>,
                     formatCurrency(invoice.nominal),
+                    formatCurrency(paid),
+                    formatCurrency(remaining),
                     invoice.status.replace("_", " "),
                     <div key="actions" className="grid gap-2">
                       {paid > 0 ? (
@@ -2075,8 +2096,8 @@ export default function FinanceModule({
               <option value="">Pilih tagihan</option>
               {selectedMemberInvoices.map((invoice) => (
                 <option key={invoice.id} value={invoice.id}>
-                  {invoiceLabel(invoice)} - {formatCurrency(invoice.nominal)} -{" "}
-                  {invoice.status}
+                  {invoiceLabel(invoice)} - Sisa {formatCurrency(remainingForInvoice(invoice))} -{" "}
+                  {invoice.status.replace("_", " ")}
                 </option>
               ))}
             </select>
@@ -2100,6 +2121,20 @@ export default function FinanceModule({
               </div>
             ) : null}
             <form onSubmit={savePayment} className="mt-4 grid gap-3">
+              <select
+                value={paymentForm.mode}
+                onChange={(event) =>
+                  setPaymentForm((form) => ({
+                    ...form,
+                    mode: event.target.value,
+                    tunai: event.target.value === "lunas" ? "" : form.tunai,
+                  }))
+                }
+                className={inputClass}
+              >
+                <option value="lunas">Lunas</option>
+                <option value="cicil">Cicil</option>
+              </select>
               <input
                 type="number"
                 value={paymentForm.tunai}
@@ -2109,7 +2144,12 @@ export default function FinanceModule({
                     tunai: event.target.value,
                   }))
                 }
-                placeholder="Dibayar tunai/transfer"
+                placeholder={
+                  paymentForm.mode === "lunas"
+                    ? `Otomatis: ${formatCurrency(Math.max(selectedRemaining - parseAmount(paymentForm.dari_tabungan), 0))}`
+                    : "Nominal cicilan tunai/transfer"
+                }
+                disabled={paymentForm.mode === "lunas"}
                 className={inputClass}
               />
               <input
@@ -2186,7 +2226,7 @@ export default function FinanceModule({
                     <option value="">Pilih tagihan</option>
                     {selectedMemberInvoices.map((invoice) => (
                       <option key={invoice.id} value={invoice.id}>
-                        {invoiceLabel(invoice)} - {formatCurrency(invoice.nominal)}
+                        {invoiceLabel(invoice)} - Sisa {formatCurrency(remainingForInvoice(invoice))}
                       </option>
                     ))}
                   </select>
