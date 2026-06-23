@@ -167,17 +167,35 @@ function PesantrenDashboardHome({ role }: { role: string }) {
       const rpc = await supabase.rpc("get_pesantren_dashboard_stats");
       if (!rpc.error && rpc.data) {
         const data = rpc.data as Record<string, number | null>;
+        const tagihan = showFinance
+          ? await supabase
+              .from("keu_tagihan")
+              .select("id, nominal", { count: "exact" })
+              .eq("entitas", "pesantren")
+              .neq("status", "lunas")
+              .is("ditarik_at", null)
+          : { data: [], count: null, error: null };
+        const directNominalBelumLunas = (tagihan.data || []).reduce(
+          (sum, row) => sum + Number(row.nominal || 0),
+          0,
+        );
         setStats({
           totalSantriAktif: Number(data.total_santri_aktif || 0),
           totalAlumni: Number(data.total_alumni || 0),
-          tagihanBelumLunas:
-            data.tagihan_belum_lunas === null
-              ? null
-              : Number(data.tagihan_belum_lunas || 0),
-          nominalBelumLunas:
-            data.nominal_belum_lunas === null
-              ? null
-              : Number(data.nominal_belum_lunas || 0),
+          tagihanBelumLunas: !showFinance
+            ? null
+            : tagihan.error
+              ? data.tagihan_belum_lunas === null
+                ? null
+                : Number(data.tagihan_belum_lunas || 0)
+              : Number(tagihan.count || 0),
+          nominalBelumLunas: !showFinance
+            ? null
+            : tagihan.error
+              ? data.nominal_belum_lunas === null
+                ? null
+                : Number(data.nominal_belum_lunas || 0)
+              : directNominalBelumLunas,
           pelanggaranBulanIni: Number(data.pelanggaran_bulan_ini || 0),
         });
         await loadRecentInvoices();
