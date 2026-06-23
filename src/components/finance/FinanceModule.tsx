@@ -554,6 +554,7 @@ export default function FinanceModule({
   const [selectedMember, setSelectedMember] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState("");
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
+  const [historyPeriod, setHistoryPeriod] = useState("");
   const [paymentForm, setPaymentForm] = useState({
     mode: "lunas",
     tunai: "",
@@ -739,6 +740,24 @@ export default function FinanceModule({
       isPaymentSelectableInvoice(invoice) &&
       remainingForInvoice(invoice) > 0,
   );
+  const selectedMemberHistoryInvoices = invoices.filter(
+    (invoice) =>
+      (!selectedMember || memberIdsFor(selectedMember).includes(invoice.anggota_id)) &&
+      !invoice.ditarik_at &&
+      isPaymentSelectableInvoice(invoice),
+  );
+  const selectedMemberHistoryInvoiceIds = selectedMemberHistoryInvoices.map(
+    (invoice) => invoice.id,
+  );
+  const selectedHistoryPayments = historyPeriod
+    ? payments.filter(
+        (payment) =>
+          payment.tanggal_bayar.slice(0, 7) === historyPeriod &&
+          (selectedInvoice
+            ? payment.tagihan_id === selectedInvoice
+            : selectedMemberHistoryInvoiceIds.includes(payment.tagihan_id)),
+      )
+    : [];
   const activeInvoices = invoices.filter((invoice) => !invoice.ditarik_at);
   const visibleActiveInvoices = activeInvoices.slice(0, 80);
   const visibleInvoiceIds = visibleActiveInvoices.map((invoice) => invoice.id);
@@ -746,9 +765,6 @@ export default function FinanceModule({
     visibleInvoiceIds.length > 0 &&
     visibleInvoiceIds.every((id) => selectedInvoiceIds.includes(id));
   const selectedInvoiceRow = invoices.find((invoice) => invoice.id === selectedInvoice);
-  const selectedInvoicePayments = payments.filter(
-    (payment) => payment.tagihan_id === selectedInvoice,
-  );
   const selectedPaid = selectedInvoiceRow ? paidForInvoice(selectedInvoiceRow.id) : 0;
   const selectedInvoiceSavingsCredited = savingsEntries
     .filter(
@@ -1249,36 +1265,101 @@ export default function FinanceModule({
     loadData();
   }
 
-  async function makeReceiptPdf(payment: {
-    jumlah_bayar: number;
-    tanggal_bayar: string;
-    catatan?: string | null;
-  }) {
-    if (!selectedInvoiceRow) return null;
-    const member = memberByAnyId(selectedInvoiceRow.anggota_id);
+  async function printReceipt(payment: Payment) {
+    const invoice = invoices.find((item) => item.id === payment.tagihan_id);
+    if (!invoice) {
+      setMessage("Data tagihan untuk kwitansi tidak ditemukan.");
+      return;
+    }
+    const member = memberByAnyId(invoice.anggota_id);
+    const invoicePayments = payments.filter((item) => item.tagihan_id === invoice.id);
+    const paidUntilThisReceipt = invoicePayments
+      .filter((item) => item.tanggal_bayar <= payment.tanggal_bayar)
+      .reduce((sum, item) => sum + Number(item.jumlah_bayar || 0), 0);
+    const totalPaid = invoicePayments.reduce(
+      (sum, item) => sum + Number(item.jumlah_bayar || 0),
+      0,
+    );
+    const remainingAfterReceipt = Math.max(
+      Number(invoice.nominal || 0) - paidUntilThisReceipt,
+      0,
+    );
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF();
-    doc.setFontSize(14);
-    doc.text(`KUITANSI PEMBAYARAN ${entityLabel(activeEntity).toUpperCase()}`, 105, 16, {
-      align: "center",
-    });
-    doc.setFontSize(10);
-    doc.text(`Tanggal: ${formatDate(payment.tanggal_bayar)}`, 14, 32);
-    doc.text(`Nama: ${member?.nama_lengkap || "-"}`, 14, 42);
-    doc.text(`NIS: ${member?.nis || "-"}`, 14, 50);
-    doc.text(`Jenis Tagihan: ${invoiceLabel(selectedInvoiceRow)}`, 14, 58);
-    doc.text(`Kategori: ${categoryLabels[selectedInvoiceRow.kategori]}`, 14, 66);
-    doc.text(`Jumlah Bayar: ${formatCurrency(payment.jumlah_bayar)}`, 14, 74);
-    doc.text(`Catatan: ${payment.catatan || "-"}`, 14, 82);
-    doc.text("Bendahara", 150, 118);
-    doc.save(`kuitansi-${member?.nis || "pembayaran"}-${payment.tanggal_bayar}.pdf`);
 
-    const blob = doc.output("blob");
-    const path = `${activeEntity}/${Date.now()}-${member?.nis || "kuitansi"}.pdf`;
-    const upload = await supabase.storage
-      .from("kuitansi-keuangan")
-      .upload(path, blob, { contentType: "application/pdf" });
-    return upload.error ? null : path;
+    doc.setFillColor(4, 120, 87);
+    doc.rect(0, 0, 210, 28, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("KWITANSI PEMBAYARAN", 14, 12);
+    doc.setFontSize(10);
+    doc.text("Pondok Pesantren An-Nur Mageung & SMP Ma'arif NU Sariwangi", 14, 20);
+    doc.setFont("helvetica", "normal");
+    doc.text(`No. ${payment.id.slice(0, 8).toUpperCase()}`, 196, 12, { align: "right" });
+    doc.text(formatDate(payment.tanggal_bayar), 196, 20, { align: "right" });
+
+    doc.setTextColor(17, 24, 39);
+    doc.setDrawColor(229, 231, 235);
+    doc.roundedRect(14, 38, 182, 36, 2, 2);
+    doc.setFontSize(9);
+    doc.setTextColor(107, 114, 128);
+    doc.text("Diterima dari", 20, 48);
+    doc.text("NIS / Identitas", 118, 48);
+    doc.setTextColor(17, 24, 39);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text(member?.nama_lengkap || "-", 20, 57);
+    doc.text(member?.nis || "-", 118, 57);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(memberLabel(member || ({ nama_lengkap: "-", nis: "-", tahun_masuk: 0, status: "-" } as Member)), 20, 66);
+
+    const rows = [
+      ["Jenis Tagihan", invoiceLabel(invoice)],
+      ["Kategori", categoryLabels[invoice.kategori] || "-"],
+      ["Total Tagihan", formatCurrency(invoice.nominal)],
+      ["Pembayaran Ini", formatCurrency(payment.jumlah_bayar)],
+      ["Total Terbayar", formatCurrency(totalPaid)],
+      ["Sisa Setelah Kwitansi", formatCurrency(remainingAfterReceipt)],
+    ];
+
+    let y = 88;
+    doc.setFillColor(243, 244, 246);
+    doc.rect(14, y - 8, 182, 10, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Rincian Pembayaran", 18, y - 1);
+    doc.setFont("helvetica", "normal");
+    rows.forEach(([label, value], index) => {
+      const rowY = y + 10 + index * 10;
+      doc.setDrawColor(229, 231, 235);
+      doc.line(14, rowY + 3, 196, rowY + 3);
+      doc.setTextColor(107, 114, 128);
+      doc.text(label, 18, rowY);
+      doc.setTextColor(17, 24, 39);
+      doc.setFont("helvetica", label === "Pembayaran Ini" ? "bold" : "normal");
+      doc.text(value, 192, rowY, { align: "right" });
+      doc.setFont("helvetica", "normal");
+    });
+
+    y += 82;
+    doc.setTextColor(107, 114, 128);
+    doc.setFontSize(9);
+    doc.text("Catatan", 18, y);
+    doc.setTextColor(17, 24, 39);
+    const notes = doc.splitTextToSize(payment.catatan || "-", 170);
+    doc.text(notes, 18, y + 8);
+
+    doc.setDrawColor(209, 213, 219);
+    doc.line(134, 246, 184, 246);
+    doc.setFontSize(10);
+    doc.text("Bendahara", 159, 253, { align: "center" });
+    doc.setFontSize(8);
+    doc.setTextColor(107, 114, 128);
+    doc.text("Dokumen ini dicetak dari sistem administrasi keuangan.", 14, 284);
+
+    doc.save(`kwitansi-${member?.nis || "pembayaran"}-${payment.tanggal_bayar}.pdf`);
   }
 
   async function savePayment(event: FormEvent<HTMLFormElement>) {
@@ -1317,12 +1398,6 @@ export default function FinanceModule({
       cashAmount > 0 ? `Tunai/transfer: ${formatCurrency(cashAmount)}` : "",
     ].filter(Boolean);
 
-    const receiptPath = await makeReceiptPdf({
-      jumlah_bayar: totalAmount,
-      tanggal_bayar: paymentForm.tanggal_bayar,
-      catatan: catatanParts.join(" | ") || null,
-    });
-
     const paymentResult = await supabase
       .from("keu_pembayaran")
       .insert({
@@ -1331,7 +1406,7 @@ export default function FinanceModule({
         tanggal_bayar: paymentForm.tanggal_bayar,
         bendahara_id: user?.id || null,
         catatan: catatanParts.join(" | ") || null,
-        kuitansi_url: receiptPath,
+        kuitansi_url: null,
       })
       .select()
       .single();
@@ -1389,7 +1464,7 @@ export default function FinanceModule({
     setMessage(
       paymentResult.error
         ? paymentResult.error.message
-        : "Pembayaran tercatat, kuitansi dibuat, dan saldo tabungan tersinkron.",
+        : "Pembayaran tercatat. Kwitansi bisa dicetak dari Riwayat Pembayaran.",
     );
     setPaymentForm({
       mode: "lunas",
@@ -2257,7 +2332,7 @@ export default function FinanceModule({
               />
               <button className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
                 <FileText className="mr-2" size={17} />
-                Catat & Generate Kuitansi
+                Catat Pembayaran
               </button>
             </form>
             </div>
@@ -2265,7 +2340,16 @@ export default function FinanceModule({
             <div className="grid gap-4">
               <div className="rounded bg-white p-5 shadow-soft">
                 <h2 className="text-lg font-semibold">Riwayat Pembayaran</h2>
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="mt-4 grid gap-3 md:grid-cols-4">
+                  <input
+                    type="month"
+                    value={historyPeriod}
+                    onChange={(event) => {
+                      setHistoryPeriod(event.target.value);
+                      setSelectedInvoice("");
+                    }}
+                    className={inputClass}
+                  />
                   <input
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
@@ -2280,7 +2364,7 @@ export default function FinanceModule({
                     }}
                     className={inputClass}
                   >
-                    <option value="">Pilih anggota</option>
+                    <option value="">Semua anggota</option>
                     {filteredMembers.map((member) => (
                       <option key={member.id} value={member.id}>
                         {memberLabel(member)}
@@ -2291,24 +2375,40 @@ export default function FinanceModule({
                     value={selectedInvoice}
                     onChange={(event) => setSelectedInvoice(event.target.value)}
                     className={inputClass}
+                    disabled={!selectedMember}
                   >
                     <option value="">Pilih tagihan</option>
-                    {selectedMemberInvoices.map((invoice) => (
+                    {selectedMember
+                      ? selectedMemberHistoryInvoices.map((invoice) => (
                       <option key={invoice.id} value={invoice.id}>
-                        {invoiceLabel(invoice)} - Sisa {formatCurrency(remainingForInvoice(invoice))}
+                        {invoiceLabel(invoice)} - {formatCurrency(invoice.nominal)}
                       </option>
-                    ))}
+                        ))
+                      : null}
                   </select>
                 </div>
               </div>
               <DataTable
-                headers={["Tanggal", "Jumlah", "Catatan", "Kuitansi"]}
-                rows={selectedInvoicePayments.map((payment) => [
-                  formatDate(payment.tanggal_bayar),
-                  formatCurrency(payment.jumlah_bayar),
-                  payment.catatan || "-",
-                  payment.kuitansi_url || "-",
-                ])}
+                headers={["Tanggal", "Anggota", "Tagihan", "Jumlah", "Catatan", "Aksi"]}
+                rows={selectedHistoryPayments.map((payment) => {
+                  const invoice = invoices.find((item) => item.id === payment.tagihan_id);
+                  const member = memberByAnyId(invoice?.anggota_id);
+                  return [
+                    formatDate(payment.tanggal_bayar),
+                    member ? memberLabel(member) : "-",
+                    invoice ? invoiceLabel(invoice) : "Tagihan",
+                    formatCurrency(payment.jumlah_bayar),
+                    payment.catatan || "-",
+                    <button
+                      key={payment.id}
+                      type="button"
+                      onClick={() => printReceipt(payment)}
+                      className="rounded border px-3 py-2 text-sm font-semibold text-emerald-800"
+                    >
+                      Print Kwitansi
+                    </button>,
+                  ];
+                })}
               />
             </div>
           )}
