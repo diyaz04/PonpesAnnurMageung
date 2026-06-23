@@ -556,7 +556,7 @@ export default function FinanceModule({
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
   const [historyPeriod, setHistoryPeriod] = useState("");
   const [paymentForm, setPaymentForm] = useState({
-    mode: "lunas",
+    mode: "cicil",
     tunai: "",
     dari_tabungan: "",
     tanggal_bayar: new Date().toISOString().slice(0, 10),
@@ -1467,7 +1467,7 @@ export default function FinanceModule({
         : "Pembayaran tercatat. Kwitansi bisa dicetak dari Riwayat Pembayaran.",
     );
     setPaymentForm({
-      mode: "lunas",
+      mode: "cicil",
       tunai: "",
       dari_tabungan: "",
       tanggal_bayar: new Date().toISOString().slice(0, 10),
@@ -2222,6 +2222,12 @@ export default function FinanceModule({
               onChange={(event) => {
                 setSelectedMember(event.target.value);
                 setSelectedInvoice("");
+                setPaymentForm((form) => ({
+                  ...form,
+                  mode: "cicil",
+                  tunai: "",
+                  dari_tabungan: "",
+                }));
               }}
               className={`${inputClass} mt-3 w-full`}
             >
@@ -2234,7 +2240,15 @@ export default function FinanceModule({
             </select>
             <select
               value={selectedInvoice}
-              onChange={(event) => setSelectedInvoice(event.target.value)}
+              onChange={(event) => {
+                setSelectedInvoice(event.target.value);
+                setPaymentForm((form) => ({
+                  ...form,
+                  mode: "cicil",
+                  tunai: "",
+                  dari_tabungan: "",
+                }));
+              }}
               className={`${inputClass} mt-3 w-full`}
             >
               <option value="">Pilih tagihan</option>
@@ -2276,8 +2290,8 @@ export default function FinanceModule({
                 }
                 className={inputClass}
               >
-                <option value="lunas">Lunas</option>
                 <option value="cicil">Cicil</option>
+                <option value="lunas">Lunas</option>
               </select>
               <input
                 type="number"
