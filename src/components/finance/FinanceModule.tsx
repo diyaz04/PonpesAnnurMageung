@@ -246,6 +246,18 @@ function invoiceLabel(invoice: Invoice) {
   return invoice.nama_tagihan || invoice.jenis?.nama || "Tagihan";
 }
 
+function savingsEntryLabel(entry: SavingsEntry) {
+  if (
+    entry.tipe === "pemakaian_insidentil" &&
+    entry.catatan?.toLowerCase().startsWith("tarik tabungan cash")
+  ) {
+    return "Tarik tabungan cash";
+  }
+  if (entry.tipe === "setoran_otomatis") return "Setoran/penambahan";
+  if (entry.tipe === "pemakaian_insidentil") return "Pemakaian insidentil";
+  return "Penyesuaian saldo";
+}
+
 function isPaymentSelectableInvoice(invoice: Invoice) {
   const label = invoiceLabel(invoice).toLowerCase();
   if (invoice.kategori === "bulanan") return label.startsWith("syahriyah");
@@ -519,7 +531,7 @@ export default function FinanceModule({
     "generate",
   );
   const [bayarTab, setBayarTab] = useState<"catat" | "riwayat">("catat");
-  const [tabunganTab, setTabunganTab] = useState<"catat" | "riwayat">("catat");
+  const [tabunganTab, setTabunganTab] = useState<"catat" | "tarik_cash" | "riwayat">("catat");
   const [laporanTab, setLaporanTab] = useState<"ringkasan" | "pembayaran" | "tunggakan">(
     "ringkasan",
   );
@@ -565,6 +577,11 @@ export default function FinanceModule({
   const [savingsMember, setSavingsMember] = useState("");
   const [savingsForm, setSavingsForm] = useState({
     tipe: "setoran_otomatis",
+    nominal: "",
+    tanggal: new Date().toISOString().slice(0, 10),
+    catatan: "",
+  });
+  const [cashWithdrawalForm, setCashWithdrawalForm] = useState({
     nominal: "",
     tanggal: new Date().toISOString().slice(0, 10),
     catatan: "",
@@ -1145,6 +1162,9 @@ export default function FinanceModule({
       return { error: "Hanya superadmin dan bendahara yang bisa menarik tagihan." };
     }
 
+    const paidAmount = payments
+      .filter((payment) => payment.tagihan_id === invoice.id)
+      .reduce((sum, payment) => sum + Number(payment.jumlah_bayar || 0), 0);
     const savingsCredited = savingsEntries
       .filter(
         (entry) =>
@@ -1161,8 +1181,21 @@ export default function FinanceModule({
       return { error: error.message };
     }
 
+    const adjustmentRows = [];
+    if (paidAmount > 0) {
+      adjustmentRows.push({
+        entitas: activeEntity,
+        anggota_id: invoice.anggota_id,
+        tagihan_id: invoice.id,
+        tipe: "penyesuaian",
+        nominal: paidAmount,
+        tanggal: new Date().toISOString().slice(0, 10),
+        catatan: `Pengalihan pembayaran ${invoiceLabel(invoice)} ke tabungan karena tagihan ditarik.`,
+        dibuat_oleh: user?.id || null,
+      });
+    }
     if (savingsCredited > 0) {
-      const adjustment = await supabase.from("keu_tabungan_kegiatan").insert({
+      adjustmentRows.push({
         entitas: activeEntity,
         anggota_id: invoice.anggota_id,
         tagihan_id: invoice.id,
@@ -1172,12 +1205,15 @@ export default function FinanceModule({
         catatan: `Pembalik tabungan karena tagihan ${invoiceLabel(invoice)} ditarik.`,
         dibuat_oleh: user?.id || null,
       });
+    }
+    if (adjustmentRows.length) {
+      const adjustment = await supabase.from("keu_tabungan_kegiatan").insert(adjustmentRows);
       if (adjustment.error) {
         return { error: adjustment.error.message };
       }
     }
 
-    return { error: null };
+    return { error: null, creditedToSavings: paidAmount };
   }
 
   async function retractInvoice(invoice: Invoice) {
@@ -1194,7 +1230,7 @@ export default function FinanceModule({
       paid > 0
         ? `Tarik tagihan ${invoiceLabel(invoice)} yang sudah punya pembayaran ${formatCurrency(
             paid,
-          )}? Tagihan dan pembayarannya tidak akan dihitung di laporan aktif.`
+          )}? Pembayaran ini akan dialihkan ke saldo tabungan kegiatan orang tersebut.`
         : `Tarik tagihan ${invoiceLabel(invoice)}? Tagihan tidak akan dihitung lagi.`,
     );
     if (!confirmed) return;
@@ -1205,7 +1241,9 @@ export default function FinanceModule({
       result.error
         ? `Gagal tarik tagihan: ${result.error}. Pastikan SQL migration terbaru sudah dijalankan.`
         : paid > 0
-          ? "Tagihan ditarik. Pembayaran lama disimpan sebagai jejak, tapi tidak dihitung di laporan aktif."
+          ? `Tagihan ditarik. Pembayaran ${formatCurrency(
+              result.creditedToSavings || 0,
+            )} masuk ke tabungan kegiatan.`
           : "Tagihan berhasil ditarik dari perhitungan.",
     );
     setSelectedInvoiceIds((ids) => ids.filter((id) => id !== invoice.id));
@@ -1237,13 +1275,16 @@ export default function FinanceModule({
     const confirmed = window.confirm(
       `Tarik ${targets.length} tagihan terpilih?${
         paidTotal > 0
-          ? ` Total pembayaran yang menjadi jejak lama: ${formatCurrency(paidTotal)}.`
+          ? ` Total pembayaran ${formatCurrency(
+              paidTotal,
+            )} akan dialihkan ke saldo tabungan kegiatan.`
           : ""
       }`,
     );
     if (!confirmed) return;
 
     let success = 0;
+    let creditedToSavings = 0;
     const errors: string[] = [];
     for (const invoice of targets) {
       const result = await retractInvoiceWithoutPrompt(invoice);
@@ -1251,6 +1292,7 @@ export default function FinanceModule({
         errors.push(`${invoiceLabel(invoice)}: ${result.error}`);
       } else {
         success += 1;
+        creditedToSavings += result.creditedToSavings || 0;
       }
     }
 
@@ -1260,7 +1302,11 @@ export default function FinanceModule({
     setMessage(
       errors.length
         ? `${success} tagihan ditarik, ${errors.length} gagal. ${errors[0]}`
-        : `${success} tagihan berhasil ditarik.`,
+        : `${success} tagihan berhasil ditarik.${
+            creditedToSavings > 0
+              ? ` Pembayaran ${formatCurrency(creditedToSavings)} masuk ke tabungan kegiatan.`
+              : ""
+          }`,
     );
     loadData();
   }
@@ -1506,6 +1552,48 @@ export default function FinanceModule({
     setMessage(error ? error.message : "Catatan tabungan kegiatan tersimpan.");
     setSavingsForm({
       tipe: "setoran_otomatis",
+      nominal: "",
+      tanggal: new Date().toISOString().slice(0, 10),
+      catatan: "",
+    });
+    loadData();
+  }
+
+  async function saveCashWithdrawal(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!savingsMember) {
+      setMessage("Pilih anggota yang menarik tabungan cash.");
+      return;
+    }
+    const amount = parseAmount(cashWithdrawalForm.nominal);
+    if (amount <= 0) {
+      setMessage("Nominal tarik tabungan cash harus lebih dari 0.");
+      return;
+    }
+    if (amount > savingsTabBalance) {
+      setMessage("Saldo tabungan tidak cukup untuk tarik cash.");
+      return;
+    }
+
+    const note = cashWithdrawalForm.catatan
+      ? `Tarik tabungan cash: ${cashWithdrawalForm.catatan}`
+      : "Tarik tabungan cash";
+    const { error } = await supabase.from("keu_tabungan_kegiatan").insert({
+      entitas: activeEntity,
+      anggota_id: savingsMember,
+      tipe: "pemakaian_insidentil",
+      nominal: -amount,
+      tanggal: cashWithdrawalForm.tanggal,
+      catatan: note,
+      dibuat_oleh: user?.id || null,
+    });
+
+    setMessage(
+      error
+        ? error.message
+        : `Tarik tabungan cash ${formatCurrency(amount)} berhasil dicatat.`,
+    );
+    setCashWithdrawalForm({
       nominal: "",
       tanggal: new Date().toISOString().slice(0, 10),
       catatan: "",
@@ -2436,6 +2524,7 @@ export default function FinanceModule({
             onChange={setTabunganTab}
             items={[
               { value: "catat", label: "Catat Tabungan" },
+              { value: "tarik_cash", label: "Tarik Cash" },
               { value: "riwayat", label: "Riwayat Tabungan" },
             ]}
           />
@@ -2503,6 +2592,68 @@ export default function FinanceModule({
               </button>
             </div>
             </form>
+          ) : tabunganTab === "tarik_cash" ? (
+            <form onSubmit={saveCashWithdrawal} className="rounded bg-white p-5 shadow-soft">
+              <h2 className="text-lg font-semibold">Tarik Tabungan Cash</h2>
+              <select
+                value={savingsMember}
+                onChange={(event) => setSavingsMember(event.target.value)}
+                className={`${inputClass} mt-4 w-full`}
+              >
+                <option value="">Pilih anggota</option>
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {memberLabel(member)}
+                  </option>
+                ))}
+              </select>
+              <div className="mt-4 rounded bg-emerald-50 p-4">
+                <p className="text-sm text-emerald-900">Saldo tabungan tersedia</p>
+                <p className="mt-2 text-2xl font-semibold text-emerald-950">
+                  {formatCurrency(savingsTabBalance)}
+                </p>
+              </div>
+              <div className="mt-4 grid gap-3">
+                <input
+                  type="number"
+                  value={cashWithdrawalForm.nominal}
+                  onChange={(event) =>
+                    setCashWithdrawalForm((form) => ({
+                      ...form,
+                      nominal: event.target.value,
+                    }))
+                  }
+                  placeholder="Nominal yang ditarik cash"
+                  className={inputClass}
+                />
+                <input
+                  type="date"
+                  value={cashWithdrawalForm.tanggal}
+                  onChange={(event) =>
+                    setCashWithdrawalForm((form) => ({
+                      ...form,
+                      tanggal: event.target.value,
+                    }))
+                  }
+                  className={inputClass}
+                />
+                <input
+                  value={cashWithdrawalForm.catatan}
+                  onChange={(event) =>
+                    setCashWithdrawalForm((form) => ({
+                      ...form,
+                      catatan: event.target.value,
+                    }))
+                  }
+                  placeholder="Catatan penarikan cash"
+                  className={inputClass}
+                />
+                <button className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+                  <Wallet className="mr-2" size={17} />
+                  Catat Tarik Cash
+                </button>
+              </div>
+            </form>
           ) : (
             <div className="grid gap-4">
               <div className="rounded bg-white p-5 shadow-soft">
@@ -2534,7 +2685,7 @@ export default function FinanceModule({
                   .filter((entry) => memberIdsFor(savingsMember).includes(entry.anggota_id))
                   .map((entry) => [
                     formatDate(entry.tanggal),
-                    entry.tipe.replace("_", " "),
+                    savingsEntryLabel(entry),
                     <span
                       key={entry.id}
                       className={Number(entry.nominal) < 0 ? "text-red-700" : "text-emerald-800"}
