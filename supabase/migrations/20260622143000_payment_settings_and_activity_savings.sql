@@ -169,6 +169,34 @@ for all to authenticated
 using (public.is_bendahara())
 with check (public.is_bendahara());
 
+create or replace function public.tarik_keu_tagihan(
+  p_tagihan_id uuid,
+  p_catatan text default 'Ditarik oleh bendahara karena koreksi tagihan.'
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_bendahara() then
+    raise exception 'Hanya superadmin dan bendahara yang bisa menarik tagihan.';
+  end if;
+
+  update public.keu_tagihan
+  set ditarik_at = now(),
+      ditarik_oleh = auth.uid(),
+      catatan_penarikan = p_catatan
+  where id = p_tagihan_id;
+
+  if not found then
+    raise exception 'Tagihan tidak ditemukan.';
+  end if;
+end;
+$$;
+
+grant execute on function public.tarik_keu_tagihan(uuid, text) to authenticated;
+
 create or replace function public.get_pesantren_dashboard_stats()
 returns jsonb
 language plpgsql

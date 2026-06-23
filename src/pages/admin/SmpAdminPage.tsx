@@ -129,20 +129,29 @@ function SmpDashboardHome({ role }: { role: string }) {
       const invoiceResult = await supabase
         .from("keu_tagihan")
         .select("id, anggota_id, nama_tagihan, nominal, status, jatuh_tempo, periode, created_at")
-        .eq("entitas", "smp")
+        .eq("entitas", "pesantren")
         .is("ditarik_at", null)
         .order("created_at", { ascending: false })
         .limit(6);
       const invoiceRows = (invoiceResult.data || []) as RecentInvoice[];
       const memberIds = Array.from(new Set(invoiceRows.map((invoice) => invoice.anggota_id)));
-      const memberResult = memberIds.length
-        ? await supabase
-            .from("smp_siswa")
-            .select("id, nis, nama_lengkap")
-            .in("id", memberIds)
-        : { data: [] };
+      const [santriResult, siswaResult] = memberIds.length
+        ? await Promise.all([
+            supabase
+              .from("pp_santri")
+              .select("id, nis, nama_lengkap")
+              .in("id", memberIds),
+            supabase
+              .from("smp_siswa")
+              .select("id, nis, nama_lengkap")
+              .in("id", memberIds),
+          ])
+        : [{ data: [] }, { data: [] }];
       const memberMap = new Map(
-        ((memberResult.data || []) as Array<{ id: string; nis: string; nama_lengkap: string }>).map(
+        [
+          ...((santriResult.data || []) as Array<{ id: string; nis: string; nama_lengkap: string }>),
+          ...((siswaResult.data || []) as Array<{ id: string; nis: string; nama_lengkap: string }>),
+        ].map(
           (member) => [member.id, member],
         ),
       );
@@ -184,7 +193,7 @@ function SmpDashboardHome({ role }: { role: string }) {
             ? supabase
                 .from("keu_tagihan")
                 .select("id, nominal", { count: "exact" })
-                .eq("entitas", "smp")
+                .eq("entitas", "pesantren")
                 .neq("status", "lunas")
                 .is("ditarik_at", null)
             : Promise.resolve({ data: [], count: null }),

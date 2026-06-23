@@ -128,14 +128,23 @@ function PesantrenDashboardHome({ role }: { role: string }) {
         .limit(6);
       const invoiceRows = (invoiceResult.data || []) as RecentInvoice[];
       const memberIds = Array.from(new Set(invoiceRows.map((invoice) => invoice.anggota_id)));
-      const memberResult = memberIds.length
-        ? await supabase
-            .from("pp_santri")
-            .select("id, nis, nama_lengkap")
-            .in("id", memberIds)
-        : { data: [] };
+      const [santriResult, siswaResult] = memberIds.length
+        ? await Promise.all([
+            supabase
+              .from("pp_santri")
+              .select("id, nis, nama_lengkap")
+              .in("id", memberIds),
+            supabase
+              .from("smp_siswa")
+              .select("id, nis, nama_lengkap")
+              .in("id", memberIds),
+          ])
+        : [{ data: [] }, { data: [] }];
       const memberMap = new Map(
-        ((memberResult.data || []) as Array<{ id: string; nis: string; nama_lengkap: string }>).map(
+        [
+          ...((santriResult.data || []) as Array<{ id: string; nis: string; nama_lengkap: string }>),
+          ...((siswaResult.data || []) as Array<{ id: string; nis: string; nama_lengkap: string }>),
+        ].map(
           (member) => [member.id, member],
         ),
       );

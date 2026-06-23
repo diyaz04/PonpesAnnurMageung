@@ -14,7 +14,15 @@ import { supabase } from "../../lib/supabase";
 
 type Entity = "pesantren" | "smp";
 type PaymentProfile = "santri_siswa" | "santri_non_siswa" | "siswa_saja" | "khusus";
+type PaymentPreset =
+  | "santri_siswa_400"
+  | "santri_400"
+  | "santri_340"
+  | "siswa_75"
+  | "siswa_60"
+  | "khusus";
 type ItemCategory = "bulanan" | "masuk_cicil" | "insidentil" | "tabungan";
+type MemberSource = Entity | "gabungan";
 
 type BillType = {
   id: string;
@@ -30,7 +38,10 @@ type Member = {
   nama_lengkap: string;
   kelas?: string | null;
   tahun_masuk: number;
+  tanggal_lahir?: string | null;
   status: string;
+  sumber?: MemberSource;
+  related_ids?: string[];
 };
 
 type Invoice = {
@@ -111,10 +122,23 @@ const categoryLabels: Record<ItemCategory, string> = {
 
 const profileLabels: Record<PaymentProfile, string> = {
   santri_siswa: "Santri + siswa SMP",
-  santri_non_siswa: "Santri non-SMP",
-  siswa_saja: "Siswa SMP saja",
+  santri_non_siswa: "Santri saja",
+  siswa_saja: "Siswa saja",
   khusus: "Nominal khusus",
 };
+
+const paymentPresetOptions: Array<{
+  value: PaymentPreset;
+  label: string;
+  profile: PaymentProfile;
+}> = [
+  { value: "santri_siswa_400", label: "Santri + siswa SMP - 400.000", profile: "santri_siswa" },
+  { value: "santri_400", label: "Santri saja - 400.000", profile: "santri_non_siswa" },
+  { value: "santri_340", label: "Santri saja - 340.000", profile: "santri_non_siswa" },
+  { value: "siswa_75", label: "Siswa saja + tabungan - 75.000", profile: "siswa_saja" },
+  { value: "siswa_60", label: "Siswa saja - 60.000", profile: "siswa_saja" },
+  { value: "khusus", label: "Nominal khusus", profile: "khusus" },
+];
 
 function formatCurrency(value: number | null | undefined) {
   return new Intl.NumberFormat("id-ID", {
@@ -134,13 +158,80 @@ function formatDate(value?: string | null) {
 }
 
 function entityLabel(entity: Entity) {
-  return entity === "pesantren" ? "Pesantren" : "SMP";
+  return entity === "pesantren" ? "Keuangan Terpusat" : "SMP";
 }
 
 function getMemberScope(member: Member, entity: Entity) {
-  return entity === "pesantren"
+  const source = member.sumber || entity;
+  if (source === "gabungan") {
+    return member.kelas || `Angkatan ${member.tahun_masuk}`;
+  }
+  return source === "pesantren"
     ? `Angkatan ${member.tahun_masuk}`
     : member.kelas || `Angkatan ${member.tahun_masuk}`;
+}
+
+function memberLabel(member: Member) {
+  const sourceLabel =
+    member.sumber === "gabungan"
+      ? "Santri + siswa SMP"
+      : member.sumber === "smp"
+        ? "Siswa SMP"
+        : "Santri";
+  return `${member.nama_lengkap} - ${member.nis} (${sourceLabel})`;
+}
+
+function normalizeName(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function memberMatchKeys(member: Member) {
+  const name = normalizeName(member.nama_lengkap);
+  return [
+    member.nis ? `nis:${member.nis.trim().toLowerCase()}` : "",
+    member.tanggal_lahir ? `name_birth:${name}|${member.tanggal_lahir}` : "",
+  ].filter(Boolean);
+}
+
+function mergeFinanceMembers(santriRows: Member[], siswaRows: Member[]) {
+  const santriByKey = new Map<string, Member>();
+  const usedSantriIds = new Set<string>();
+  const merged: Member[] = [];
+
+  santriRows.forEach((santri) => {
+    memberMatchKeys(santri).forEach((key) => santriByKey.set(key, santri));
+  });
+
+  siswaRows.forEach((siswa) => {
+    const matchedSantri = memberMatchKeys(siswa)
+      .map((key) => santriByKey.get(key))
+      .find(Boolean);
+
+    if (matchedSantri) {
+      usedSantriIds.add(matchedSantri.id);
+      merged.push({
+        ...matchedSantri,
+        kelas: siswa.kelas || matchedSantri.kelas,
+        sumber: "gabungan",
+        related_ids: [siswa.id],
+      });
+      return;
+    }
+
+    merged.push({ ...siswa, sumber: "smp", related_ids: [] });
+  });
+
+  santriRows
+    .filter((santri) => !usedSantriIds.has(santri.id))
+    .forEach((santri) => merged.push({ ...santri, sumber: "pesantren", related_ids: [] }));
+
+  return merged.sort((a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap));
 }
 
 function currentMonth() {
@@ -155,12 +246,16 @@ function invoiceLabel(invoice: Invoice) {
   return invoice.nama_tagihan || invoice.jenis?.nama || "Tagihan";
 }
 
-function defaultItems(profile: PaymentProfile, entity: Entity): SettingItem[] {
-  const pesantrenMonthly = [
+function defaultItems(preset: PaymentPreset): SettingItem[] {
+  const pesantrenMonthlyBase = [
     ["Listrik", 25000, false],
     ["Makan Bulanan", 280000, false],
     ["Kebersihan", 10000, false],
     ["Air Minum", 10000, false],
+  ] as const;
+  const smpMonthlyBase = [
+    ["Tabungan Wajib", 40000, false],
+    ["Infaq Komputer", 20000, false],
   ] as const;
   const pesantrenEntrance = [
     ["Infaq Masuk", 600000],
@@ -168,10 +263,6 @@ function defaultItems(profile: PaymentProfile, entity: Entity): SettingItem[] {
     ["Seragam Putih", 120000],
     ["Seragam Sarung", 100000],
     ["Loker", 200000],
-  ] as const;
-  const smpMonthly = [
-    ["Tabungan Wajib", 40000, false],
-    ["Infaq Komputer", 20000, false],
   ] as const;
   const smpEntrance = [
     ["Batik", 90000],
@@ -197,25 +288,57 @@ function defaultItems(profile: PaymentProfile, entity: Entity): SettingItem[] {
     });
   };
 
-  if (entity === "pesantren") {
+  if (preset === "khusus") return rows;
+
+  const isSantri = preset.startsWith("santri");
+  const isSiswa = preset === "santri_siswa_400" || preset.startsWith("siswa");
+
+  if (isSantri) {
     pesantrenEntrance.forEach(([nama, nominal]) => pushItem(nama, nominal, "masuk_cicil"));
-    pesantrenMonthly.forEach(([nama, nominal]) => pushItem(nama, nominal, "bulanan"));
-    pushItem(
-      "Tabungan Kegiatan",
-      profile === "santri_non_siswa" ? 75000 : 15000,
-      "tabungan",
-      true,
-    );
   }
 
-  if (entity === "smp") {
+  if (isSiswa) {
     smpEntrance.forEach(([nama, nominal]) => pushItem(nama, nominal, "masuk_cicil"));
-    smpMonthly.forEach(([nama, nominal]) => pushItem(nama, nominal, "bulanan"));
   }
 
-  if (profile === "siswa_saja" && entity === "pesantren") return [];
-  if (profile === "santri_non_siswa" && entity === "smp") return [];
+  const monthlyItems = [
+    ...(isSantri ? pesantrenMonthlyBase : []),
+    ...(preset === "santri_400"
+      ? ([["Tabungan Kegiatan", 75000, true]] as const)
+      : preset === "santri_340" || preset === "santri_siswa_400" || preset === "siswa_75"
+        ? ([["Tabungan Kegiatan", 15000, true]] as const)
+        : []),
+    ...(isSiswa ? smpMonthlyBase : []),
+  ];
+
+  monthlyItems.forEach(([nama, nominal, masukTabungan]) =>
+    pushItem(nama, nominal, masukTabungan ? "tabungan" : "bulanan", masukTabungan),
+  );
   return rows;
+}
+
+function profileForPreset(preset: PaymentPreset) {
+  return paymentPresetOptions.find((item) => item.value === preset)?.profile || "khusus";
+}
+
+function inferPreset(setting: PaymentSetting, items: SettingItem[]): PaymentPreset {
+  const summary = summarizeItems(items);
+
+  if (setting.profil_pembayaran === "santri_siswa") return "santri_siswa_400";
+  if (setting.profil_pembayaran === "siswa_saja") {
+    return summary.savings > 0 ? "siswa_75" : "siswa_60";
+  }
+  if (setting.profil_pembayaran === "santri_non_siswa") {
+    return summary.monthly >= 400000 ? "santri_400" : "santri_340";
+  }
+
+  return "khusus";
+}
+
+function presetForMember(member?: Member): PaymentPreset {
+  if (member?.sumber === "gabungan") return "santri_siswa_400";
+  if (member?.sumber === "smp") return "siswa_60";
+  return "santri_340";
 }
 
 function summarizeItems(items: SettingItem[]) {
@@ -333,12 +456,12 @@ function SubTabBar<T extends string>({
 }
 
 export default function FinanceModule({
-  initialEntity = "pesantren",
+  initialEntity: _initialEntity = "pesantren",
 }: {
   initialEntity?: Entity;
 }) {
-  const { user } = useAuth();
-  const [activeEntity, setActiveEntity] = useState<Entity>(initialEntity);
+  const { user, profiles } = useAuth();
+  const activeEntity: Entity = "pesantren";
   const [tab, setTab] = useState<"pengaturan" | "tagihan" | "bayar" | "tabungan" | "laporan">(
     "pengaturan",
   );
@@ -363,6 +486,7 @@ export default function FinanceModule({
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [selectedConfigMember, setSelectedConfigMember] = useState("");
+  const [configPreset, setConfigPreset] = useState<PaymentPreset>("santri_siswa_400");
   const [configProfile, setConfigProfile] = useState<PaymentProfile>("santri_siswa");
   const [configNote, setConfigNote] = useState("");
   const [configActive, setConfigActive] = useState(true);
@@ -382,6 +506,7 @@ export default function FinanceModule({
   });
   const [selectedMember, setSelectedMember] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState("");
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
   const [paymentForm, setPaymentForm] = useState({
     tunai: "",
     dari_tabungan: "",
@@ -403,10 +528,11 @@ export default function FinanceModule({
     kategori: "",
     scope: "semua",
   });
+  const activeRole = profiles.pesantren?.role || profiles.smp?.role || "";
+  const canRetractInvoice = activeRole === "superadmin" || activeRole === "bendahara";
 
   async function loadData(entity = activeEntity) {
-    const memberTable = entity === "pesantren" ? "pp_santri" : "smp_siswa";
-    const [typeResult, memberResult, invoiceResult, settingResult, savingsResult] =
+    const [typeResult, santriResult, siswaResult, invoiceResult, settingResult, savingsResult] =
       await Promise.all([
         supabase
           .from("keu_jenis_tagihan")
@@ -414,7 +540,12 @@ export default function FinanceModule({
           .eq("entitas", entity)
           .order("created_at", { ascending: false }),
         supabase
-          .from(memberTable)
+          .from("pp_santri")
+          .select("*")
+          .in("status", ["aktif", "alumni", "keluar"])
+          .order("nama_lengkap"),
+        supabase
+          .from("smp_siswa")
           .select("*")
           .in("status", ["aktif", "alumni", "keluar"])
           .order("nama_lengkap"),
@@ -459,7 +590,12 @@ export default function FinanceModule({
       : { data: [] };
 
     setBillTypes((typeResult.data || []) as BillType[]);
-    setMembers((memberResult.data || []) as Member[]);
+    setMembers(
+      mergeFinanceMembers(
+        (santriResult.data || []) as Member[],
+        (siswaResult.data || []) as Member[],
+      ),
+    );
     setInvoices(invoiceRows);
     setPayments((paymentResult.data || []) as Payment[]);
     setSettings(settingRows);
@@ -484,13 +620,26 @@ export default function FinanceModule({
     );
   }, [members, search]);
 
+  function memberIdsFor(memberId: string) {
+    const member = members.find((item) => item.id === memberId);
+    return member ? [member.id, ...(member.related_ids || [])] : [memberId];
+  }
+
+  function memberByAnyId(memberId?: string | null) {
+    if (!memberId) return undefined;
+    return members.find(
+      (member) => member.id === memberId || (member.related_ids || []).includes(memberId),
+    );
+  }
+
   const scopes = useMemo(() => {
     const values = members.map((member) => getMemberScope(member, activeEntity));
     return ["semua", ...Array.from(new Set(values))];
   }, [activeEntity, members]);
 
-  const selectedSetting = settings.find(
-    (setting) => setting.anggota_id === selectedConfigMember,
+  const selectedConfigMemberIds = memberIdsFor(selectedConfigMember);
+  const selectedSetting = settings.find((setting) =>
+    selectedConfigMemberIds.includes(setting.anggota_id),
   );
 
   useEffect(() => {
@@ -499,31 +648,41 @@ export default function FinanceModule({
       return;
     }
 
-    const existing = settings.find((setting) => setting.anggota_id === selectedConfigMember);
+    const selectedMemberRow = members.find((member) => member.id === selectedConfigMember);
+    const selectedMemberIds = memberIdsFor(selectedConfigMember);
+    const existing = settings.find((setting) => selectedMemberIds.includes(setting.anggota_id));
     if (existing) {
+      const existingItems = settingItems
+        .filter((item) => item.pengaturan_id === existing.id)
+        .map((item) => ({ ...item }));
+      setConfigPreset(inferPreset(existing, existingItems));
       setConfigProfile(existing.profil_pembayaran);
       setConfigNote(existing.catatan || "");
       setConfigActive(existing.aktif);
-      setDraftItems(
-        settingItems
-          .filter((item) => item.pengaturan_id === existing.id)
-          .map((item) => ({ ...item })),
-      );
+      setDraftItems(existingItems);
       return;
     }
 
-    const nextProfile = activeEntity === "smp" ? "siswa_saja" : "santri_siswa";
+    const nextPreset = presetForMember(selectedMemberRow);
+    const nextProfile = profileForPreset(nextPreset);
+    setConfigPreset(nextPreset);
     setConfigProfile(nextProfile);
     setConfigNote("");
     setConfigActive(true);
-    setDraftItems(defaultItems(nextProfile, activeEntity));
+    setDraftItems(defaultItems(nextPreset));
   }, [activeEntity, selectedConfigMember, settingItems, settings]);
 
   const settingSummary = summarizeItems(draftItems);
 
   const selectedMemberInvoices = invoices.filter(
-    (invoice) => invoice.anggota_id === selectedMember && !invoice.ditarik_at,
+    (invoice) => memberIdsFor(selectedMember).includes(invoice.anggota_id) && !invoice.ditarik_at,
   );
+  const activeInvoices = invoices.filter((invoice) => !invoice.ditarik_at);
+  const visibleActiveInvoices = activeInvoices.slice(0, 80);
+  const visibleInvoiceIds = visibleActiveInvoices.map((invoice) => invoice.id);
+  const allVisibleInvoicesSelected =
+    visibleInvoiceIds.length > 0 &&
+    visibleInvoiceIds.every((id) => selectedInvoiceIds.includes(id));
   const selectedInvoiceRow = invoices.find((invoice) => invoice.id === selectedInvoice);
   const selectedInvoicePayments = payments.filter(
     (payment) => payment.tagihan_id === selectedInvoice,
@@ -544,16 +703,16 @@ export default function FinanceModule({
     0,
   );
   const selectedSavingsBalance = savingsEntries
-    .filter((entry) => entry.anggota_id === selectedMember)
+    .filter((entry) => memberIdsFor(selectedMember).includes(entry.anggota_id))
     .reduce((sum, entry) => sum + Number(entry.nominal || 0), 0);
   const savingsTabBalance = savingsEntries
-    .filter((entry) => entry.anggota_id === savingsMember)
+    .filter((entry) => memberIdsFor(savingsMember).includes(entry.anggota_id))
     .reduce((sum, entry) => sum + Number(entry.nominal || 0), 0);
 
   const reportInvoices = invoices.filter((invoice) => {
     if (invoice.ditarik_at) return false;
     const categoryMatch = report.kategori ? invoice.kategori === report.kategori : true;
-    const member = members.find((item) => item.id === invoice.anggota_id);
+    const member = memberByAnyId(invoice.anggota_id);
     const scopeMatch =
       report.scope === "semua" || (member ? getMemberScope(member, activeEntity) === report.scope : false);
     return categoryMatch && scopeMatch;
@@ -693,7 +852,7 @@ export default function FinanceModule({
 
     const rows = targetMembers.flatMap((member) => {
       const setting = settings.find(
-        (item) => item.anggota_id === member.id && item.aktif,
+        (item) => [member.id, ...(member.related_ids || [])].includes(item.anggota_id) && item.aktif,
       );
       if (!setting) return [];
       const activeItems = settingItems.filter(
@@ -833,30 +992,142 @@ export default function FinanceModule({
     loadData();
   }
 
+  function toggleInvoiceSelection(id: string, checked: boolean) {
+    setSelectedInvoiceIds((ids) =>
+      checked ? Array.from(new Set([...ids, id])) : ids.filter((item) => item !== id),
+    );
+  }
+
+  function toggleAllVisibleInvoices(checked: boolean) {
+    setSelectedInvoiceIds((ids) =>
+      checked
+        ? Array.from(new Set([...ids, ...visibleInvoiceIds]))
+        : ids.filter((id) => !visibleInvoiceIds.includes(id)),
+    );
+  }
+
+  async function retractInvoiceWithoutPrompt(invoice: Invoice) {
+    if (!canRetractInvoice) {
+      return { error: "Hanya superadmin dan bendahara yang bisa menarik tagihan." };
+    }
+
+    const savingsCredited = savingsEntries
+      .filter(
+        (entry) =>
+          entry.tagihan_id === invoice.id && entry.tipe === "setoran_otomatis",
+      )
+      .reduce((sum, entry) => sum + Number(entry.nominal || 0), 0);
+
+    const { error } = await supabase.rpc("tarik_keu_tagihan", {
+      p_tagihan_id: invoice.id,
+      p_catatan: "Ditarik oleh bendahara karena koreksi tagihan.",
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    if (savingsCredited > 0) {
+      const adjustment = await supabase.from("keu_tabungan_kegiatan").insert({
+        entitas: activeEntity,
+        anggota_id: invoice.anggota_id,
+        tagihan_id: invoice.id,
+        tipe: "penyesuaian",
+        nominal: -savingsCredited,
+        tanggal: new Date().toISOString().slice(0, 10),
+        catatan: `Pembalik tabungan karena tagihan ${invoiceLabel(invoice)} ditarik.`,
+        dibuat_oleh: user?.id || null,
+      });
+      if (adjustment.error) {
+        return { error: adjustment.error.message };
+      }
+    }
+
+    return { error: null };
+  }
+
   async function retractInvoice(invoice: Invoice) {
-    const paid = payments
-      .filter((payment) => payment.tagihan_id === invoice.id)
-      .reduce((sum, payment) => sum + Number(payment.jumlah_bayar || 0), 0);
-    if (paid > 0) {
-      setMessage("Tagihan yang sudah punya pembayaran tidak bisa ditarik langsung.");
+    if (!canRetractInvoice) {
+      setMessage("Hanya superadmin dan bendahara yang bisa menarik tagihan.");
       return;
     }
 
+    const paid = payments
+      .filter((payment) => payment.tagihan_id === invoice.id)
+      .reduce((sum, payment) => sum + Number(payment.jumlah_bayar || 0), 0);
+
     const confirmed = window.confirm(
-      `Tarik tagihan ${invoiceLabel(invoice)}? Tagihan tidak akan dihitung lagi.`,
+      paid > 0
+        ? `Tarik tagihan ${invoiceLabel(invoice)} yang sudah punya pembayaran ${formatCurrency(
+            paid,
+          )}? Tagihan dan pembayarannya tidak akan dihitung di laporan aktif.`
+        : `Tarik tagihan ${invoiceLabel(invoice)}? Tagihan tidak akan dihitung lagi.`,
     );
     if (!confirmed) return;
 
-    const { error } = await supabase
-      .from("keu_tagihan")
-      .update({
-        ditarik_at: new Date().toISOString(),
-        ditarik_oleh: user?.id || null,
-        catatan_penarikan: "Ditarik oleh bendahara karena koreksi tagihan.",
-      })
-      .eq("id", invoice.id);
+    const result = await retractInvoiceWithoutPrompt(invoice);
 
-    setMessage(error ? error.message : "Tagihan berhasil ditarik dari perhitungan.");
+    setMessage(
+      result.error
+        ? `Gagal tarik tagihan: ${result.error}. Pastikan SQL migration terbaru sudah dijalankan.`
+        : paid > 0
+          ? "Tagihan ditarik. Pembayaran lama disimpan sebagai jejak, tapi tidak dihitung di laporan aktif."
+          : "Tagihan berhasil ditarik dari perhitungan.",
+    );
+    setSelectedInvoiceIds((ids) => ids.filter((id) => id !== invoice.id));
+    loadData();
+  }
+
+  async function retractSelectedInvoices() {
+    if (!canRetractInvoice) {
+      setMessage("Hanya superadmin dan bendahara yang bisa menarik tagihan.");
+      return;
+    }
+
+    const targets = activeInvoices.filter((invoice) =>
+      selectedInvoiceIds.includes(invoice.id),
+    );
+    if (!targets.length) {
+      setMessage("Pilih tagihan yang mau ditarik terlebih dahulu.");
+      return;
+    }
+
+    const paidTotal = targets.reduce((sum, invoice) => {
+      return (
+        sum +
+        payments
+          .filter((payment) => payment.tagihan_id === invoice.id)
+          .reduce((total, payment) => total + Number(payment.jumlah_bayar || 0), 0)
+      );
+    }, 0);
+    const confirmed = window.confirm(
+      `Tarik ${targets.length} tagihan terpilih?${
+        paidTotal > 0
+          ? ` Total pembayaran yang menjadi jejak lama: ${formatCurrency(paidTotal)}.`
+          : ""
+      }`,
+    );
+    if (!confirmed) return;
+
+    let success = 0;
+    const errors: string[] = [];
+    for (const invoice of targets) {
+      const result = await retractInvoiceWithoutPrompt(invoice);
+      if (result.error) {
+        errors.push(`${invoiceLabel(invoice)}: ${result.error}`);
+      } else {
+        success += 1;
+      }
+    }
+
+    setSelectedInvoiceIds((ids) =>
+      ids.filter((id) => !targets.some((invoice) => invoice.id === id)),
+    );
+    setMessage(
+      errors.length
+        ? `${success} tagihan ditarik, ${errors.length} gagal. ${errors[0]}`
+        : `${success} tagihan berhasil ditarik.`,
+    );
     loadData();
   }
 
@@ -866,7 +1137,7 @@ export default function FinanceModule({
     catatan?: string | null;
   }) {
     if (!selectedInvoiceRow) return null;
-    const member = members.find((item) => item.id === selectedInvoiceRow.anggota_id);
+    const member = memberByAnyId(selectedInvoiceRow.anggota_id);
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF();
     doc.setFontSize(14);
@@ -1050,7 +1321,7 @@ export default function FinanceModule({
       ["Entitas", "Tanggal", "NIS", "Nama", "Jenis", "Kategori", "Jumlah Bayar", "Status Tagihan"].join(","),
       ...reportPayments.map((payment) => {
         const invoice = invoices.find((item) => item.id === payment.tagihan_id);
-        const member = members.find((item) => item.id === invoice?.anggota_id);
+        const member = memberByAnyId(invoice?.anggota_id);
         return [
           entityLabel(activeEntity),
           payment.tanggal_bayar,
@@ -1087,7 +1358,7 @@ export default function FinanceModule({
         y = 18;
       }
       const invoice = invoices.find((item) => item.id === payment.tagihan_id);
-      const member = members.find((item) => item.id === invoice?.anggota_id);
+      const member = memberByAnyId(invoice?.anggota_id);
       doc.text(
         `${index + 1}. ${payment.tanggal_bayar} - ${member?.nama_lengkap || "-"} - ${
           invoice ? invoiceLabel(invoice) : "-"
@@ -1124,22 +1395,13 @@ export default function FinanceModule({
       </div>
 
       <div className="rounded bg-white p-4 shadow-soft">
-        <div className="flex flex-wrap gap-2">
-          {(["pesantren", "smp"] as Entity[]).map((entity) => (
-            <button
-              key={entity}
-              type="button"
-              onClick={() => setActiveEntity(entity)}
-              className={[
-                "rounded px-4 py-2 text-sm font-semibold",
-                activeEntity === entity
-                  ? "bg-emerald-800 text-white"
-                  : "border border-gray-200 text-gray-700",
-              ].join(" ")}
-            >
-              {entityLabel(entity)}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+            Keuangan Terpusat
+          </span>
+          <span className="rounded bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700">
+            Satu tagihan bulanan untuk santri dan siswa
+          </span>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {[
@@ -1200,23 +1462,24 @@ export default function FinanceModule({
               <option value="">Pilih anggota</option>
               {filteredMembers.map((member) => (
                 <option key={member.id} value={member.id}>
-                  {member.nama_lengkap} - {member.nis}
+                  {memberLabel(member)}
                 </option>
               ))}
             </select>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <select
-                value={configProfile}
+                value={configPreset}
                 onChange={(event) => {
-                  const profile = event.target.value as PaymentProfile;
-                  setConfigProfile(profile);
-                  setDraftItems(defaultItems(profile, activeEntity));
+                  const preset = event.target.value as PaymentPreset;
+                  setConfigPreset(preset);
+                  setConfigProfile(profileForPreset(preset));
+                  setDraftItems(defaultItems(preset));
                 }}
                 className={inputClass}
               >
-                {(Object.keys(profileLabels) as PaymentProfile[]).map((profile) => (
-                  <option key={profile} value={profile}>
-                    {profileLabels[profile]}
+                {paymentPresetOptions.map((preset) => (
+                  <option key={preset.value} value={preset.value}>
+                    {preset.label}
                   </option>
                 ))}
               </select>
@@ -1400,7 +1663,8 @@ export default function FinanceModule({
             <DataTable
               headers={["NIS", "Nama", "Profil", "Bulanan", "Tabungan/bln", "Status"]}
               rows={members.slice(0, 80).map((member) => {
-                const setting = settings.find((item) => item.anggota_id === member.id);
+                const memberIds = [member.id, ...(member.related_ids || [])];
+                const setting = settings.find((item) => memberIds.includes(item.anggota_id));
                 return [
                   member.nis,
                   member.nama_lengkap,
@@ -1469,7 +1733,7 @@ export default function FinanceModule({
                     <option value="">Pilih anggota</option>
                     {members.map((member) => (
                       <option key={member.id} value={member.id}>
-                        {member.nama_lengkap} - {member.nis}
+                        {memberLabel(member)}
                       </option>
                     ))}
                   </select>
@@ -1573,7 +1837,7 @@ export default function FinanceModule({
                     <option value="">Pilih anggota</option>
                     {members.map((member) => (
                       <option key={member.id} value={member.id}>
-                        {member.nama_lengkap} - {member.nis}
+                        {memberLabel(member)}
                       </option>
                     ))}
                   </select>
@@ -1622,13 +1886,37 @@ export default function FinanceModule({
           ) : null}
 
           {tagihanTab === "daftar" ? (
-            <DataTable
-              headers={["Periode", "NIS", "Nama", "Tagihan", "Nominal", "Status", "Aksi"]}
-              rows={invoices
-                .filter((invoice) => !invoice.ditarik_at)
-                .slice(0, 80)
-                .map((invoice) => {
-                  const member = members.find((item) => item.id === invoice.anggota_id);
+            <div className="grid gap-4">
+              <div className="rounded bg-white p-4 shadow-soft">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleInvoicesSelected}
+                      onChange={(event) => toggleAllVisibleInvoices(event.target.checked)}
+                    />
+                    Pilih semua yang tampil
+                  </label>
+                  {canRetractInvoice ? (
+                    <button
+                      type="button"
+                      onClick={retractSelectedInvoices}
+                      disabled={!selectedInvoiceIds.length}
+                      className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+                    >
+                      Tarik Terpilih ({selectedInvoiceIds.length})
+                    </button>
+                  ) : (
+                    <span className="text-sm text-gray-500">
+                      Tarik tagihan khusus superadmin/bendahara.
+                    </span>
+                  )}
+                </div>
+              </div>
+              <DataTable
+                headers={["Pilih", "Periode", "NIS", "Nama", "Tagihan", "Nominal", "Status", "Aksi"]}
+                rows={visibleActiveInvoices.map((invoice) => {
+                  const member = memberByAnyId(invoice.anggota_id);
                   const paid = payments
                     .filter((payment) => payment.tagihan_id === invoice.id)
                     .reduce(
@@ -1636,6 +1924,14 @@ export default function FinanceModule({
                       0,
                     );
                   return [
+                    <input
+                      key={`select-${invoice.id}`}
+                      type="checkbox"
+                      checked={selectedInvoiceIds.includes(invoice.id)}
+                      onChange={(event) =>
+                        toggleInvoiceSelection(invoice.id, event.target.checked)
+                      }
+                    />,
                     invoice.periode || "-",
                     member?.nis || "-",
                     member?.nama_lengkap || "-",
@@ -1649,23 +1945,30 @@ export default function FinanceModule({
                     </div>,
                     formatCurrency(invoice.nominal),
                     invoice.status.replace("_", " "),
-                    paid > 0 ? (
-                      <span key="paid" className="text-xs text-gray-500">
-                        Sudah ada pembayaran
-                      </span>
-                    ) : (
-                      <button
-                        key="retract"
-                        type="button"
-                        onClick={() => retractInvoice(invoice)}
-                        className="rounded border px-3 py-2 text-sm font-semibold text-red-600"
-                      >
-                        Tarik
-                      </button>
-                    ),
+                    <div key="actions" className="grid gap-2">
+                      {paid > 0 ? (
+                        <span className="text-xs text-gray-500">
+                          Terbayar {formatCurrency(paid)}
+                        </span>
+                      ) : null}
+                      {canRetractInvoice ? (
+                        <button
+                          type="button"
+                          onClick={() => retractInvoice(invoice)}
+                          className="rounded border px-3 py-2 text-sm font-semibold text-red-600"
+                        >
+                          Tarik
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-500">
+                          Khusus superadmin/bendahara
+                        </span>
+                      )}
+                    </div>,
                   ];
                 })}
-            />
+              />
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -1703,7 +2006,7 @@ export default function FinanceModule({
               <option value="">Pilih anggota</option>
               {filteredMembers.map((member) => (
                 <option key={member.id} value={member.id}>
-                  {member.nama_lengkap} - {member.nis}
+                  {memberLabel(member)}
                 </option>
               ))}
             </select>
@@ -1814,7 +2117,7 @@ export default function FinanceModule({
                     <option value="">Pilih anggota</option>
                     {filteredMembers.map((member) => (
                       <option key={member.id} value={member.id}>
-                        {member.nama_lengkap} - {member.nis}
+                        {memberLabel(member)}
                       </option>
                     ))}
                   </select>
@@ -1867,7 +2170,7 @@ export default function FinanceModule({
               <option value="">Pilih anggota</option>
               {members.map((member) => (
                 <option key={member.id} value={member.id}>
-                  {member.nama_lengkap} - {member.nis}
+                  {memberLabel(member)}
                 </option>
               ))}
             </select>
@@ -1933,7 +2236,7 @@ export default function FinanceModule({
                     <option value="">Pilih anggota</option>
                     {members.map((member) => (
                       <option key={member.id} value={member.id}>
-                        {member.nama_lengkap} - {member.nis}
+                        {memberLabel(member)}
                       </option>
                     ))}
                   </select>
@@ -1948,7 +2251,7 @@ export default function FinanceModule({
               <DataTable
                 headers={["Tanggal", "Tipe", "Nominal", "Catatan"]}
                 rows={savingsEntries
-                  .filter((entry) => entry.anggota_id === savingsMember)
+                  .filter((entry) => memberIdsFor(savingsMember).includes(entry.anggota_id))
                   .map((entry) => [
                     formatDate(entry.tanggal),
                     entry.tipe.replace("_", " "),
@@ -2093,7 +2396,7 @@ export default function FinanceModule({
             headers={["Tanggal", "NIS", "Nama", "Jenis", "Kategori", "Jumlah"]}
             rows={reportPayments.map((payment) => {
               const invoice = invoices.find((item) => item.id === payment.tagihan_id);
-              const member = members.find((item) => item.id === invoice?.anggota_id);
+              const member = memberByAnyId(invoice?.anggota_id);
               return [
                 formatDate(payment.tanggal_bayar),
                 member?.nis || "-",
@@ -2110,7 +2413,7 @@ export default function FinanceModule({
             <DataTable
             headers={["NIS", "Nama", "Jenis", "Kategori", "Nominal", "Status", "Jatuh Tempo"]}
             rows={arrears.map((invoice) => {
-              const member = members.find((item) => item.id === invoice.anggota_id);
+              const member = memberByAnyId(invoice.anggota_id);
               return [
                 member?.nis || "-",
                 member?.nama_lengkap || "-",
