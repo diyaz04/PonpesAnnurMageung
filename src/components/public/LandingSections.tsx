@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Shield, BookOpen, Users, CheckCircle2, TrendingUp, Landmark, GraduationCap, MapPin, Phone, Mail } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { supabase } from '../../lib/supabase';
 
 // SMP Maarif NU Landing Page Components
 export function SmpHero() {
@@ -376,6 +377,310 @@ export function ContactSection() {
           </div>
         </div>
       </div>
+    </section>
+  );
+}
+
+
+
+type BeritaRow = {
+  id: string;
+  judul: string;
+  ringkasan: string | null;
+  foto_url: string | null;
+  created_at: string;
+  entitas: string;
+};
+
+type AgendaRow = {
+  id: string;
+  judul: string;
+  tanggal: string;
+  lokasi: string | null;
+  entitas: string;
+};
+
+type GaleriRow = {
+  id: string;
+  foto_url: string;
+  keterangan: string | null;
+  entitas: string;
+};
+
+type SaranRow = {
+  id?: string;
+};
+
+// ---------- SectionBerita ----------
+export function SectionBerita({
+  entitas,
+  entityLabel,
+  detailBasePath,
+}: {
+  entitas: string;
+  entityLabel: string;
+  detailBasePath: string;
+}) {
+  const [items, setItems] = useState<BeritaRow[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from('lp_berita')
+      .select('id,judul,ringkasan,foto_url,created_at,entitas')
+      .eq('entitas', entitas)
+      .order('created_at', { ascending: false })
+      .limit(6)
+      .then(({ data }) => { if (data) setItems(data as BeritaRow[]); });
+  }, [entitas]);
+
+  if (!items.length) return null;
+
+  return (
+    <section id="berita" className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-800">Berita</p>
+      <h2 className="mt-3 text-3xl font-semibold text-gray-950">Berita {entityLabel}</h2>
+      <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => (
+          <article key={item.id} className="rounded bg-white shadow-sm overflow-hidden border border-gray-100">
+            {item.foto_url && (
+              <img src={item.foto_url} alt={item.judul} className="aspect-[16/9] w-full object-cover" />
+            )}
+            <div className="p-5">
+              <p className="text-xs text-gray-500 mb-2">{new Date(item.created_at).toLocaleDateString('id-ID')}</p>
+              <h3 className="font-semibold text-gray-950 mb-2">{item.judul}</h3>
+              {item.ringkasan && <p className="text-sm text-gray-600 leading-6">{item.ringkasan}</p>}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ---------- SectionAgenda ----------
+export function SectionAgenda({ entitas, entityLabel }: { entitas: string; entityLabel: string }) {
+  const [items, setItems] = useState<AgendaRow[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from('lp_agenda')
+      .select('id,judul,tanggal,lokasi,entitas')
+      .eq('entitas', entitas)
+      .order('tanggal', { ascending: true })
+      .limit(5)
+      .then(({ data }) => { if (data) setItems(data as AgendaRow[]); });
+  }, [entitas]);
+
+  if (!items.length) return null;
+
+  return (
+    <section id="agenda" className="bg-gray-50 py-16">
+      <div className="mx-auto max-w-7xl px-4 lg:px-6">
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-800">Agenda</p>
+        <h2 className="mt-3 text-3xl font-semibold text-gray-950">Agenda {entityLabel}</h2>
+        <div className="mt-8 grid gap-4 md:grid-cols-2">
+          {items.map((item) => (
+            <div key={item.id} className="flex gap-4 rounded bg-white p-5 shadow-sm border border-gray-100">
+              <div className="shrink-0 w-14 text-center rounded bg-emerald-800 text-white py-2 px-1">
+                <span className="block text-xl font-bold leading-none">
+                  {new Date(item.tanggal).getDate()}
+                </span>
+                <span className="block text-xs mt-1">
+                  {new Date(item.tanggal).toLocaleDateString('id-ID', { month: 'short' })}
+                </span>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-950">{item.judul}</h3>
+                {item.lokasi && <p className="text-sm text-gray-500 mt-1">{item.lokasi}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------- SectionGaleri ----------
+export function SectionGaleri({ entitas }: { entitas: string }) {
+  const [items, setItems] = useState<GaleriRow[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from('lp_galeri')
+      .select('id,foto_url,keterangan,entitas')
+      .eq('entitas', entitas)
+      .limit(9)
+      .then(({ data }) => { if (data) setItems(data as GaleriRow[]); });
+  }, [entitas]);
+
+  if (!items.length) return null;
+
+  return (
+    <section id="galeri" className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-800">Galeri</p>
+      <h2 className="mt-3 text-3xl font-semibold text-gray-950 mb-8">Galeri Foto</h2>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        {items.map((item) => (
+          <div key={item.id} className="relative overflow-hidden rounded aspect-square group">
+            <img
+              src={item.foto_url}
+              alt={item.keterangan || 'Galeri'}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+            {item.keterangan && (
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                <p className="text-white text-sm">{item.keterangan}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ---------- SeksiCekPembayaran ----------
+export function SeksiCekPembayaran({
+  entitas,
+  personLabel,
+  recordLabel,
+}: {
+  entitas: string;
+  personLabel: string;
+  recordLabel: string;
+}) {
+  const [nis, setNis] = useState('');
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleCek = async () => {
+    if (!nis.trim()) return;
+    setLoading(true);
+    setError('');
+    setResult(null);
+
+    const table = entitas === 'smp' ? 'smp_students' : 'pesantren_santri';
+    const { data, error: dbError } = await supabase
+      .from(table)
+      .select('*')
+      .eq('nis', nis.trim())
+      .maybeSingle();
+
+    setLoading(false);
+    if (dbError || !data) {
+      setError(`Data ${personLabel} tidak ditemukan.`);
+    } else {
+      setResult(data as Record<string, unknown>);
+    }
+  };
+
+  return (
+    <section id="cek-santri" className="bg-emerald-950 py-16 text-white">
+      <div className="mx-auto max-w-7xl px-4 lg:px-6">
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-yellow-300">Layanan</p>
+        <h2 className="mt-3 text-3xl font-semibold mb-8">Cek Pembayaran & {recordLabel}</h2>
+        <div className="flex gap-3 max-w-lg">
+          <input
+            value={nis}
+            onChange={(e) => setNis(e.target.value)}
+            placeholder={`Masukkan NIS ${personLabel}`}
+            className="flex-1 rounded border border-white/20 bg-white/10 px-4 py-2.5 text-white placeholder:text-white/50 outline-none focus:ring-2 focus:ring-yellow-400"
+          />
+          <button
+            onClick={handleCek}
+            disabled={loading}
+            className="rounded bg-yellow-400 px-5 py-2.5 font-semibold text-emerald-950 hover:bg-yellow-300 disabled:opacity-60"
+          >
+            {loading ? 'Cek...' : 'Cek'}
+          </button>
+        </div>
+        {error && <p className="mt-4 text-red-300 text-sm">{error}</p>}
+        {result && (
+          <div className="mt-6 rounded bg-white/10 p-5 max-w-lg">
+            <h3 className="font-semibold text-yellow-300 mb-3">Data {personLabel}</h3>
+            {Object.entries(result)
+              .filter(([k]) => !['id', 'created_at', 'updated_at'].includes(k))
+              .map(([k, v]) => (
+                <div key={k} className="flex gap-2 text-sm border-b border-white/10 py-2">
+                  <span className="text-white/60 w-32 shrink-0 capitalize">{k.replace(/_/g, ' ')}</span>
+                  <span className="text-white">{String(v ?? '-')}</span>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ---------- SectionSaranKritik ----------
+export function SectionSaranKritik({
+  entitas,
+  entityLabel,
+}: {
+  entitas: string;
+  entityLabel: string;
+}) {
+  const [form, setForm] = useState({ nama: '', pesan: '' });
+  const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.pesan.trim()) return;
+    setLoading(true);
+    setStatus('');
+
+    const { error } = await supabase.from('lp_saran').insert({
+      entitas,
+      nama: form.nama.trim() || 'Anonim',
+      pesan: form.pesan.trim(),
+    });
+
+    setLoading(false);
+    if (error) {
+      setStatus('Gagal mengirim pesan. Silakan coba lagi.');
+    } else {
+      setForm({ nama: '', pesan: '' });
+      setStatus('Pesan berhasil dikirim. Terima kasih!');
+    }
+  };
+
+  return (
+    <section id="saran" className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-800">Aspirasi</p>
+      <h2 className="mt-3 text-3xl font-semibold text-gray-950 mb-8">Saran & Kritik untuk {entityLabel}</h2>
+      <form onSubmit={handleSubmit} className="max-w-lg grid gap-4">
+        <label className="grid gap-2 text-sm font-semibold text-gray-700">
+          Nama (opsional)
+          <input
+            value={form.nama}
+            onChange={(e) => setForm((f) => ({ ...f, nama: e.target.value }))}
+            placeholder="Nama Anda"
+            className="rounded border border-gray-200 px-3 py-2.5 font-normal outline-none focus:ring-2 focus:ring-emerald-700"
+          />
+        </label>
+        <label className="grid gap-2 text-sm font-semibold text-gray-700">
+          Pesan *
+          <textarea
+            value={form.pesan}
+            onChange={(e) => setForm((f) => ({ ...f, pesan: e.target.value }))}
+            rows={4}
+            placeholder="Tuliskan saran atau kritik Anda..."
+            className="rounded border border-gray-200 px-3 py-2.5 font-normal outline-none focus:ring-2 focus:ring-emerald-700"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={loading}
+          className="rounded bg-emerald-800 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-900 disabled:opacity-60"
+        >
+          {loading ? 'Mengirim...' : 'Kirim Pesan'}
+        </button>
+        {status && <p className="text-sm text-emerald-800 font-medium">{status}</p>}
+      </form>
     </section>
   );
 }

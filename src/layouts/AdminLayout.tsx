@@ -1,53 +1,57 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  LayoutDashboard, 
-  Users, 
-  BookOpen, 
-  Settings, 
-  LogOut, 
-  Menu, 
   X, 
-  GraduationCap, 
-  Wallet,
-  FileText,
+  Menu,
   UserCheck,
-  ChevronDown,
+  LogOut,
   Bell,
   Search,
-  Globe
+  Globe,
+  ChevronDown,
+  LayoutDashboard
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { smpAdminMenu } from '../lib/smpAdminMenu';
-import { pesantrenAdminMenu } from '../lib/pesantrenAdminMenu';
+import { getSmpMenuForRole, type SmpMenuItem } from '../lib/smpAdminMenu';
+import { getPesantrenMenuForRole, type PesantrenMenuItem } from '../lib/pesantrenAdminMenu';
+
+type MenuItem = SmpMenuItem | PesantrenMenuItem;
+
+// Group menu items by their group field
+function groupMenuItems(items: MenuItem[]) {
+  return items.reduce<Record<string, MenuItem[]>>((acc, item) => {
+    acc[item.group] = acc[item.group] || [];
+    acc[item.group].push(item);
+    return acc;
+  }, {});
+}
 
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, logout } = useAuth();
 
-  // Determine which menu to show based on user role or URL
-  const isAdminSmp = profile?.role === 'admin_smp' || location.pathname.includes('/admin/smp');
-  const isAdminPesantren = profile?.role === 'admin_pesantren' || location.pathname.includes('/admin/pesantren');
+  const isAdminSmp = profile?.entitas === 'smp' || location.pathname.includes('/admin/smp');
+  const isAdminPesantren = profile?.entitas === 'pesantren' || location.pathname.includes('/admin/pesantren');
   
-  const menuItems = isAdminSmp ? smpAdminMenu : (isAdminPesantren ? pesantrenAdminMenu : []);
+  const basePath = isAdminSmp ? '/admin/smp' : '/admin/pesantren';
+  
+  const menuItems: MenuItem[] = isAdminSmp 
+    ? getSmpMenuForRole(profile?.role) 
+    : isAdminPesantren 
+      ? getPesantrenMenuForRole(profile?.role) 
+      : [];
+
+  const groupedMenu = groupMenuItems(menuItems);
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      await logout();
       navigate('/login');
     } catch (error) {
       console.error('Failed to log out', error);
     }
-  };
-
-  const toggleSubmenu = (title: string) => {
-    setExpandedMenus(prev => ({
-      ...prev,
-      [title]: !prev[title]
-    }));
   };
 
   return (
@@ -79,57 +83,44 @@ export default function AdminLayout() {
         </div>
 
         <div className="flex-1 overflow-y-auto py-4">
-          <nav className="space-y-1 px-3">
-            {menuItems.map((item, index) => (
-              <div key={index}>
-                {item.submenu ? (
-                  <>
-                    <button
-                      onClick={() => toggleSubmenu(item.title)}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
-                        item.submenu.some(sub => location.pathname === sub.path)
-                          ? 'bg-[#E5B869] text-[#001524]'
-                          : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        {item.icon}
-                        <span className="font-medium text-sm">{item.title}</span>
-                      </div>
-                      <ChevronDown className={`w-4 h-4 transition-transform ${expandedMenus[item.title] ? 'rotate-180' : ''}`} />
-                    </button>
-                    
-                    {expandedMenus[item.title] && (
-                      <div className="mt-1 ml-9 space-y-1">
-                        {item.submenu.map((sub, subIndex) => (
-                          <Link
-                            key={subIndex}
-                            to={sub.path}
-                            className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                              location.pathname === sub.path
-                                ? 'bg-[#E5B869]/20 text-[#E5B869] font-medium'
-                                : 'text-gray-400 hover:text-white hover:bg-white/5'
-                            }`}
-                          >
-                            {sub.title}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <Link
-                    to={item.path}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                      location.pathname === item.path
-                        ? 'bg-[#E5B869] text-[#001524] font-medium'
-                        : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    {item.icon}
-                    <span className="font-medium text-sm">{item.title}</span>
-                  </Link>
-                )}
+          <nav className="space-y-4 px-3">
+            {/* Dashboard link */}
+            <Link
+              to={basePath}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                location.pathname === basePath
+                  ? 'bg-[#E5B869] text-[#001524] font-medium'
+                  : 'text-gray-300 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span className="font-medium text-sm">Dashboard</span>
+            </Link>
+
+            {/* Grouped menu items */}
+            {Object.entries(groupedMenu).map(([group, items]) => (
+              <div key={group}>
+                <p className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  {group}
+                </p>
+                <div className="space-y-1">
+                  {items.map((item) => {
+                    const itemPath = `${basePath}/${item.slug}`;
+                    return (
+                      <Link
+                        key={item.slug}
+                        to={itemPath}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                          location.pathname === itemPath
+                            ? 'bg-[#E5B869] text-[#001524] font-medium'
+                            : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        <span className="font-medium text-sm">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </nav>
@@ -141,7 +132,7 @@ export default function AdminLayout() {
               <UserCheck className="w-5 h-5 text-[#E5B869]" />
             </div>
             <div>
-              <p className="text-sm font-medium text-white">{profile?.full_name || 'Admin User'}</p>
+              <p className="text-sm font-medium text-white">{profile?.nama || 'Admin User'}</p>
               <p className="text-xs text-gray-400">{profile?.role || 'Administrator'}</p>
             </div>
           </div>
@@ -204,5 +195,3 @@ export default function AdminLayout() {
     </div>
   );
 }
-
-

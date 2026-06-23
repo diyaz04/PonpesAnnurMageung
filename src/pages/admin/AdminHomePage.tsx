@@ -16,7 +16,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
 export default function AdminHomePage() {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, logout } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   
@@ -81,7 +81,7 @@ export default function AdminHomePage() {
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      await logout();
       navigate('/login');
     } catch (error) {
       console.error('Failed to log out', error);
@@ -110,7 +110,7 @@ export default function AdminHomePage() {
             </div>
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-300 hidden sm:block">
-                Login sebagai: <strong className="text-white">{profile?.full_name}</strong>
+                Login sebagai: <strong className="text-white">{profile?.nama}</strong>
               </span>
               <button 
                 onClick={handleLogout}
@@ -127,7 +127,7 @@ export default function AdminHomePage() {
       {/* Main Content */}
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 font-serif">Selamat Datang, {profile?.full_name}</h1>
+          <h1 className="text-3xl font-bold text-gray-900 font-serif">Selamat Datang, {profile?.nama}</h1>
           <p className="mt-2 text-lg text-gray-600">Pilih modul yang ingin Anda kelola hari ini.</p>
         </div>
 
