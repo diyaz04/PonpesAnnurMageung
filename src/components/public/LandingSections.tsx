@@ -10,7 +10,7 @@ export function SmpHero() {
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-40"
         style={{
-          backgroundImage: 'url("https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop")'
+          backgroundImage: `url("https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop")`
         }}
       ></div>
       
@@ -218,7 +218,7 @@ export function PesantrenHero() {
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-40"
         style={{
-          backgroundImage: 'url("https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?q=80&w=2076&auto=format&fit=crop")'
+          backgroundImage: `url("https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?q=80&w=2076&auto=format&fit=crop")`
         }}
       ></div>
       <div className="absolute inset-0 bg-gradient-to-r from-[#001524] to-transparent z-0"></div>
@@ -387,5 +387,3 @@ export function ContactSection() {
     </section>
   );
 }
-```eof
-
