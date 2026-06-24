@@ -504,8 +504,8 @@ export default function PesantrenLandingPage() {
   }
 
   return (
-    <div className="bg-cream-50 text-gray-950">
-      <header className="sticky top-0 z-40 border-b border-emerald-900/10 bg-white/95 backdrop-blur">
+    <div className="bg-krem-50 text-gray-950">
+      <header className="sticky top-0 z-40 border-b border-navy/10 bg-white/95 backdrop-blur">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 lg:px-6">
           <a href="#beranda" className="flex items-center gap-3">
             {logoUrl ? (
@@ -515,7 +515,7 @@ export default function PesantrenLandingPage() {
                 className="h-11 w-11 rounded object-cover"
               />
             ) : (
-              <span className="grid h-11 w-11 place-items-center rounded bg-emerald-800 text-sm font-semibold text-white">
+              <span className="grid h-11 w-11 place-items-center rounded bg-navy text-sm font-semibold text-white">
                 AN
               </span>
             )}
@@ -523,7 +523,7 @@ export default function PesantrenLandingPage() {
               <span className="block text-sm font-semibold text-gray-950">
                 Pondok Pesantren
               </span>
-              <span className="block text-sm text-emerald-800">
+              <span className="block text-sm text-navy-mid">
                 An-Nur Mageung
               </span>
             </span>
@@ -534,14 +534,14 @@ export default function PesantrenLandingPage() {
               <a
                 key={item.href}
                 href={item.href}
-                className="rounded px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-emerald-50 hover:text-emerald-900"
+                className="rounded px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-navy-50 hover:text-navy"
               >
                 {item.label}
               </a>
             ))}
             <Link
               to="/admin/pesantren"
-              className="ml-2 inline-flex items-center justify-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-900"
+              className="ml-2 inline-flex items-center justify-center rounded bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy"
             >
               Login Dashboard
             </Link>
@@ -550,7 +550,7 @@ export default function PesantrenLandingPage() {
           <button
             type="button"
             aria-label="Buka menu"
-            className="inline-flex h-10 w-10 items-center justify-center rounded border border-emerald-900/15 bg-white text-emerald-900 lg:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded border border-navy/15 bg-white text-navy lg:hidden"
             onClick={() => setMobileOpen((value) => !value)}
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -558,13 +558,13 @@ export default function PesantrenLandingPage() {
         </nav>
 
         {mobileOpen ? (
-          <div className="border-t border-emerald-900/10 bg-white px-4 py-3 lg:hidden">
+          <div className="border-t border-navy/10 bg-white px-4 py-3 lg:hidden">
             <div className="mx-auto grid max-w-7xl gap-1">
               {navItems.map((item) => (
                 <a
                   key={item.href}
                   href={item.href}
-                  className="rounded px-3 py-2 text-sm font-medium text-gray-700 hover:bg-emerald-50"
+                  className="rounded px-3 py-2 text-sm font-medium text-gray-700 hover:bg-navy-50"
                   onClick={() => setMobileOpen(false)}
                 >
                   {item.label}
@@ -572,7 +572,7 @@ export default function PesantrenLandingPage() {
               ))}
               <Link
                 to="/admin/pesantren"
-                className="mt-2 inline-flex items-center justify-center rounded bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white"
+                className="mt-2 inline-flex items-center justify-center rounded bg-navy px-4 py-2.5 text-sm font-semibold text-white"
                 onClick={() => setMobileOpen(false)}
               >
                 Login Dashboard Pesantren
@@ -582,7 +582,7 @@ export default function PesantrenLandingPage() {
         ) : null}
       </header>
 
-      <section id="beranda" className="border-b border-emerald-900/10 bg-white">
+      <section id="beranda" className="border-b border-navy/10 bg-white">
         <div className="mx-auto grid min-h-[calc(100vh-69px)] max-w-7xl items-center gap-10 px-4 py-12 md:grid-cols-[1fr_0.95fr] lg:px-6">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-dark">
@@ -597,14 +597,14 @@ export default function PesantrenLandingPage() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a
                 href={getContent("hero", "cta_primary_url", "#saran")}
-                className="inline-flex items-center justify-center rounded bg-emerald-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-900"
+                className="inline-flex items-center justify-center rounded bg-navy px-5 py-3 text-sm font-semibold text-white transition hover:bg-navy"
               >
                 {getContent("hero", "cta_primary_text", "Daftar Santri Baru")}
                 <ChevronRight className="ml-2" size={18} />
               </a>
               <a
                 href="#profil"
-                className="inline-flex items-center justify-center rounded border border-emerald-800/25 bg-white px-5 py-3 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50"
+                className="inline-flex items-center justify-center rounded border border-emerald-800/25 bg-white px-5 py-3 text-sm font-semibold text-navy transition hover:bg-navy-50"
               >
                 Lihat Profil
               </a>
@@ -617,7 +617,7 @@ export default function PesantrenLandingPage() {
               className="aspect-[4/3] w-full rounded object-cover shadow-soft"
             />
             <div className="absolute bottom-4 left-4 right-4 rounded bg-white/95 p-4 shadow-soft">
-              <p className="text-sm font-semibold text-emerald-950">
+              <p className="text-sm font-semibold text-navy">
                 Pendidikan pesantren terpadu
               </p>
               <p className="mt-1 text-sm leading-6 text-gray-600">
@@ -654,8 +654,8 @@ export default function PesantrenLandingPage() {
               className={[
                 "shrink-0 rounded border px-4 py-2 text-sm font-semibold transition",
                 activeProfile === key
-                  ? "border-emerald-800 bg-emerald-800 text-white"
-                  : "border-emerald-900/15 bg-white text-gray-700 hover:bg-emerald-50",
+                  ? "border-emerald-800 bg-navy text-white"
+                  : "border-navy/15 bg-white text-gray-700 hover:bg-navy-50",
               ].join(" ")}
             >
               {label}
@@ -667,7 +667,7 @@ export default function PesantrenLandingPage() {
           {activeProfile === "visi" ? (
             <div className="grid gap-5 md:grid-cols-2">
               <article className="rounded bg-white p-6 shadow-soft">
-                <h3 className="text-xl font-semibold text-emerald-950">Visi</h3>
+                <h3 className="text-xl font-semibold text-navy">Visi</h3>
                 <p className="mt-4 leading-7 text-gray-700">
                   {getContent(
                     "profil",
@@ -677,7 +677,7 @@ export default function PesantrenLandingPage() {
                 </p>
               </article>
               <article className="rounded bg-white p-6 shadow-soft">
-                <h3 className="text-xl font-semibold text-emerald-950">Misi</h3>
+                <h3 className="text-xl font-semibold text-navy">Misi</h3>
                 <p className="mt-4 whitespace-pre-line leading-7 text-gray-700">
                   {getContent(
                     "profil",
@@ -691,7 +691,7 @@ export default function PesantrenLandingPage() {
 
           {activeProfile === "sejarah" ? (
             <article className="rounded bg-white p-6 shadow-soft">
-              <h3 className="text-xl font-semibold text-emerald-950">
+              <h3 className="text-xl font-semibold text-navy">
                 Sejarah Singkat
               </h3>
               <p className="mt-4 whitespace-pre-line leading-8 text-gray-700">
@@ -716,7 +716,7 @@ export default function PesantrenLandingPage() {
                   <h3 className="mt-4 text-lg font-semibold text-gray-950">
                     {leader.nama}
                   </h3>
-                  <p className="mt-1 text-sm font-semibold text-emerald-800">
+                  <p className="mt-1 text-sm font-semibold text-navy-mid">
                     {leader.jabatan}
                   </p>
                   <p className="mt-3 text-sm leading-6 text-gray-600">
@@ -729,7 +729,7 @@ export default function PesantrenLandingPage() {
 
           {activeProfile === "tertib" ? (
             <article className="rounded bg-white p-6 shadow-soft">
-              <h3 className="text-xl font-semibold text-emerald-950">Tata Tertib</h3>
+              <h3 className="text-xl font-semibold text-navy">Tata Tertib</h3>
               <p className="mt-4 whitespace-pre-line leading-8 text-gray-700">
                 {getContent(
                   "profil",
@@ -767,19 +767,19 @@ export default function PesantrenLandingPage() {
         </div>
       </section>
 
-      <section className="bg-emerald-950 py-16 text-white">
+      <section className="bg-navy py-16 text-white">
         <div className="mx-auto max-w-7xl px-4 lg:px-6">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-soft">
             Lembaga di Bawah Pesantren
           </p>
           <div className="mt-6 grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
             <div className="flex gap-4">
-              <span className="grid h-16 w-16 shrink-0 place-items-center rounded bg-white text-lg font-semibold text-emerald-950">
+              <span className="grid h-16 w-16 shrink-0 place-items-center rounded bg-white text-lg font-semibold text-navy">
                 SMP
               </span>
               <div>
                 <h2 className="text-2xl font-semibold">SMP Ma'arif NU Sariwangi</h2>
-                <p className="mt-3 max-w-2xl leading-7 text-emerald-50">
+                <p className="mt-3 max-w-2xl leading-7 text-cream-50">
                   Lembaga pendidikan formal yang mendukung ekosistem pembelajaran
                   pesantren melalui kurikulum sekolah, pembinaan karakter, dan
                   kegiatan siswa.
@@ -788,7 +788,7 @@ export default function PesantrenLandingPage() {
             </div>
             <Link
               to="/smp"
-              className="inline-flex items-center justify-center rounded bg-white px-5 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-cream-100"
+              className="inline-flex items-center justify-center rounded bg-white px-5 py-3 text-sm font-semibold text-navy transition hover:bg-cream-100"
             >
               Kunjungi Website
               <ExternalLink className="ml-2" size={17} />
@@ -822,7 +822,7 @@ export default function PesantrenLandingPage() {
                   className="aspect-[16/10] w-full object-cover"
                 />
                 <div className="p-5">
-                  <p className="text-sm text-emerald-800">
+                  <p className="text-sm text-navy-mid">
                     {formatDate(item.tanggal || item.created_at)}
                   </p>
                   <h3 className="mt-2 text-lg font-semibold leading-7 text-gray-950">
@@ -855,9 +855,9 @@ export default function PesantrenLandingPage() {
               agenda.map((item) => (
                 <article
                   key={item.id}
-                  className="grid gap-4 rounded border border-emerald-900/10 bg-cream-50 p-5 md:grid-cols-[180px_1fr]"
+                  className="grid gap-4 rounded border border-navy/10 bg-krem-50 p-5 md:grid-cols-[180px_1fr]"
                 >
-                  <div className="flex items-center gap-3 text-emerald-900">
+                  <div className="flex items-center gap-3 text-navy">
                     <CalendarDays size={22} />
                     <span className="font-semibold">{formatDate(item.tanggal)}</span>
                   </div>
@@ -866,7 +866,7 @@ export default function PesantrenLandingPage() {
                       {item.judul}
                     </h3>
                     {item.lokasi ? (
-                      <p className="mt-1 text-sm font-medium text-emerald-800">
+                      <p className="mt-1 text-sm font-medium text-navy-mid">
                         {item.lokasi}
                       </p>
                     ) : null}
@@ -879,7 +879,7 @@ export default function PesantrenLandingPage() {
                 </article>
               ))
             ) : (
-              <div className="rounded border border-emerald-900/10 bg-cream-50 p-6 text-sm text-gray-600">
+              <div className="rounded border border-navy/10 bg-krem-50 p-6 text-sm text-gray-600">
                 Agenda terdekat belum tersedia.
               </div>
             )}
@@ -903,8 +903,8 @@ export default function PesantrenLandingPage() {
               className={[
                 "shrink-0 rounded border px-4 py-2 text-sm font-semibold",
                 activeAlbum === album
-                  ? "border-emerald-800 bg-emerald-800 text-white"
-                  : "border-emerald-900/15 bg-white text-gray-700",
+                  ? "border-emerald-800 bg-navy text-white"
+                  : "border-navy/15 bg-white text-gray-700",
               ].join(" ")}
             >
               {album}
@@ -920,7 +920,7 @@ export default function PesantrenLandingPage() {
               className="group overflow-hidden rounded bg-white text-left shadow-soft"
             >
               {item.tipe === "video" ? (
-                <div className="grid aspect-[4/3] place-items-center bg-emerald-950 text-white">
+                <div className="grid aspect-[4/3] place-items-center bg-navy text-white">
                   <ImageIcon size={32} />
                 </div>
               ) : (
@@ -931,7 +931,7 @@ export default function PesantrenLandingPage() {
                 />
               )}
               <div className="p-4">
-                <p className="text-sm font-semibold text-emerald-900">
+                <p className="text-sm font-semibold text-navy">
                   {item.album || "Umum"}
                 </p>
                 <p className="mt-1 text-sm text-gray-600">
@@ -943,7 +943,7 @@ export default function PesantrenLandingPage() {
         </div>
       </section>
 
-      <section id="cek-santri" className="bg-emerald-950 py-16 text-white">
+      <section id="cek-santri" className="bg-navy py-16 text-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 lg:grid-cols-[0.85fr_1.15fr] lg:px-6">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-soft">
@@ -952,7 +952,7 @@ export default function PesantrenLandingPage() {
             <h2 className="mt-3 text-3xl font-semibold">
               Masukkan kode unik untuk melihat data santri.
             </h2>
-            <p className="mt-4 leading-7 text-emerald-50">
+            <p className="mt-4 leading-7 text-cream-50">
               Sistem hanya menampilkan data jika kode unik cocok. Percobaan
               dibatasi untuk melindungi data santri.
             </p>
@@ -966,7 +966,7 @@ export default function PesantrenLandingPage() {
               <button
                 type="submit"
                 disabled={lookupLoading}
-                className="inline-flex min-h-12 items-center justify-center rounded bg-gold px-5 text-sm font-semibold text-emerald-950 transition hover:bg-gold-soft disabled:opacity-70"
+                className="inline-flex min-h-12 items-center justify-center rounded bg-gold px-5 text-sm font-semibold text-navy transition hover:bg-gold-soft disabled:opacity-70"
               >
                 <Search className="mr-2" size={18} />
                 {lookupLoading ? "Memeriksa..." : "Cek Data"}
@@ -990,7 +990,7 @@ export default function PesantrenLandingPage() {
                       className="h-24 w-24 rounded object-cover"
                     />
                   ) : (
-                    <div className="grid h-24 w-24 place-items-center rounded bg-emerald-50 text-emerald-900">
+                    <div className="grid h-24 w-24 place-items-center rounded bg-navy-50 text-navy">
                       <FileText size={28} />
                     </div>
                   )}
@@ -999,7 +999,7 @@ export default function PesantrenLandingPage() {
                     <p className="mt-1 text-sm text-gray-600">
                       NIS {lookup.santri.nis} - {lookup.santri.kelas}
                     </p>
-                    <p className="mt-2 inline-flex rounded bg-emerald-50 px-3 py-1 text-sm font-semibold capitalize text-emerald-800">
+                    <p className="mt-2 inline-flex rounded bg-navy-50 px-3 py-1 text-sm font-semibold capitalize text-navy-mid">
                       {lookup.santri.status}
                     </p>
                   </div>
@@ -1011,7 +1011,7 @@ export default function PesantrenLandingPage() {
                     <button
                       type="button"
                       onClick={downloadStudentSummary}
-                      className="inline-flex items-center rounded border border-emerald-900/15 px-3 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"
+                      className="inline-flex items-center rounded border border-navy/15 px-3 py-2 text-sm font-semibold text-navy hover:bg-navy-50"
                     >
                       <Download className="mr-2" size={16} />
                       Unduh Rekap PDF
@@ -1033,7 +1033,7 @@ export default function PesantrenLandingPage() {
                                 Jatuh tempo {formatDate(bill.jatuh_tempo)}
                               </p>
                             </div>
-                            <span className="rounded bg-emerald-50 px-3 py-1 text-sm font-semibold capitalize text-emerald-800">
+                            <span className="rounded bg-navy-50 px-3 py-1 text-sm font-semibold capitalize text-navy-mid">
                               {bill.status.replace("_", " ")}
                             </span>
                           </div>
@@ -1058,7 +1058,7 @@ export default function PesantrenLandingPage() {
                                       href={payment.kuitansi_url}
                                       target="_blank"
                                       rel="noreferrer"
-                                      className="inline-flex items-center font-semibold text-emerald-800"
+                                      className="inline-flex items-center font-semibold text-navy-mid"
                                     >
                                       Unduh Kuitansi
                                       <Download className="ml-1" size={14} />
@@ -1085,7 +1085,7 @@ export default function PesantrenLandingPage() {
                       lookup.raport.slice(0, 8).map((item) => (
                         <div
                           key={`${item.mata_pelajaran}-${item.periode}`}
-                          className="rounded bg-cream-50 p-3 text-sm"
+                          className="rounded bg-krem-50 p-3 text-sm"
                         >
                           <p className="font-semibold">{item.mata_pelajaran}</p>
                           <p className="mt-1 text-gray-600">
@@ -1102,9 +1102,9 @@ export default function PesantrenLandingPage() {
                 </div>
               </div>
             ) : (
-              <div className="grid min-h-[360px] place-items-center rounded border border-dashed border-emerald-900/20 bg-cream-50 p-6 text-center">
+              <div className="grid min-h-[360px] place-items-center rounded border border-dashed border-emerald-900/20 bg-krem-50 p-6 text-center">
                 <div>
-                  <CheckCircle2 className="mx-auto text-emerald-800" size={36} />
+                  <CheckCircle2 className="mx-auto text-navy-mid" size={36} />
                   <p className="mt-4 font-semibold text-gray-950">
                     Data akan muncul setelah kode valid.
                   </p>
@@ -1141,7 +1141,7 @@ export default function PesantrenLandingPage() {
                 onChange={(event) =>
                   setSuggestionForm((form) => ({ ...form, nama: event.target.value }))
                 }
-                className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-emerald-700"
+                className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-navy-light"
               />
             </label>
             <label className="grid gap-2 text-sm font-semibold text-gray-700">
@@ -1154,7 +1154,7 @@ export default function PesantrenLandingPage() {
                     kontak: event.target.value,
                   }))
                 }
-                className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-emerald-700"
+                className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-navy-light"
               />
             </label>
           </div>
@@ -1166,26 +1166,26 @@ export default function PesantrenLandingPage() {
                 setSuggestionForm((form) => ({ ...form, pesan: event.target.value }))
               }
               rows={5}
-              className="rounded border border-gray-200 px-3 py-3 font-normal outline-none focus:ring-2 focus:ring-emerald-700"
+              className="rounded border border-gray-200 px-3 py-3 font-normal outline-none focus:ring-2 focus:ring-navy-light"
             />
           </label>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               type="submit"
               disabled={suggestionLoading}
-              className="inline-flex items-center justify-center rounded bg-emerald-800 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-900 disabled:opacity-70"
+              className="inline-flex items-center justify-center rounded bg-navy px-5 py-3 text-sm font-semibold text-white hover:bg-navy disabled:opacity-70"
             >
               <MessageSquare className="mr-2" size={18} />
               {suggestionLoading ? "Mengirim..." : "Kirim Pesan"}
             </button>
             {suggestionStatus ? (
-              <p className="text-sm font-medium text-emerald-800">{suggestionStatus}</p>
+              <p className="text-sm font-medium text-navy-mid">{suggestionStatus}</p>
             ) : null}
           </div>
         </form>
       </section>
 
-      <footer className="border-t border-emerald-900/10 bg-white">
+      <footer className="border-t border-navy/10 bg-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 md:grid-cols-[1.2fr_0.8fr] lg:px-6">
           <div>
             <h2 className="text-xl font-semibold text-gray-950">
@@ -1217,7 +1217,7 @@ export default function PesantrenLandingPage() {
                     href={url}
                     target="_blank"
                     rel="noreferrer"
-                    className="capitalize text-emerald-800 hover:text-emerald-950"
+                    className="capitalize text-navy-mid hover:text-navy"
                   >
                     {item}
                   </a>

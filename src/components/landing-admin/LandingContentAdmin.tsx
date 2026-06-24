@@ -82,7 +82,7 @@ type SpmbRow = {
 };
 
 const inputClass =
-  "min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-emerald-700";
+  "min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-navy-light";
 
 const tabItems = [
   ["hero", "Hero"],
@@ -543,7 +543,7 @@ export default function LandingContentAdmin({
               className={[
                 "rounded px-4 py-2 text-sm font-semibold",
                 entity === item
-                  ? "bg-emerald-800 text-white"
+                  ? "bg-navy text-white"
                   : "border border-gray-200 text-gray-700",
               ].join(" ")}
             >
@@ -561,14 +561,14 @@ export default function LandingContentAdmin({
                 onClick={() => setTab(key)}
                 className={[
                   "rounded px-4 py-2 text-sm font-semibold",
-                  tab === key ? "bg-gold text-emerald-950" : "bg-gray-100 text-gray-700",
+                  tab === key ? "bg-gold text-navy" : "bg-gray-100 text-gray-700",
                 ].join(" ")}
               >
                 {label}
               </button>
             ))}
         </div>
-        {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
+        {message ? <p className="mt-3 text-sm font-medium text-navy-mid">{message}</p> : null}
       </div>
 
       {tab === "hero" ? (
@@ -597,7 +597,7 @@ export default function LandingContentAdmin({
               <input name="cta_primary_url" defaultValue={getContent("hero", "cta_primary_url")} className={inputClass} />
             </Field>
           </div>
-          <button className="mt-5 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+          <button className="mt-5 inline-flex items-center rounded bg-navy px-4 py-2 text-sm font-semibold text-white">
             <Save className="mr-2" size={17} />
             Simpan Hero
           </button>
@@ -622,7 +622,7 @@ export default function LandingContentAdmin({
                 <textarea name="tata_tertib" defaultValue={getContent("profil", "tata_tertib")} rows={5} className="rounded border border-gray-200 px-3 py-3 font-normal" />
               </Field>
             </div>
-            <button className="mt-5 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+            <button className="mt-5 inline-flex items-center rounded bg-navy px-4 py-2 text-sm font-semibold text-white">
               <Save className="mr-2" size={17} />
               Simpan Profil
             </button>
@@ -657,7 +657,7 @@ export default function LandingContentAdmin({
               <textarea value={newsForm.excerpt || ""} onChange={(e) => setNewsForm((f) => ({ ...f, excerpt: e.target.value }))} rows={3} placeholder="Excerpt" className="rounded border border-gray-200 px-3 py-3 text-sm" />
               <textarea value={newsForm.konten || ""} onChange={(e) => setNewsForm((f) => ({ ...f, konten: e.target.value }))} rows={10} placeholder="Konten artikel markdown / rich text sederhana" className="rounded border border-gray-200 px-3 py-3 text-sm" />
             </div>
-            <button className="mt-4 rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">Simpan Berita</button>
+            <button className="mt-4 rounded bg-navy px-4 py-2 text-sm font-semibold text-white">Simpan Berita</button>
           </form>
           <DataTable
             headers={["Tanggal", "Judul", "Aksi"]}
@@ -683,7 +683,7 @@ export default function LandingContentAdmin({
               <input value={agendaForm.lokasi || ""} onChange={(e) => setAgendaForm((f) => ({ ...f, lokasi: e.target.value }))} placeholder="Lokasi" className={inputClass} />
               <textarea value={agendaForm.deskripsi || ""} onChange={(e) => setAgendaForm((f) => ({ ...f, deskripsi: e.target.value }))} rows={4} placeholder="Deskripsi" className="rounded border border-gray-200 px-3 py-3 text-sm" />
             </div>
-            <button className="mt-4 rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">Simpan Agenda</button>
+            <button className="mt-4 rounded bg-navy px-4 py-2 text-sm font-semibold text-white">Simpan Agenda</button>
           </form>
           <DataTable
             headers={["Tanggal", "Judul", "Lokasi", "Aksi"]}
@@ -713,7 +713,7 @@ export default function LandingContentAdmin({
               <input value={galleryForm.media_url || ""} onChange={(e) => setGalleryForm((f) => ({ ...f, media_url: e.target.value }))} placeholder="URL media" className={inputClass} />
               <input name="media_file" type="file" accept="image/*,video/*" className={inputClass} />
             </div>
-            <button className="mt-4 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+            <button className="mt-4 inline-flex items-center rounded bg-navy px-4 py-2 text-sm font-semibold text-white">
               <ImagePlus className="mr-2" size={17} />
               Simpan Galeri
             </button>
@@ -723,7 +723,7 @@ export default function LandingContentAdmin({
             rows={gallery.map((row) => [
               row.album || "Umum",
               row.tipe,
-              <a key="media" href={row.media_url} target="_blank" rel="noreferrer" className="text-emerald-800">Lihat</a>,
+              <a key="media" href={row.media_url} target="_blank" rel="noreferrer" className="text-navy-mid">Lihat</a>,
               <div key="actions" className="flex gap-2">
                 <button onClick={() => setGalleryForm(row)} className="rounded border px-3 py-2 text-sm font-semibold">Edit</button>
                 <button onClick={() => deleteGallery(row.id)} className="rounded border px-3 py-2 text-sm font-semibold text-red-600">Hapus</button>
@@ -743,7 +743,7 @@ export default function LandingContentAdmin({
               </Field>
             ))}
           </div>
-          <button className="mt-5 rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">Simpan Footer</button>
+          <button className="mt-5 rounded bg-navy px-4 py-2 text-sm font-semibold text-white">Simpan Footer</button>
         </form>
       ) : null}
 
@@ -779,7 +779,7 @@ export default function LandingContentAdmin({
                 </Field>
               ))}
             </div>
-            <button className="mt-5 rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">Simpan SPMB</button>
+            <button className="mt-5 rounded bg-navy px-4 py-2 text-sm font-semibold text-white">Simpan SPMB</button>
           </form>
           <div className="rounded bg-white p-5 shadow-soft">
             <button onClick={exportSpmbCsv} className="inline-flex items-center rounded border px-4 py-2 text-sm font-semibold">
@@ -860,7 +860,7 @@ function ListEditor<T extends LeaderItem | FacilityItem>({
           <input value={editing.foto_url} onChange={(e) => setEditing({ ...editing, foto_url: e.target.value })} placeholder="URL foto" className={inputClass} />
           <input name="foto_file" type="file" accept="image/*" className={inputClass} />
           <div className="flex gap-2">
-            <button className="rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">Simpan</button>
+            <button className="rounded bg-navy px-4 py-2 text-sm font-semibold text-white">Simpan</button>
             <button type="button" onClick={() => setEditing(null)} className="rounded border px-4 py-2 text-sm font-semibold">Batal</button>
           </div>
         </form>
@@ -872,7 +872,7 @@ function ListEditor<T extends LeaderItem | FacilityItem>({
               {item.foto_url ? <img src={item.foto_url} alt={item.nama} className="h-16 w-16 rounded object-cover" /> : null}
               <div className="min-w-0 flex-1">
                 <p className="font-semibold">{item.nama}</p>
-                {"jabatan" in item && item.jabatan ? <p className="text-sm text-emerald-800">{item.jabatan}</p> : null}
+                {"jabatan" in item && item.jabatan ? <p className="text-sm text-navy-mid">{item.jabatan}</p> : null}
                 <p className="mt-1 text-sm text-gray-600">{item.deskripsi}</p>
               </div>
             </div>

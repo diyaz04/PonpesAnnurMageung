@@ -437,7 +437,7 @@ export function SectionBerita({
 
   return (
     <section id="berita" className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-800">Berita</p>
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-navy-mid">Berita</p>
       <h2 className="mt-3 text-3xl font-semibold text-gray-950">Berita {entityLabel}</h2>
       <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => (
@@ -476,12 +476,12 @@ export function SectionAgenda({ entitas, entityLabel }: { entitas: string; entit
   return (
     <section id="agenda" className="bg-gray-50 py-16">
       <div className="mx-auto max-w-7xl px-4 lg:px-6">
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-800">Agenda</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-navy-mid">Agenda</p>
         <h2 className="mt-3 text-3xl font-semibold text-gray-950">Agenda {entityLabel}</h2>
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           {items.map((item) => (
             <div key={item.id} className="flex gap-4 rounded bg-white p-5 shadow-sm border border-gray-100">
-              <div className="shrink-0 w-14 text-center rounded bg-emerald-800 text-white py-2 px-1">
+              <div className="shrink-0 w-14 text-center rounded bg-navy text-white py-2 px-1">
                 <span className="block text-xl font-bold leading-none">
                   {new Date(item.tanggal).getDate()}
                 </span>
@@ -518,7 +518,7 @@ export function SectionGaleri({ entitas }: { entitas: string }) {
 
   return (
     <section id="galeri" className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-800">Galeri</p>
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-navy-mid">Galeri</p>
       <h2 className="mt-3 text-3xl font-semibold text-gray-950 mb-8">Galeri Foto</h2>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {items.map((item) => (
@@ -577,7 +577,7 @@ export function SeksiCekPembayaran({
   };
 
   return (
-    <section id="cek-santri" className="bg-emerald-950 py-16 text-white">
+    <section id="cek-santri" className="bg-navy py-16 text-white">
       <div className="mx-auto max-w-7xl px-4 lg:px-6">
         <p className="text-sm font-semibold uppercase tracking-[0.16em] text-yellow-300">Layanan</p>
         <h2 className="mt-3 text-3xl font-semibold mb-8">Cek Pembayaran & {recordLabel}</h2>
@@ -591,7 +591,7 @@ export function SeksiCekPembayaran({
           <button
             onClick={handleCek}
             disabled={loading}
-            className="rounded bg-yellow-400 px-5 py-2.5 font-semibold text-emerald-950 hover:bg-yellow-300 disabled:opacity-60"
+            className="rounded bg-yellow-400 px-5 py-2.5 font-semibold text-navy hover:bg-yellow-300 disabled:opacity-60"
           >
             {loading ? 'Cek...' : 'Cek'}
           </button>
@@ -650,7 +650,7 @@ export function SectionSaranKritik({
 
   return (
     <section id="saran" className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-800">Aspirasi</p>
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-navy-mid">Aspirasi</p>
       <h2 className="mt-3 text-3xl font-semibold text-gray-950 mb-8">Saran & Kritik untuk {entityLabel}</h2>
       <form onSubmit={handleSubmit} className="max-w-lg grid gap-4">
         <label className="grid gap-2 text-sm font-semibold text-gray-700">
@@ -659,7 +659,7 @@ export function SectionSaranKritik({
             value={form.nama}
             onChange={(e) => setForm((f) => ({ ...f, nama: e.target.value }))}
             placeholder="Nama Anda"
-            className="rounded border border-gray-200 px-3 py-2.5 font-normal outline-none focus:ring-2 focus:ring-emerald-700"
+            className="rounded border border-gray-200 px-3 py-2.5 font-normal outline-none focus:ring-2 focus:ring-navy-light"
           />
         </label>
         <label className="grid gap-2 text-sm font-semibold text-gray-700">
@@ -669,17 +669,17 @@ export function SectionSaranKritik({
             onChange={(e) => setForm((f) => ({ ...f, pesan: e.target.value }))}
             rows={4}
             placeholder="Tuliskan saran atau kritik Anda..."
-            className="rounded border border-gray-200 px-3 py-2.5 font-normal outline-none focus:ring-2 focus:ring-emerald-700"
+            className="rounded border border-gray-200 px-3 py-2.5 font-normal outline-none focus:ring-2 focus:ring-navy-light"
           />
         </label>
         <button
           type="submit"
           disabled={loading}
-          className="rounded bg-emerald-800 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-900 disabled:opacity-60"
+          className="rounded bg-navy px-5 py-3 text-sm font-semibold text-white hover:bg-navy disabled:opacity-60"
         >
           {loading ? 'Mengirim...' : 'Kirim Pesan'}
         </button>
-        {status && <p className="text-sm text-emerald-800 font-medium">{status}</p>}
+        {status && <p className="text-sm text-navy-mid font-medium">{status}</p>}
       </form>
     </section>
   );

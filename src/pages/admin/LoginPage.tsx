@@ -99,7 +99,7 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="grid min-h-screen place-items-center bg-cream-50 px-4">
+      <div className="grid min-h-screen place-items-center bg-krem-50 px-4">
         <p className="text-sm font-semibold text-gold-dark">
           Memeriksa sesi admin...
         </p>
@@ -112,7 +112,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-cream-50 px-4 py-10 text-gray-900">
+    <main className="grid min-h-screen place-items-center bg-krem-50 px-4 py-10 text-gray-900">
       <section className="w-full max-w-md rounded bg-white p-6 shadow-soft sm:p-8">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold-dark">
@@ -201,7 +201,7 @@ export default function LoginPage() {
 
         <Link
           to="/"
-          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded border border-emerald-900/15 px-4 py-2.5 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50"
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded border border-navy/15 px-4 py-2.5 text-sm font-semibold text-navy transition hover:bg-navy-50"
         >
           <ArrowLeft size={17} />
           Kembali ke Landing Page
