@@ -1,10 +1,14 @@
 import {
+  ArrowUpRight,
+  BookOpenCheck,
   ChevronRight,
   FileUp,
   GraduationCap,
   Menu,
   Phone,
   Send,
+  Sparkles,
+  Trophy,
   X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -259,26 +263,26 @@ export default function SmpLandingPage() {
   const logoUrl = getContent("hero", "logo_url", smpLogoUrl);
 
   return (
-    <div className="bg-krem-50 text-gray-950">
-      <header className="sticky top-0 z-40 border-b border-navy/10 bg-white/95 backdrop-blur">
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 lg:px-6">
+    <div className="public-page">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-navy/95 text-white shadow-[0_10px_40px_rgba(7,21,33,.16)] backdrop-blur-xl">
+        <nav className="section-shell flex h-[76px] items-center justify-between">
           <a href="#beranda" className="flex items-center gap-3">
             {logoUrl ? (
               <img
                 src={logoUrl}
                 alt="Logo SMP Ma'arif NU Sariwangi"
-                className="h-11 w-11 rounded object-cover"
+                className="h-12 w-12 rounded-2xl border border-white/15 bg-white object-contain p-1 shadow-lg"
               />
             ) : (
-              <span className="grid h-11 w-11 place-items-center rounded bg-navy text-sm font-semibold text-white">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gold text-sm font-black text-navy">
                 SMP
               </span>
             )}
             <span className="leading-tight">
-              <span className="block text-sm font-semibold text-gray-950">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-soft">
                 SMP Ma'arif NU
               </span>
-              <span className="block text-sm text-navy-mid">Sariwangi</span>
+              <span className="mt-1 block text-sm font-bold text-white">Sariwangi</span>
             </span>
           </a>
 
@@ -287,14 +291,14 @@ export default function SmpLandingPage() {
               <a
                 key={item.href}
                 href={item.href}
-                className="rounded px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-navy-50 hover:text-navy"
+                className="rounded-full px-3 py-2 text-[13px] font-medium text-white/75 transition hover:bg-white/10 hover:text-white"
               >
                 {item.label}
               </a>
             ))}
             <Link
               to="/admin/smp"
-              className="ml-2 inline-flex items-center justify-center rounded bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy"
+              className="ml-2 inline-flex items-center justify-center rounded-full border border-gold/40 bg-gold px-4 py-2.5 text-[13px] font-bold text-navy transition hover:-translate-y-0.5 hover:bg-gold-soft"
             >
               Login Dashboard
             </Link>
@@ -303,7 +307,7 @@ export default function SmpLandingPage() {
           <button
             type="button"
             aria-label="Buka menu"
-            className="inline-flex h-10 w-10 items-center justify-center rounded border border-navy/15 bg-white text-navy lg:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white lg:hidden"
             onClick={() => setMobileOpen((value) => !value)}
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -311,13 +315,13 @@ export default function SmpLandingPage() {
         </nav>
 
         {mobileOpen ? (
-          <div className="border-t border-navy/10 bg-white px-4 py-3 lg:hidden">
+          <div className="border-t border-white/10 bg-navy-950 px-4 py-4 shadow-2xl lg:hidden">
             <div className="mx-auto grid max-w-7xl gap-1">
               {navItems.map((item) => (
                 <a
                   key={item.href}
                   href={item.href}
-                  className="rounded px-3 py-2 text-sm font-medium text-gray-700 hover:bg-navy-50"
+                  className="rounded-xl px-3 py-3 text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white"
                   onClick={() => setMobileOpen(false)}
                 >
                   {item.label}
@@ -325,7 +329,7 @@ export default function SmpLandingPage() {
               ))}
               <Link
                 to="/admin/smp"
-                className="mt-2 inline-flex items-center justify-center rounded bg-navy px-4 py-2.5 text-sm font-semibold text-white"
+                className="mt-2 inline-flex items-center justify-center rounded-xl bg-gold px-4 py-3 text-sm font-bold text-navy"
                 onClick={() => setMobileOpen(false)}
               >
                 Login Dashboard SMP
@@ -335,60 +339,91 @@ export default function SmpLandingPage() {
         ) : null}
       </header>
 
-      <section id="beranda" className="border-b border-navy/10 bg-white">
-        <div className="mx-auto grid min-h-[calc(100vh-69px)] max-w-7xl items-center gap-10 px-4 py-12 md:grid-cols-[1fr_0.95fr] lg:px-6">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-dark">
-              SMP Ma'arif NU Sariwangi
+      <section id="beranda" className="relative isolate overflow-hidden bg-navy text-white">
+        <div className="absolute inset-0 -z-20">
+          <img src={heroImage} alt="" className="h-full w-full object-cover opacity-25" />
+          <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/95 to-navy/55" />
+        </div>
+        <div className="absolute inset-0 -z-10 bg-hero-grid bg-[size:52px_52px] opacity-40" />
+        <div className="absolute -right-32 top-16 -z-10 h-96 w-96 rounded-full bg-gold/15 blur-3xl" />
+        <div className="section-shell grid min-h-[calc(100svh-76px)] items-center gap-12 py-16 lg:grid-cols-[1.05fr_.95fr] lg:py-20">
+          <div className="relative z-10 min-w-0">
+            <p className="inline-flex max-w-full items-center gap-2 rounded-2xl border border-gold/30 bg-gold/10 px-3 py-2 text-[10px] font-bold uppercase leading-4 tracking-[0.12em] text-gold-soft sm:rounded-full sm:px-4 sm:text-xs sm:tracking-[0.18em]">
+              <Sparkles className="shrink-0" size={15} />
+              <span>Sekolah Islam Berbasis Karakter</span>
             </p>
-            <h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-tight tracking-normal text-gray-950 sm:text-5xl lg:text-6xl">
+            <h1 className="mt-7 max-w-3xl break-words font-display text-4xl font-bold leading-[1.04] tracking-[-0.04em] text-white sm:text-6xl lg:text-7xl">
               {heroTitle}
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-gray-700 sm:text-lg">
+            <p className="mt-6 max-w-2xl text-base leading-8 text-white/70 sm:text-lg">
               {heroSubtitle}
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               {spmbActive ? (
                 <a
                   href={getContent("hero", "cta_primary_url", "#spmb")}
-                  className="inline-flex items-center justify-center rounded bg-navy px-5 py-3 text-sm font-semibold text-white transition hover:bg-navy"
+                  className="inline-flex items-center justify-center rounded-full bg-gold px-6 py-3.5 text-sm font-bold text-navy shadow-glow transition hover:-translate-y-0.5 hover:bg-gold-soft"
                 >
                   {getContent("hero", "cta_primary_text", "Daftar SPMB")}
-                  <ChevronRight className="ml-2" size={18} />
+                  <ArrowUpRight className="ml-2" size={18} />
                 </a>
               ) : null}
               <a
                 href="#profil"
-                className="inline-flex items-center justify-center rounded border border-navy-mid/25 bg-white px-5 py-3 text-sm font-semibold text-navy transition hover:bg-navy-50"
+                className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-bold text-white backdrop-blur transition hover:bg-white/15"
               >
                 Lihat Profil
               </a>
             </div>
+            <div className="mt-10 grid max-w-xl grid-cols-3 gap-3 border-t border-white/10 pt-7">
+              {[
+                ["Holistik", "Akademik & Akhlak"],
+                ["Adaptif", "Pembelajaran"],
+                ["Terarah", "Pengembangan Bakat"],
+              ].map(([value, label]) => (
+                <div key={label}>
+                  <p className="font-display text-xl font-bold text-gold-soft sm:text-2xl">{value}</p>
+                  <p className="mt-1 text-[11px] leading-4 text-white/50 sm:text-xs">{label}</p>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="relative">
-            <img
-              src={heroImage}
-              alt="Foto SMP Ma'arif NU Sariwangi"
-              className="aspect-[4/3] w-full rounded object-cover shadow-soft"
-            />
-            <div className="absolute bottom-4 left-4 right-4 rounded bg-white/95 p-4 shadow-soft">
-              <p className="text-sm font-semibold text-navy">
-                Sekolah berbasis karakter
-              </p>
-              <p className="mt-1 text-sm leading-6 text-gray-600">
-                Menguatkan akademik, akhlak, literasi, dan kedisiplinan siswa.
-              </p>
+          <div className="relative mx-auto min-w-0 w-full max-w-xl lg:ml-auto">
+            <div className="absolute -left-5 top-12 h-32 w-32 rounded-full border border-gold/20" />
+            <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur">
+              <img
+                src={heroImage}
+                alt="Foto SMP Ma'arif NU Sariwangi"
+                className="aspect-[4/5] w-full rounded-[1.55rem] object-cover sm:aspect-[5/4] lg:aspect-[4/5]"
+              />
+              <div className="absolute inset-x-5 bottom-5 rounded-2xl border border-white/20 bg-navy/80 p-4 backdrop-blur-xl sm:p-5">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold text-navy">
+                    <BookOpenCheck size={21} />
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-white">Belajar, bertumbuh, berkarakter</p>
+                    <p className="mt-1 text-xs leading-5 text-white/60">
+                      Akademik, akhlak, literasi, dan kedisiplinan yang seimbang.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="glass-card animate-float-slow absolute -left-3 top-8 hidden rounded-2xl p-3 sm:flex sm:items-center sm:gap-3 lg:-left-14">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-gold text-navy"><Trophy size={20} /></span>
+              <div><p className="text-xs font-bold">Potensi Maksimal</p><p className="text-[11px] text-white/55">Akademik & nonakademik</p></div>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="profil" className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
+      <section id="profil" className="section-shell py-20 sm:py-24">
         <div className="max-w-3xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-dark">
+          <p className="section-kicker">
             Profil Sekolah
           </p>
-          <h2 className="mt-3 text-3xl font-semibold text-gray-950">
+          <h2 className="section-title">
             Ruang belajar formal yang tumbuh bersama lingkungan pesantren.
           </h2>
         </div>
@@ -406,10 +441,10 @@ export default function SmpLandingPage() {
               type="button"
               onClick={() => setActiveProfile(key)}
               className={[
-                "shrink-0 rounded border px-4 py-2 text-sm font-semibold transition",
+                "shrink-0 rounded-full border px-5 py-2.5 text-sm font-semibold transition",
                 activeProfile === key
-                  ? "border-navy-mid bg-navy text-white"
-                  : "border-navy/15 bg-white text-gray-700 hover:bg-navy-50",
+                  ? "border-navy bg-navy text-white shadow-lg"
+                  : "border-navy/10 bg-white text-slate-600 hover:border-navy/25 hover:text-navy",
               ].join(" ")}
             >
               {label}
@@ -420,8 +455,8 @@ export default function SmpLandingPage() {
         <div className="mt-8">
           {activeProfile === "visi" ? (
             <div className="grid gap-5 md:grid-cols-2">
-              <article className="rounded bg-white p-6 shadow-soft">
-                <h3 className="text-xl font-semibold text-navy">Visi</h3>
+              <article className="premium-card p-6 sm:p-8">
+                <h3 className="font-display text-2xl font-bold text-navy">Visi</h3>
                 <p className="mt-4 leading-7 text-gray-700">
                   {getContent(
                     "profil",
@@ -430,8 +465,8 @@ export default function SmpLandingPage() {
                   )}
                 </p>
               </article>
-              <article className="rounded bg-white p-6 shadow-soft">
-                <h3 className="text-xl font-semibold text-navy">Misi</h3>
+              <article className="premium-card p-6 sm:p-8">
+                <h3 className="font-display text-2xl font-bold text-navy">Misi</h3>
                 <p className="mt-4 whitespace-pre-line leading-7 text-gray-700">
                   {getContent(
                     "profil",
@@ -444,7 +479,7 @@ export default function SmpLandingPage() {
           ) : null}
 
           {activeProfile === "sejarah" ? (
-            <article className="rounded bg-white p-6 shadow-soft">
+            <article className="premium-card p-6 sm:p-8">
               <h3 className="text-xl font-semibold text-navy">
                 Sejarah Singkat
               </h3>
@@ -461,11 +496,11 @@ export default function SmpLandingPage() {
           {activeProfile === "pimpinan" ? (
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {leaders.map((leader) => (
-                <article key={leader.nama} className="rounded bg-white p-4 shadow-soft">
+                <article key={leader.nama} className="premium-card group p-4">
                   <img
                     src={leader.foto_url || fallbackLeader}
                     alt={leader.nama}
-                    className="aspect-[4/3] w-full rounded object-cover"
+                    className="image-zoom aspect-[4/3] w-full rounded-2xl object-cover"
                   />
                   <h3 className="mt-4 text-lg font-semibold text-gray-950">
                     {leader.nama}
@@ -482,7 +517,7 @@ export default function SmpLandingPage() {
           ) : null}
 
           {activeProfile === "tertib" ? (
-            <article className="rounded bg-white p-6 shadow-soft">
+            <article className="premium-card p-6 sm:p-8">
               <h3 className="text-xl font-semibold text-navy">Tata Tertib</h3>
               <p className="mt-4 whitespace-pre-line leading-8 text-gray-700">
                 {getContent(
@@ -499,12 +534,12 @@ export default function SmpLandingPage() {
               {facilities.map((facility) => (
                 <article
                   key={facility.nama}
-                  className="overflow-hidden rounded bg-white shadow-soft"
+                  className="premium-card group overflow-hidden"
                 >
                   <img
                     src={facility.foto_url}
                     alt={facility.nama}
-                    className="aspect-[4/3] w-full object-cover"
+                    className="image-zoom aspect-[4/3] w-full object-cover"
                   />
                   <div className="p-5">
                     <h3 className="text-lg font-semibold text-gray-950">
@@ -522,13 +557,14 @@ export default function SmpLandingPage() {
       </section>
 
       {spmbActive ? (
-        <section id="spmb" className="bg-navy py-16 text-white">
-          <div className="mx-auto grid max-w-7xl gap-8 px-4 lg:grid-cols-[0.9fr_1.1fr] lg:px-6">
+        <section id="spmb" className="relative isolate overflow-hidden bg-navy py-20 text-white sm:py-24">
+          <div className="absolute inset-0 -z-10 bg-hero-grid bg-[size:52px_52px] opacity-30" />
+          <div className="section-shell grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-soft">
+              <p className="section-kicker !text-gold-soft">
                 SPMB
               </p>
-              <h2 className="mt-3 text-3xl font-semibold">
+              <h2 className="mt-4 font-display text-3xl font-bold sm:text-5xl">
                 Seleksi Penerimaan Murid Baru
               </h2>
               <p className="mt-4 leading-7 text-cream-50">
@@ -541,7 +577,7 @@ export default function SmpLandingPage() {
               <button
                 type="button"
                 onClick={() => setSpmbOpen(true)}
-                className="mt-6 inline-flex items-center rounded bg-gold px-5 py-3 text-sm font-semibold text-navy hover:bg-gold-soft"
+                className="mt-7 inline-flex items-center rounded-full bg-gold px-6 py-3.5 text-sm font-bold text-navy shadow-glow transition hover:-translate-y-0.5 hover:bg-gold-soft"
               >
                 Isi Form Pendaftaran
                 <Send className="ml-2" size={17} />
@@ -555,7 +591,7 @@ export default function SmpLandingPage() {
                 ["Alur", getContent("spmb", "alur", "Daftar online, verifikasi berkas, seleksi, dan pengumuman.")],
                 ["Biaya", getContent("spmb", "biaya", "Informasi biaya pendaftaran menyusul.")],
               ].map(([title, text]) => (
-                <article key={title} className="rounded bg-white/10 p-5">
+                <article key={title} className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
                   <h3 className="font-semibold text-gold-soft">{title}</h3>
                   <p className="mt-3 whitespace-pre-line text-sm leading-6 text-cream-50">
                     {text}
@@ -581,20 +617,20 @@ export default function SmpLandingPage() {
       />
       <SectionSaranKritik entitas="smp" entityLabel="SMP Ma'arif NU Sariwangi" />
 
-      <footer className="border-t border-navy/10 bg-white">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 md:grid-cols-[1.2fr_0.8fr] lg:px-6">
+      <footer className="border-t border-white/10 bg-navy-950 text-white">
+        <div className="section-shell grid gap-8 py-12 md:grid-cols-[1.2fr_0.8fr]">
           <div>
-            <h2 className="text-xl font-semibold text-gray-950">
+            <h2 className="font-display text-2xl font-bold text-white">
               SMP Ma'arif NU Sariwangi
             </h2>
-            <p className="mt-3 max-w-2xl leading-7 text-gray-600">
+            <p className="mt-3 max-w-2xl leading-7 text-white/55">
               {getContent(
                 "footer",
                 "alamat",
                 "Sariwangi, Tasikmalaya, Jawa Barat",
               )}
             </p>
-            <div className="mt-4 flex flex-wrap gap-3 text-sm text-gray-700">
+            <div className="mt-4 flex flex-wrap gap-3 text-sm text-white/65">
               <span className="inline-flex items-center gap-2">
                 <Phone size={16} />
                 {getContent("footer", "telepon", getContent("footer", "wa", "-"))}
@@ -603,7 +639,7 @@ export default function SmpLandingPage() {
             </div>
           </div>
           <div>
-            <p className="font-semibold text-gray-950">Media Sosial</p>
+            <p className="font-semibold text-white">Media Sosial</p>
             <div className="mt-3 grid gap-2 text-sm">
               {["facebook", "instagram", "youtube"].map((item) => {
                 const url = content.footer?.[item];
@@ -613,7 +649,7 @@ export default function SmpLandingPage() {
                     href={url}
                     target="_blank"
                     rel="noreferrer"
-                    className="capitalize text-navy-mid hover:text-navy"
+                    className="capitalize text-gold-soft hover:text-white"
                   >
                     {item}
                   </a>
@@ -625,8 +661,8 @@ export default function SmpLandingPage() {
       </footer>
 
       {spmbOpen ? (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4">
-          <div className="mx-auto my-8 max-w-3xl rounded bg-white p-5 shadow-soft">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-navy-950/80 p-4 backdrop-blur-sm">
+          <div className="mx-auto my-8 max-w-3xl rounded-[1.5rem] bg-white p-5 shadow-card sm:p-8">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-dark">

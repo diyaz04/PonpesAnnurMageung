@@ -3,14 +3,14 @@
 @tailwind utilities;
 
 :root {
-  --navy: #0A1628;
-  --navy-mid: #112240;
-  --navy-light: #1E3A5F;
+  --navy: #0b1f33;
+  --navy-mid: #123b52;
+  --navy-light: #2a6074;
   --navy-muted: #2A4A72;
-  --gold: #C9943A;
-  --gold-soft: #E8B86A;
+  --gold: #d4af37;
+  --gold-soft: #f2d27b;
   --gold-pale: #FAF0DC;
-  --cream: #F5F6F8;
+  --cream: #f7f5ef;
 
   color: #1a1a1a;
   background: var(--cream);
@@ -26,11 +26,80 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 10% 5%, rgba(212, 175, 55, 0.08), transparent 24rem),
+    var(--cream);
 }
 
 button, input, textarea, select { font: inherit; }
 
-input:focus, textarea:focus, select:focus {
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 88px;
+}
+
+::selection {
+  color: white;
+  background: var(--navy-mid);
+}
+
+img {
+  display: block;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--navy-light);
+  box-shadow: 0 0 0 3px rgba(42, 96, 116, 0.2);
+}
+
+@layer components {
+  .public-page {
+    @apply min-h-screen overflow-x-hidden bg-[#f7f5ef] text-slate-950;
+  }
+
+  .section-shell {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-kicker {
+    @apply inline-flex max-w-full items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-gold-dark sm:text-xs sm:tracking-[0.22em];
+  }
+
+  .section-kicker::before {
+    content: "";
+    @apply h-px w-8 bg-gold;
+  }
+
+  .section-title {
+    @apply mt-4 max-w-3xl font-display text-3xl font-bold leading-tight tracking-[-0.025em] text-navy sm:text-4xl lg:text-5xl;
+  }
+
+  .glass-card {
+    @apply border border-white/15 bg-white/10 shadow-card backdrop-blur-xl;
+  }
+
+  .premium-card {
+    @apply rounded-[1.5rem] border border-navy/10 bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-card;
+  }
+
+  .image-zoom {
+    @apply transition duration-700 ease-out group-hover:scale-105;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .animate-float-slow {
+    animation: float-slow 5s ease-in-out infinite;
+  }
 }
