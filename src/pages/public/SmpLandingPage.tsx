@@ -105,6 +105,12 @@ function isEnabled(value?: string) {
   );
 }
 
+function getBackgroundOpacity(value?: string) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0.35;
+  return Math.min(100, Math.max(0, parsed)) / 100;
+}
+
 export default function SmpLandingPage() {
   const [contentRows, setContentRows] = useState<ContentRow[]>([]);
   const [activeProfile, setActiveProfile] = useState("visi");
@@ -260,6 +266,9 @@ export default function SmpLandingPage() {
     "Membentuk siswa berilmu, berkarakter, dan dekat dengan nilai keislaman.",
   );
   const heroImage = getContent("hero", "banner_url", fallbackHero);
+  const heroBackgroundOpacity = getBackgroundOpacity(
+    getContent("hero", "background_opacity", "35"),
+  );
   const logoUrl = getContent("hero", "logo_url", smpLogoUrl);
 
   return (
@@ -341,8 +350,15 @@ export default function SmpLandingPage() {
 
       <section id="beranda" className="relative isolate overflow-hidden bg-navy text-white">
         <div className="absolute inset-0 -z-20">
-          <img src={heroImage} alt="" className="h-full w-full object-cover opacity-25" />
-          <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/95 to-navy/55" />
+          <img
+            src={heroImage}
+            alt=""
+            aria-hidden="true"
+            className="h-full w-full object-cover"
+            style={{ opacity: heroBackgroundOpacity }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-navy-950/95 via-navy-950/90 to-navy/75" />
+          <div className="absolute inset-0 bg-navy/25" />
         </div>
         <div className="absolute inset-0 -z-10 bg-hero-grid bg-[size:52px_52px] opacity-40" />
         <div className="absolute -right-32 top-16 -z-10 h-96 w-96 rounded-full bg-gold/15 blur-3xl" />

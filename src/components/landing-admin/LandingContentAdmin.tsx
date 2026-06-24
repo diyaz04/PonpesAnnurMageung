@@ -317,6 +317,7 @@ export default function LandingContentAdmin({
       headline: String(form.get("headline") || ""),
       subheadline: String(form.get("subheadline") || ""),
       banner_url: bannerUrl,
+      background_opacity: String(form.get("background_opacity") || "35"),
       logo_url: String(form.get("logo_url") || ""),
       cta_primary_text: String(form.get("cta_primary_text") || ""),
       cta_primary_url: String(form.get("cta_primary_url") || ""),
@@ -572,8 +573,15 @@ export default function LandingContentAdmin({
       </div>
 
       {tab === "hero" ? (
-        <form onSubmit={saveHero} className="rounded bg-white p-5 shadow-soft">
+        <form
+          key={`${entity}-${contentRows.map((row) => `${row.id}:${row.value}`).join("|")}`}
+          onSubmit={saveHero}
+          className="rounded bg-white p-5 shadow-soft"
+        >
           <h2 className="text-lg font-semibold text-gray-950">Editor Hero</h2>
+          <p className="mt-1 text-sm leading-6 text-gray-500">
+            Foto banner ditampilkan sebagai background di bawah lapisan warna biru.
+          </p>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Field label="Headline">
               <input name="headline" defaultValue={getContent("hero", "headline")} className={inputClass} />
@@ -586,6 +594,32 @@ export default function LandingContentAdmin({
             </Field>
             <Field label="Upload banner">
               <input name="banner_file" type="file" accept="image/*" className={inputClass} />
+            </Field>
+            <Field label="Intensitas foto background (%)">
+              <div className="grid grid-cols-[1fr_76px] items-center gap-3">
+                <input
+                  name="background_opacity"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  defaultValue={getContent("hero", "background_opacity") || "35"}
+                  className="accent-navy"
+                  onInput={(event) => {
+                    const output = event.currentTarget.nextElementSibling as HTMLInputElement;
+                    if (output) output.value = event.currentTarget.value;
+                  }}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  readOnly
+                  defaultValue={getContent("hero", "background_opacity") || "35"}
+                  className={inputClass}
+                  aria-label="Nilai intensitas foto background"
+                />
+              </div>
             </Field>
             <Field label="URL logo">
               <input name="logo_url" defaultValue={getContent("hero", "logo_url")} className={inputClass} />
