@@ -39,7 +39,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#F5F6F8' }}>
+    <div className="flex min-h-screen w-full max-w-full overflow-x-hidden" style={{ background: '#F5F6F8' }}>
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 text-white w-64 transition-transform duration-300 ease-in-out z-20 flex flex-col ${
@@ -129,7 +129,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">
         {/* Topbar */}
         <header className="bg-white h-16 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-10"
           style={{ borderBottom: '0.5px solid rgba(10,22,40,0.1)' }}>
@@ -159,7 +159,7 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
+        <main className="min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-8">
           <Outlet />
         </main>
       </div>

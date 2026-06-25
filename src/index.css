@@ -32,6 +32,12 @@ body {
     var(--cream);
 }
 
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 button, input, textarea, select { font: inherit; }
 
 html {

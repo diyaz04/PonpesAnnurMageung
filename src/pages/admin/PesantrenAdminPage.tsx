@@ -257,12 +257,12 @@ function PesantrenDashboardHome({ role }: { role: string }) {
   const visibleMenu = getPesantrenMenuForRole(role);
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded bg-white p-6 shadow-soft">
+    <div className="grid min-w-0 max-w-full gap-4 overflow-x-hidden sm:gap-6">
+      <section className="min-w-0 max-w-full rounded bg-white p-4 shadow-soft sm:p-6">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold-dark">
           Dashboard Pesantren
         </p>
-        <h1 className="mt-3 text-2xl font-semibold text-gray-950">
+        <h1 className="mt-3 break-words text-xl font-semibold leading-snug text-gray-950 sm:text-2xl">
           Ringkasan Pondok Pesantren An-Nur Mageung
         </h1>
         <p className="mt-3 text-sm leading-6 text-gray-600">
@@ -270,7 +270,7 @@ function PesantrenDashboardHome({ role }: { role: string }) {
         </p>
       </section>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
           icon={Users}
           label="Total santri aktif"
@@ -300,7 +300,7 @@ function PesantrenDashboardHome({ role }: { role: string }) {
       </div>
 
       {showFinance ? (
-        <section className="rounded bg-white p-6 shadow-soft">
+        <section className="min-w-0 max-w-full overflow-hidden rounded bg-white p-4 shadow-soft sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-gray-950">Tagihan Terbaru</h2>
             <Link
@@ -310,8 +310,8 @@ function PesantrenDashboardHome({ role }: { role: string }) {
               Kelola tagihan
             </Link>
           </div>
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100 text-sm">
+          <div className="mt-4 w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
+            <table className="min-w-[640px] divide-y divide-gray-100 text-sm">
               <thead className="bg-gray-50 text-left text-xs uppercase tracking-[0.12em] text-gray-500">
                 <tr>
                   <th className="px-4 py-3">Periode</th>
@@ -350,7 +350,7 @@ function PesantrenDashboardHome({ role }: { role: string }) {
         </section>
       ) : null}
 
-      <section className="rounded bg-white p-6 shadow-soft">
+      <section className="min-w-0 max-w-full rounded bg-white p-4 shadow-soft sm:p-6">
         <h2 className="text-lg font-semibold text-gray-950">Akses Cepat</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {visibleMenu.map((item) => (

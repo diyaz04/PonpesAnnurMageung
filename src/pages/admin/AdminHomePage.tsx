@@ -125,15 +125,15 @@ export default function AdminHomePage() {
       </nav>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="container mx-auto min-w-0 max-w-full overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 font-serif">Selamat Datang, {profile?.nama}</h1>
           <p className="mt-2 text-lg text-gray-600">Pilih modul yang ingin Anda kelola hari ini.</p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 md:gap-8 max-w-5xl">
+        <div className="grid min-w-0 max-w-5xl gap-4 md:grid-cols-2 md:gap-8">
           {/* SMP Module Card */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group">
+          <div className="group min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
             <div className="h-2 bg-[#001524]"></div>
             <div className="p-5 sm:p-8">
               <div className="flex items-center justify-between mb-6">
@@ -168,7 +168,7 @@ export default function AdminHomePage() {
           </div>
 
           {/* Pesantren Module Card */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group">
+          <div className="group min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
             <div className="h-2 bg-[#E5B869]"></div>
             <div className="p-5 sm:p-8">
               <div className="flex items-center justify-between mb-6">
