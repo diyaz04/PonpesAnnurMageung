@@ -9,6 +9,7 @@ import SmpAdminPage from "./pages/admin/SmpAdminPage";
 import PesantrenArticlePage from "./pages/public/PesantrenArticlePage";
 import PesantrenLandingPage from "./pages/public/PesantrenLandingPage";
 import SmpLandingPage from "./pages/public/SmpLandingPage";
+import SmpPresensiPage from "./pages/public/SmpPresensiPage";
 
 const adminRoles = ["superadmin", "admin", "bendahara", "guru"];
 
@@ -21,6 +22,9 @@ export default function App() {
         <Route path="smp/berita/:id" element={<PesantrenArticlePage />} />
         <Route path="smp" element={<SmpLandingPage />} />
       </Route>
+
+      {/* Presensi publik — standalone full-page tanpa PublicLayout */}
+      <Route path="smp/presensi" element={<SmpPresensiPage />} />
 
       <Route path="admin/login" element={<LoginPage />} />
       <Route path="admin" element={<ProtectedRoute allowedRoles={adminRoles} />}>

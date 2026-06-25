@@ -6,6 +6,7 @@ import {
   GraduationCap,
   Menu,
   Phone,
+  ScanFace,
   Send,
   Sparkles,
   Trophy,
@@ -166,6 +167,8 @@ export default function SmpLandingPage() {
     { href: "#saran", label: "Saran & Kritik" },
   ].filter(Boolean) as { href: string; label: string }[];
 
+  // No navItem needed for presensi — handled via dedicated button
+
   const leaders = useMemo(() => {
     const parsed = contentRows
       .filter((row) => row.section === "pimpinan")
@@ -306,6 +309,13 @@ export default function SmpLandingPage() {
               </a>
             ))}
             <Link
+              to="/smp/presensi"
+              className="ml-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-2.5 text-[13px] font-bold text-emerald-300 transition hover:-translate-y-0.5 hover:bg-emerald-400/20"
+            >
+              <ScanFace size={15} />
+              Presensi Digital
+            </Link>
+            <Link
               to="/admin/smp"
               className="ml-2 inline-flex items-center justify-center rounded-full border border-gold/40 bg-gold px-4 py-2.5 text-[13px] font-bold text-navy transition hover:-translate-y-0.5 hover:bg-gold-soft"
             >
@@ -337,8 +347,16 @@ export default function SmpLandingPage() {
                 </a>
               ))}
               <Link
+                to="/smp/presensi"
+                className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-300"
+                onClick={() => setMobileOpen(false)}
+              >
+                <ScanFace size={16} />
+                Presensi Digital
+              </Link>
+              <Link
                 to="/admin/smp"
-                className="mt-2 inline-flex items-center justify-center rounded-xl bg-gold px-4 py-3 text-sm font-bold text-navy"
+                className="mt-1 inline-flex items-center justify-center rounded-xl bg-gold px-4 py-3 text-sm font-bold text-navy"
                 onClick={() => setMobileOpen(false)}
               >
                 Login Dashboard SMP
@@ -631,6 +649,53 @@ export default function SmpLandingPage() {
         personLabel="siswa"
         recordLabel="Record Siswa"
       />
+
+      {/* ── Presensi Digital Section ───────────────────────── */}
+      <section id="presensi-digital" className="relative isolate overflow-hidden bg-navy py-20 text-white sm:py-24">
+        <div className="absolute inset-0 -z-10 bg-hero-grid bg-[size:52px_52px] opacity-25" />
+        <div className="absolute -left-20 top-0 -z-10 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute -right-20 bottom-0 -z-10 h-72 w-72 rounded-full bg-gold/10 blur-3xl" />
+        <div className="section-shell">
+          <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <p className="section-kicker !text-emerald-400/80">
+                Presensi Digital
+              </p>
+              <h2 className="mt-4 font-display text-3xl font-bold leading-tight sm:text-5xl">
+                Absensi siswa lebih cepat dengan <span className="text-gold-soft">Face Recognition</span>
+              </h2>
+              <p className="mt-5 max-w-xl leading-7 text-white/60">
+                Sistem presensi berbasis pengenalan wajah secara real-time. Siswa cukup menghadap kamera — absensi tercatat otomatis tanpa perlu tanda tangan atau kartu.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  to="/smp/presensi"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-emerald-400"
+                >
+                  <ScanFace size={18} />
+                  Buka Halaman Presensi
+                  <ArrowUpRight size={16} />
+                </Link>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { icon: "⚡", title: "Real-time", desc: "Deteksi wajah otomatis setiap 1.2 detik" },
+                { icon: "🔒", title: "Aman", desc: "Dilindungi kode akses khusus guru/admin" },
+                { icon: "📊", title: "Rekap Instan", desc: "Data kehadiran langsung tersimpan ke sistem" },
+                { icon: "🎯", title: "Akurat", desc: "Akurasi tinggi dengan model AI face-api.js" },
+              ].map(({ icon, title, desc }) => (
+                <article key={title} className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+                  <span className="text-2xl">{icon}</span>
+                  <h3 className="mt-3 font-semibold text-white">{title}</h3>
+                  <p className="mt-1.5 text-sm leading-6 text-white/50">{desc}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       <SectionSaranKritik entitas="smp" entityLabel="SMP Ma'arif NU Sariwangi" />
 
       <footer className="border-t border-white/10 bg-navy-950 text-white">
