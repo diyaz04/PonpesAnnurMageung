@@ -333,7 +333,7 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
       supabase.from("smp_presensi").select("*, siswa:smp_siswa(nama_lengkap,nis,kelas)").eq("tanggal", tanggal).order("jam_masuk", { ascending: false }),
     ]);
     setSiswa((siswaR.data || []) as Siswa[]);
-    setWajah((wajahR.data || []) as WajahData[]);
+    setWajah((wajahR.data || []) as unknown as WajahData[]);
     const rows = (presensiR.data || []) as PresensiRow[];
     setPresensi(rows);
     setTodayIds(new Set(rows.map((r) => r.siswa_id)));
