@@ -5,6 +5,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "../../components/ui/Button";
 import { useAuth } from "../../contexts/AuthContext";
+import { pesantrenLogoUrl, smpLogoUrl } from "../../lib/brandLogos";
 import { supabase } from "../../lib/supabase";
 
 const loginSchema = z.object({
@@ -97,6 +98,26 @@ export default function LoginPage() {
     navigate(nextRedirect, { replace: true });
   }
 
+  // Deteksi entitas dari URL tujuan redirect
+  const entityFromRedirect: "smp" | "pesantren" | null = useMemo(() => {
+    const from = locationState?.from ?? "";
+    if (from.startsWith("/admin/smp")) return "smp";
+    if (from.startsWith("/admin/pesantren")) return "pesantren";
+    return null;
+  }, [locationState?.from]);
+
+  // Setelah login, profile menentukan entitas
+  const entity: "smp" | "pesantren" =
+    profile?.entitas === "smp"
+      ? "smp"
+      : entityFromRedirect === "smp"
+        ? "smp"
+        : "pesantren";
+
+  const logoUrl = entity === "smp" ? smpLogoUrl : pesantrenLogoUrl;
+  const entityLabel =
+    entity === "smp" ? "SMP Ma'arif NU Sariwangi" : "PP An-Nur Mageung";
+
   if (loading) {
     return (
       <div className="grid min-h-screen place-items-center bg-krem-50 px-4">
@@ -114,14 +135,31 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-krem-50 px-4 py-10 text-gray-900">
       <section className="w-full max-w-md rounded bg-white p-6 shadow-soft sm:p-8">
+        {/* Logo + identitas lembaga */}
+        <div className="mb-6 flex items-center gap-4">
+          <img
+            src={logoUrl}
+            alt={entityLabel}
+            className="h-14 w-14 shrink-0 rounded-xl border border-gray-100 bg-white object-contain p-1 shadow-sm"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+          />
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-dark">
+              Admin
+            </p>
+            <p className="mt-0.5 text-sm font-semibold text-gray-800">
+              {entityLabel}
+            </p>
+          </div>
+        </div>
+
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold-dark">
-            Admin
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold text-gray-950">
+          <h1 className="text-2xl font-semibold text-gray-950">
             Masuk Dashboard
           </h1>
-          <p className="mt-3 text-sm leading-6 text-gray-600">
+          <p className="mt-2 text-sm leading-6 text-gray-600">
             Gunakan email dan password admin yang terdaftar di Supabase Auth.
           </p>
         </div>
