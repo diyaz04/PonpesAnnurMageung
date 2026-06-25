@@ -131,11 +131,11 @@ export default function AdminHomePage() {
           <p className="mt-2 text-lg text-gray-600">Pilih modul yang ingin Anda kelola hari ini.</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-5xl">
+        <div className="grid gap-4 md:grid-cols-2 md:gap-8 max-w-5xl">
           {/* SMP Module Card */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group">
             <div className="h-2 bg-[#001524]"></div>
-            <div className="p-8">
+            <div className="p-5 sm:p-8">
               <div className="flex items-center justify-between mb-6">
                 <div className="w-14 h-14 bg-[#001524]/5 rounded-xl flex items-center justify-center text-[#001524]">
                   <School className="w-8 h-8" />
@@ -146,14 +146,14 @@ export default function AdminHomePage() {
               <h2 className="text-2xl font-bold text-gray-900 mb-2 font-serif">Sistem Informasi SMP</h2>
               <p className="text-gray-600 mb-6">Kelola data siswa, guru, akademik, dan pendaftaran siswa baru SMP Maarif NU.</p>
               
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <p className="text-sm text-gray-500 mb-1">Total Siswa</p>
-                  <p className="text-2xl font-bold text-[#001524]">{stats.smp.students}</p>
+              <div className="mb-6 grid grid-cols-2 gap-3 sm:mb-8 sm:gap-4">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 sm:p-4">
+                  <p className="mb-1 text-[11px] text-gray-500 sm:text-sm">Total Siswa</p>
+                  <p className="text-xl font-bold text-[#001524] sm:text-2xl">{stats.smp.students}</p>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <p className="text-sm text-gray-500 mb-1">Total Guru</p>
-                  <p className="text-2xl font-bold text-[#001524]">{stats.smp.teachers}</p>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 sm:p-4">
+                  <p className="mb-1 text-[11px] text-gray-500 sm:text-sm">Total Guru</p>
+                  <p className="text-xl font-bold text-[#001524] sm:text-2xl">{stats.smp.teachers}</p>
                 </div>
               </div>
               
@@ -170,7 +170,7 @@ export default function AdminHomePage() {
           {/* Pesantren Module Card */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group">
             <div className="h-2 bg-[#E5B869]"></div>
-            <div className="p-8">
+            <div className="p-5 sm:p-8">
               <div className="flex items-center justify-between mb-6">
                 <div className="w-14 h-14 bg-[#E5B869]/20 rounded-xl flex items-center justify-center text-[#E5B869]">
                   <BookOpen className="w-8 h-8" />
@@ -181,14 +181,14 @@ export default function AdminHomePage() {
               <h2 className="text-2xl font-bold text-gray-900 mb-2 font-serif">Sistem Informasi Pesantren</h2>
               <p className="text-gray-600 mb-6">Kelola data santri, ustadz, asrama, dan pendaftaran santri baru Pondok Pesantren.</p>
               
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <p className="text-sm text-gray-500 mb-1">Total Santri</p>
-                  <p className="text-2xl font-bold text-[#E5B869]">{stats.pesantren.santri}</p>
+              <div className="mb-6 grid grid-cols-2 gap-3 sm:mb-8 sm:gap-4">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 sm:p-4">
+                  <p className="mb-1 text-[11px] text-gray-500 sm:text-sm">Total Santri</p>
+                  <p className="text-xl font-bold text-[#E5B869] sm:text-2xl">{stats.pesantren.santri}</p>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <p className="text-sm text-gray-500 mb-1">Total Ustadz</p>
-                  <p className="text-2xl font-bold text-[#E5B869]">{stats.pesantren.ustadz}</p>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 sm:p-4">
+                  <p className="mb-1 text-[11px] text-gray-500 sm:text-sm">Total Ustadz</p>
+                  <p className="text-xl font-bold text-[#E5B869] sm:text-2xl">{stats.pesantren.ustadz}</p>
                 </div>
               </div>
               
@@ -240,4 +240,3 @@ export default function AdminHomePage() {
     </div>
   );
 }
-

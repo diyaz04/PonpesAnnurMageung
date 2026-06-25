@@ -85,17 +85,23 @@ function StatCard({
   detail: string;
 }) {
   return (
-    <article className="rounded bg-white p-5 shadow-soft">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-gray-500">{label}</p>
-          <p className="mt-3 text-3xl font-semibold text-gray-950">{value}</p>
+    <article className="min-w-0 rounded-xl bg-white p-3 shadow-soft sm:p-5">
+      <div className="flex items-start justify-between gap-2 sm:gap-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium leading-4 text-gray-500 sm:text-sm">
+            {label}
+          </p>
+          <p className="mt-1.5 text-2xl font-semibold leading-none text-gray-950 sm:mt-3 sm:text-3xl">
+            {value}
+          </p>
         </div>
-        <span className="grid h-11 w-11 place-items-center rounded bg-emerald-50 text-emerald-800">
-          <Icon size={21} />
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-800 sm:h-11 sm:w-11 sm:rounded">
+          <Icon className="h-4 w-4 sm:h-[21px] sm:w-[21px]" />
         </span>
       </div>
-      <p className="mt-4 text-sm leading-6 text-gray-600">{detail}</p>
+      <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-gray-500 sm:mt-4 sm:text-sm sm:leading-6 sm:text-gray-600">
+        {detail}
+      </p>
     </article>
   );
 }
@@ -264,7 +270,7 @@ function PesantrenDashboardHome({ role }: { role: string }) {
         </p>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
           icon={Users}
           label="Total santri aktif"
