@@ -8,9 +8,7 @@ import {
   Loader2,
   LogOut,
   Scan,
-  ShieldCheck,
   UserCheck,
-  UserPlus,
   Users,
   X,
   XCircle,
@@ -65,44 +63,15 @@ function flatDescriptor(v: number[] | number[][]): number[][] {
   return Array.isArray(v[0]) ? (v as number[][]) : [v as number[]];
 }
 
-// Kompresi gambar via Canvas sebelum upload ke Storage
-// Target: JPEG quality 0.55, max 320×320px — cukup untuk wajah enrollment
-async function compressImage(
-  videoEl: HTMLVideoElement,
-  maxSize = 320,
-  quality = 0.55,
-): Promise<Blob | null> {
-  const canvas = document.createElement("canvas");
-  const vw = videoEl.videoWidth;
-  const vh = videoEl.videoHeight;
-  if (!vw || !vh) return null;
-  const scale = Math.min(maxSize / vw, maxSize / vh, 1);
-  canvas.width = Math.round(vw * scale);
-  canvas.height = Math.round(vh * scale);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-  // Mirror horizontally (sesuai tampilan kamera)
-  ctx.translate(canvas.width, 0);
-  ctx.scale(-1, 1);
-  ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-  return new Promise((resolve) =>
-    canvas.toBlob((blob) => resolve(blob), "image/jpeg", quality),
-  );
-}
-
-// localStorage key untuk tracking waktu cleanup terakhir
 const CLEANUP_KEY = "smp_presensi_last_cleanup";
-const CLEANUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari
+const CLEANUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 
-// Hapus semua foto di Storage yang path-nya tersimpan di smp_wajah_data
-// Hanya foto (foto_url) — descriptor & log presensi tidak disentuh
 async function runWeeklyCleanup() {
   const lastRaw = localStorage.getItem(CLEANUP_KEY);
   const last = lastRaw ? Number(lastRaw) : 0;
-  if (Date.now() - last < CLEANUP_INTERVAL_MS) return; // belum waktunya
+  if (Date.now() - last < CLEANUP_INTERVAL_MS) return;
 
   try {
-    // Ambil semua path foto yang tersimpan (tidak null)
     const { data } = await supabase
       .from("smp_wajah_data")
       .select("id, foto_url")
@@ -113,16 +82,12 @@ async function runWeeklyCleanup() {
       return;
     }
 
-    // Kumpulkan path Storage (strip leading slash jika ada)
     const paths = (data as { id: string; foto_url: string }[])
       .map((row) => row.foto_url.replace(/^\//, ""))
       .filter(Boolean);
 
     if (paths.length > 0) {
-      // Hapus dari bucket "siswa-foto" (bucket yang sama dengan foto siswa)
       await supabase.storage.from("siswa-foto").remove(paths);
-
-      // Kosongkan kolom foto_url di DB setelah file dihapus
       await supabase
         .from("smp_wajah_data")
         .update({ foto_url: null })
@@ -131,7 +96,7 @@ async function runWeeklyCleanup() {
 
     localStorage.setItem(CLEANUP_KEY, String(Date.now()));
   } catch {
-    // Gagal cleanup: abaikan, coba lagi minggu depan
+    // abaikan
   }
 }
 
@@ -153,12 +118,10 @@ function AccessGate({ onUnlock }: { onUnlock: () => void }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-navy px-4">
-      {/* Ambient glow */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-32 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-gold/10 blur-3xl" />
         <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-navy-mid/60 blur-3xl" />
       </div>
-      {/* Grid pattern */}
       <div className="absolute inset-0 bg-hero-grid bg-[size:48px_48px] opacity-20" />
 
       <div
@@ -177,7 +140,6 @@ function AccessGate({ onUnlock }: { onUnlock: () => void }) {
           }
         `}</style>
 
-        {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-4">
           <div className="relative">
             <div className="absolute -inset-3 rounded-3xl bg-gold/20 blur-xl" />
@@ -185,9 +147,7 @@ function AccessGate({ onUnlock }: { onUnlock: () => void }) {
               src={smpLogoUrl}
               alt="SMP Ma'arif NU"
               className="relative h-20 w-20 rounded-2xl border-2 border-gold/30 bg-white object-contain p-2 shadow-2xl"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
           </div>
           <div className="text-center">
@@ -203,7 +163,6 @@ function AccessGate({ onUnlock }: { onUnlock: () => void }) {
           </div>
         </div>
 
-        {/* Card */}
         <div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
           <div className="mb-6 flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-gold/20">
@@ -218,10 +177,7 @@ function AccessGate({ onUnlock }: { onUnlock: () => void }) {
           <input
             type="password"
             value={code}
-            onChange={(e) => {
-              setCode(e.target.value);
-              setError(false);
-            }}
+            onChange={(e) => { setCode(e.target.value); setError(false); }}
             onKeyDown={(e) => e.key === "Enter" && tryUnlock()}
             placeholder="Kode akses..."
             autoFocus
@@ -277,11 +233,9 @@ export default function SmpPresensiPage() {
 }
 
 // ─── Presensi App ─────────────────────────────────────────────────────────────
-type TabType = "scan" | "enroll" | "rekap";
-
 function PresensiApp({ onLock }: { onLock: () => void }) {
-  const [tab, setTab] = useState<TabType>("scan");
   const [tanggal] = useState(new Date().toISOString().slice(0, 10));
+  const [jamSekarang, setJamSekarang] = useState(new Date());
 
   // Face API state
   const [faceapi, setFaceapi] = useState<any>(null);
@@ -308,13 +262,6 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
   const [faceBox, setFaceBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [confidence, setConfidence] = useState<number | null>(null);
 
-  // Enroll state
-  const [selectedSiswa, setSelectedSiswa] = useState("");
-  const [samples, setSamples] = useState<number[][]>([]);
-  const [enrolling, setEnrolling] = useState(false);
-  const [enrollMsg, setEnrollMsg] = useState("");
-  const [enrollSuccess, setEnrollSuccess] = useState(false);
-
   // Status message
   const [statusMsg, setStatusMsg] = useState("");
 
@@ -324,6 +271,18 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
     month: "long",
     year: "numeric",
   }).format(new Date());
+
+  const jamLabel = new Intl.DateTimeFormat("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(jamSekarang);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setJamSekarang(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Load data
   async function loadData() {
@@ -341,7 +300,6 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
 
   useEffect(() => {
     loadData();
-    // Jalankan cleanup foto Storage jika sudah >= 7 hari sejak terakhir
     runWeeklyCleanup();
   }, [tanggal]);
 
@@ -410,7 +368,6 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
     setStatusMsg("");
   }
 
-  // Cleanup on unmount / tab change
   useEffect(() => {
     return () => stopCamera();
   }, []);
@@ -422,24 +379,13 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
     }
   }, [cameraOn]);
 
-  // Draw face box overlay
-  function drawOverlay(
-    detection: any,
-    videoEl: HTMLVideoElement,
-    canvasEl: HTMLCanvasElement,
-  ) {
+  function drawOverlay(detection: any, videoEl: HTMLVideoElement, canvasEl: HTMLCanvasElement) {
     const { x, y, width, height } = detection.box;
     const scaleX = canvasEl.width / videoEl.videoWidth;
     const scaleY = canvasEl.height / videoEl.videoHeight;
-    setFaceBox({
-      x: x * scaleX,
-      y: y * scaleY,
-      w: width * scaleX,
-      h: height * scaleY,
-    });
+    setFaceBox({ x: x * scaleX, y: y * scaleY, w: width * scaleX, h: height * scaleY });
   }
 
-  // Detect single face + get descriptor
   async function detectFace() {
     if (!faceapi || !videoRef.current || !videoRef.current.videoWidth) return null;
     const det = await faceapi
@@ -456,14 +402,14 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
     return det ? Array.from(det.descriptor as Float32Array) : null;
   }
 
-  // ── SCAN: Real-time attendance ──────────────────────────────────────────────
+  // ── SCAN ──────────────────────────────────────────────────────────────────
   function startScan() {
     if (!cameraOn || !faceapi) {
       setStatusMsg("Aktifkan kamera terlebih dahulu.");
       return;
     }
     if (wajah.length === 0) {
-      setStatusMsg("Belum ada data wajah terdaftar. Lakukan enrollment terlebih dahulu.");
+      setStatusMsg("Belum ada data wajah terdaftar. Hubungi admin untuk enrollment.");
       return;
     }
     setScanning(true);
@@ -494,7 +440,6 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
         return;
       }
 
-      // Mark attendance
       const { error } = await supabase.from("smp_presensi").upsert(
         {
           siswa_id: best.id,
@@ -537,91 +482,10 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
     setStatusMsg("Scan dihentikan.");
   }
 
-  // ── ENROLL: Register face ───────────────────────────────────────────────────
-  async function captureSample() {
-    if (!cameraOn) {
-      setStatusMsg("Aktifkan kamera terlebih dahulu.");
-      return;
-    }
-    setEnrolling(true);
-    const desc = await detectFace();
-    setEnrolling(false);
-    if (!desc) {
-      setEnrollMsg("Wajah tidak terdeteksi. Pastikan pencahayaan cukup dan wajah terlihat jelas.");
-      return;
-    }
-    setSamples((prev) => {
-      const next = [...prev, desc];
-      setEnrollMsg(`Sample ${next.length}/5 berhasil diambil. ${next.length < 5 ? `Ambil ${5 - next.length} lagi.` : "Siap disimpan!"}`);
-      return next;
-    });
-  }
-
-  async function saveEnrollment() {
-    if (!selectedSiswa || samples.length < 5) {
-      setEnrollMsg("Pilih siswa dan ambil minimal 5 sample wajah.");
-      return;
-    }
-    setEnrolling(true);
-    setEnrollMsg("Menyimpan data wajah...");
-
-    // Rata-rata descriptor dari 5 sample
-    const avg = samples[0].map((_, i) =>
-      samples.reduce((s, v) => s + v[i], 0) / samples.length,
-    );
-
-    // Kompresi & upload foto referensi (opsional — gagal upload tidak blokir simpan)
-    let fotoPath: string | null = null;
-    if (videoRef.current && videoRef.current.videoWidth > 0) {
-      try {
-        setEnrollMsg("Mengkompresi foto...");
-        const blob = await compressImage(videoRef.current);
-        if (blob) {
-          const path = `wajah/${selectedSiswa}-${Date.now()}.jpg`;
-          const { error: upErr } = await supabase.storage
-            .from("siswa-foto")
-            .upload(path, blob, { contentType: "image/jpeg", upsert: true });
-          if (!upErr) fotoPath = path;
-        }
-      } catch {
-        // Foto gagal upload — lanjut tanpa foto
-      }
-    }
-
-    setEnrollMsg("Menyimpan descriptor wajah...");
-    const { error } = await supabase.from("smp_wajah_data").upsert(
-      {
-        siswa_id: selectedSiswa,
-        descriptor: avg,
-        aktif: true,
-        ...(fotoPath ? { foto_url: fotoPath } : {}),
-      },
-      { onConflict: "siswa_id" },
-    );
-
-    setEnrolling(false);
-    if (error) {
-      setEnrollMsg(`Error: ${error.message}`);
-    } else {
-      setEnrollMsg("");
-      setEnrollSuccess(true);
-      setSamples([]);
-      setSelectedSiswa("");
-      loadData();
-      setTimeout(() => setEnrollSuccess(false), 3000);
-    }
-  }
-
-  function resetEnroll() {
-    setSamples([]);
-    setEnrollMsg("Sample direset.");
-  }
-
   // Stats
   const totalSiswaHadir = todayIds.size;
   const totalSiswa = siswa.length;
   const pct = totalSiswa > 0 ? Math.round((totalSiswaHadir / totalSiswa) * 100) : 0;
-  const enrolledCount = wajah.length;
 
   return (
     <div className="min-h-screen bg-navy text-white">
@@ -648,9 +512,11 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
             </div>
           </Link>
           <div className="flex items-center gap-3">
-            <span className="hidden rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/50 sm:block">
-              <Clock size={12} className="mr-1.5 inline" />
-              {tanggalLabel}
+            <span className="hidden rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/50 sm:flex items-center gap-1.5">
+              <Clock size={12} className="shrink-0" />
+              <span>{tanggalLabel}</span>
+              <span className="mx-1 text-white/20">·</span>
+              <span className="font-mono font-semibold text-white/70 tabular-nums">{jamLabel}</span>
             </span>
             <button
               onClick={onLock}
@@ -665,12 +531,11 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
       </header>
 
       <main className="relative z-10 mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
-        {/* Stats Row */}
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {/* Stats Row — hanya hadir & total siswa */}
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[
             { icon: UserCheck, label: "Hadir Hari Ini", value: String(totalSiswaHadir), sub: `dari ${totalSiswa} siswa`, color: "text-emerald-400" },
-            { icon: Users, label: "Total Siswa", value: String(totalSiswa), sub: "siswa aktif", color: "text-blue-400" },
-            { icon: Scan, label: "Wajah Terdaftar", value: String(enrolledCount), sub: "data wajah aktif", color: "text-gold" },
+            { icon: Users, label: "Total Siswa Aktif", value: String(totalSiswa), sub: "siswa aktif", color: "text-blue-400" },
             { icon: CheckCircle2, label: "Kehadiran", value: `${pct}%`, sub: "hari ini", color: "text-purple-400" },
           ].map(({ icon: Icon, label, value, sub, color }) => (
             <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
@@ -684,224 +549,22 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
           ))}
         </div>
 
-        {/* Tabs */}
-        <div className="mb-6 flex gap-2 overflow-x-auto">
-          {(
-            [
-              { key: "scan" as TabType, label: "Scan Presensi", icon: Scan },
-              { key: "enroll" as TabType, label: "Daftar Wajah", icon: UserPlus },
-              { key: "rekap" as TabType, label: "Rekap Hari Ini", icon: UserCheck },
-            ] as const
-          ).map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => { setTab(key); if (key !== "scan") stopScan(); }}
-              className={[
-                "flex shrink-0 items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition",
-                tab === key
-                  ? "bg-gold text-navy shadow-glow"
-                  : "border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white",
-              ].join(" ")}
-            >
-              <Icon size={16} />
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* ── SCAN TAB ─────────────────────────────────────────── */}
-        {tab === "scan" && (
-          <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
-            {/* Camera Panel */}
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
-              <div className="border-b border-white/10 px-5 py-4">
-                <h2 className="flex items-center gap-2 text-base font-bold text-white">
-                  <Scan size={18} className="text-gold" />
-                  Kamera Presensi
-                </h2>
-                <p className="mt-0.5 text-xs text-white/40">
-                  Wajah akan dideteksi otomatis setiap 1.2 detik
-                </p>
-              </div>
-
-              <div className="relative bg-navy-950">
-                {/* Video */}
-                <div className="relative aspect-video">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    className="h-full w-full object-cover"
-                    style={{ transform: "scaleX(-1)" }}
-                  />
-                  {/* Canvas overlay for face box */}
-                  <canvas
-                    ref={canvasRef}
-                    className="pointer-events-none absolute inset-0 h-full w-full"
-                    width={1280}
-                    height={720}
-                    style={{ transform: "scaleX(-1)" }}
-                  />
-
-                  {/* Face detection box */}
-                  {faceBox && (
-                    <div
-                      className="pointer-events-none absolute"
-                      style={{
-                        left: `${(faceBox.x / 1280) * 100}%`,
-                        top: `${(faceBox.y / 720) * 100}%`,
-                        width: `${(faceBox.w / 1280) * 100}%`,
-                        height: `${(faceBox.h / 720) * 100}%`,
-                      }}
-                    >
-                      {/* Corner borders */}
-                      <span className="absolute left-0 top-0 h-6 w-6 border-l-2 border-t-2 border-gold" />
-                      <span className="absolute right-0 top-0 h-6 w-6 border-r-2 border-t-2 border-gold" />
-                      <span className="absolute bottom-0 left-0 h-6 w-6 border-b-2 border-l-2 border-gold" />
-                      <span className="absolute bottom-0 right-0 h-6 w-6 border-b-2 border-r-2 border-gold" />
-                      {/* Confidence badge */}
-                      {confidence !== null && (
-                        <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gold px-2.5 py-0.5 text-[11px] font-bold text-navy">
-                          {Math.round(confidence * 100)}%
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* No camera placeholder */}
-                  {!cameraOn && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-navy-950">
-                      <CameraOff size={40} className="text-white/20" />
-                      <p className="text-sm text-white/40">Kamera belum aktif</p>
-                    </div>
-                  )}
-
-                  {/* Scanning pulse ring */}
-                  {scanning && (
-                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                      <span className="h-32 w-32 animate-ping rounded-full border-2 border-gold/30" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Status bar */}
-                {statusMsg && (
-                  <div className="border-t border-white/5 bg-navy/80 px-4 py-2.5 text-center text-sm text-white/70">
-                    {modelLoading && <Loader2 size={14} className="mr-2 inline animate-spin" />}
-                    {statusMsg}
-                  </div>
-                )}
-              </div>
-
-              {/* Camera controls */}
-              <div className="flex flex-wrap items-center gap-2 p-5">
-                {!cameraOn ? (
-                  <button
-                    onClick={startCamera}
-                    disabled={cameraLoading || modelLoading}
-                    className="flex items-center gap-2 rounded-xl bg-gold px-5 py-2.5 text-sm font-bold text-navy disabled:opacity-60"
-                  >
-                    {cameraLoading || modelLoading ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Camera size={16} />
-                    )}
-                    {cameraLoading ? "Membuka..." : modelLoading ? "Memuat Model..." : "Aktifkan Kamera"}
-                  </button>
-                ) : (
-                  <>
-                    {!scanning ? (
-                      <button
-                        onClick={startScan}
-                        className="flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-400"
-                      >
-                        <Scan size={16} />
-                        Mulai Scan Otomatis
-                      </button>
-                    ) : (
-                      <button
-                        onClick={stopScan}
-                        className="flex items-center gap-2 rounded-xl bg-red-500/20 px-5 py-2.5 text-sm font-bold text-red-300 transition hover:bg-red-500/30"
-                      >
-                        <X size={16} />
-                        Stop Scan
-                      </button>
-                    )}
-                    <button
-                      onClick={stopCamera}
-                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/60 transition hover:bg-white/10"
-                    >
-                      <CameraOff size={16} className="inline mr-1.5" />
-                      Matikan
-                    </button>
-                  </>
-                )}
-              </div>
+        {/* Main grid: kamera kiri, panel kanan */}
+        <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
+          {/* Camera Panel */}
+          <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
+            <div className="border-b border-white/10 px-5 py-4">
+              <h2 className="flex items-center gap-2 text-base font-bold text-white">
+                <Scan size={18} className="text-gold" />
+                Kamera Presensi
+              </h2>
+              <p className="mt-0.5 text-xs text-white/40">
+                Wajah akan dideteksi otomatis setiap 1.2 detik
+              </p>
             </div>
 
-            {/* Scan results panel */}
-            <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
-              <div className="border-b border-white/10 px-5 py-4">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-white">
-                  <CheckCircle2 size={16} className="text-emerald-400" />
-                  Hasil Scan Terbaru
-                </h3>
-              </div>
-              <div className="divide-y divide-white/5">
-                {scanResults.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-                    <Scan size={32} className="text-white/15" />
-                    <p className="text-sm text-white/30">Belum ada scan.</p>
-                    <p className="text-xs text-white/20">Aktifkan kamera & mulai scan</p>
-                  </div>
-                ) : (
-                  scanResults.map((result, i) => (
-                    <div key={i} className="flex items-center gap-3 px-5 py-3.5">
-                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-500/15">
-                        <CheckCircle2 size={18} className="text-emerald-400" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-white">{result.nama}</p>
-                        <p className="text-xs text-white/40">
-                          {result.kelas} &middot; {result.nis}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-xs font-mono text-white/40">{result.waktu}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Info box */}
-              <div className="m-4 rounded-2xl border border-gold/20 bg-gold/8 p-4">
-                <p className="text-xs font-semibold text-gold-soft">Cara Penggunaan:</p>
-                <ol className="mt-2 space-y-1 text-xs text-white/50">
-                  <li className="flex gap-2"><span className="font-bold text-gold/60">1.</span> Aktifkan kamera</li>
-                  <li className="flex gap-2"><span className="font-bold text-gold/60">2.</span> Klik "Mulai Scan Otomatis"</li>
-                  <li className="flex gap-2"><span className="font-bold text-gold/60">3.</span> Arahkan wajah ke kamera</li>
-                  <li className="flex gap-2"><span className="font-bold text-gold/60">4.</span> Presensi tercatat otomatis</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── ENROLL TAB ───────────────────────────────────────── */}
-        {tab === "enroll" && (
-          <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
-            {/* Camera */}
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
-              <div className="border-b border-white/10 px-5 py-4">
-                <h2 className="flex items-center gap-2 text-base font-bold text-white">
-                  <UserPlus size={18} className="text-gold" />
-                  Kamera Enrollment
-                </h2>
-                <p className="mt-0.5 text-xs text-white/40">
-                  Ambil 5 sample wajah dari berbagai sudut
-                </p>
-              </div>
-              <div className="relative aspect-video bg-navy-950">
+            <div className="relative bg-navy-950">
+              <div className="relative aspect-video">
                 <video
                   ref={videoRef}
                   autoPlay
@@ -917,6 +580,7 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
                   height={720}
                   style={{ transform: "scaleX(-1)" }}
                 />
+
                 {faceBox && (
                   <div
                     className="pointer-events-none absolute"
@@ -927,44 +591,74 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
                       height: `${(faceBox.h / 720) * 100}%`,
                     }}
                   >
-                    <span className="absolute left-0 top-0 h-5 w-5 border-l-2 border-t-2 border-emerald-400" />
-                    <span className="absolute right-0 top-0 h-5 w-5 border-r-2 border-t-2 border-emerald-400" />
-                    <span className="absolute bottom-0 left-0 h-5 w-5 border-b-2 border-l-2 border-emerald-400" />
-                    <span className="absolute bottom-0 right-0 h-5 w-5 border-b-2 border-r-2 border-emerald-400" />
+                    <span className="absolute left-0 top-0 h-6 w-6 border-l-2 border-t-2 border-gold" />
+                    <span className="absolute right-0 top-0 h-6 w-6 border-r-2 border-t-2 border-gold" />
+                    <span className="absolute bottom-0 left-0 h-6 w-6 border-b-2 border-l-2 border-gold" />
+                    <span className="absolute bottom-0 right-0 h-6 w-6 border-b-2 border-r-2 border-gold" />
+                    {confidence !== null && (
+                      <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gold px-2.5 py-0.5 text-[11px] font-bold text-navy">
+                        {Math.round(confidence * 100)}%
+                      </span>
+                    )}
                   </div>
                 )}
+
                 {!cameraOn && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-navy-950">
                     <CameraOff size={40} className="text-white/20" />
                     <p className="text-sm text-white/40">Kamera belum aktif</p>
                   </div>
                 )}
+
+                {scanning && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <span className="h-32 w-32 animate-ping rounded-full border-2 border-gold/30" />
+                  </div>
+                )}
               </div>
 
-              {enrollMsg && (
-                <div
-                  className={[
-                    "border-t px-4 py-2.5 text-center text-sm",
-                    enrollMsg.includes("Error") || enrollMsg.includes("tidak")
-                      ? "border-red-500/20 bg-red-500/10 text-red-300"
-                      : "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
-                  ].join(" ")}
-                >
-                  {enrollMsg}
+              {statusMsg && (
+                <div className="border-t border-white/5 bg-navy/80 px-4 py-2.5 text-center text-sm text-white/70">
+                  {modelLoading && <Loader2 size={14} className="mr-2 inline animate-spin" />}
+                  {statusMsg}
                 </div>
               )}
+            </div>
 
-              <div className="flex flex-wrap gap-2 p-5">
-                {!cameraOn ? (
-                  <button
-                    onClick={startCamera}
-                    disabled={cameraLoading || modelLoading}
-                    className="flex items-center gap-2 rounded-xl bg-gold px-5 py-2.5 text-sm font-bold text-navy disabled:opacity-60"
-                  >
-                    {cameraLoading || modelLoading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
-                    {modelLoading ? "Memuat Model..." : "Aktifkan Kamera"}
-                  </button>
-                ) : (
+            {/* Camera controls */}
+            <div className="flex flex-wrap items-center gap-2 p-5">
+              {!cameraOn ? (
+                <button
+                  onClick={startCamera}
+                  disabled={cameraLoading || modelLoading}
+                  className="flex items-center gap-2 rounded-xl bg-gold px-5 py-2.5 text-sm font-bold text-navy disabled:opacity-60"
+                >
+                  {cameraLoading || modelLoading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Camera size={16} />
+                  )}
+                  {cameraLoading ? "Membuka..." : modelLoading ? "Memuat Model..." : "Aktifkan Kamera"}
+                </button>
+              ) : (
+                <>
+                  {!scanning ? (
+                    <button
+                      onClick={startScan}
+                      className="flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-400"
+                    >
+                      <Scan size={16} />
+                      Mulai Scan Otomatis
+                    </button>
+                  ) : (
+                    <button
+                      onClick={stopScan}
+                      className="flex items-center gap-2 rounded-xl bg-red-500/20 px-5 py-2.5 text-sm font-bold text-red-300 transition hover:bg-red-500/30"
+                    >
+                      <X size={16} />
+                      Stop Scan
+                    </button>
+                  )}
                   <button
                     onClick={stopCamera}
                     className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/60 transition hover:bg-white/10"
@@ -972,210 +666,108 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
                     <CameraOff size={16} className="inline mr-1.5" />
                     Matikan
                   </button>
-                )}
-              </div>
-            </div>
-
-            {/* Enroll controls */}
-            <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
-              <div className="border-b border-white/10 px-5 py-4">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-white">
-                  <ShieldCheck size={16} className="text-gold" />
-                  Registrasi Wajah Siswa
-                </h3>
-              </div>
-              <div className="p-5 space-y-4">
-                {/* Select siswa */}
-                <div>
-                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-white/40">
-                    Pilih Siswa
-                  </label>
-                  <select
-                    value={selectedSiswa}
-                    onChange={(e) => setSelectedSiswa(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-gold/50 focus:ring-2 focus:ring-gold/20"
-                  >
-                    <option value="" className="bg-navy">-- Pilih nama siswa --</option>
-                    {siswa.map((s) => (
-                      <option key={s.id} value={s.id} className="bg-navy">
-                        {s.nama_lengkap} {s.kelas ? `(${s.kelas})` : ""}
-                        {wajah.find((w) => w.siswa_id === s.id) ? " ✓" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Sample progress */}
-                <div>
-                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-white/40">
-                    Progress Sample
-                  </label>
-                  <div className="flex gap-2">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={[
-                          "h-2.5 flex-1 rounded-full transition-all",
-                          i < samples.length ? "bg-gold" : "bg-white/10",
-                        ].join(" ")}
-                      />
-                    ))}
-                  </div>
-                  <p className="mt-1.5 text-xs text-white/40">
-                    {samples.length}/5 sample — {samples.length < 5 ? "Ambil sample dari berbagai sudut wajah" : "Sample cukup, siap simpan!"}
-                  </p>
-                </div>
-
-                {/* Action buttons */}
-                <div className="space-y-2.5">
-                  <button
-                    onClick={captureSample}
-                    disabled={!cameraOn || enrolling || samples.length >= 5}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 py-3 text-sm font-semibold text-white transition hover:bg-white/15 disabled:opacity-40"
-                  >
-                    {enrolling ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
-                    Ambil Sample ({samples.length}/5)
-                  </button>
-
-                  <button
-                    onClick={saveEnrollment}
-                    disabled={!selectedSiswa || samples.length < 5 || enrolling}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gold py-3 text-sm font-bold text-navy transition hover:bg-gold-soft disabled:opacity-40"
-                  >
-                    {enrolling ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                    Simpan Data Wajah
-                  </button>
-
-                  {samples.length > 0 && (
-                    <button
-                      onClick={resetEnroll}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-400/20 bg-red-400/10 py-2.5 text-sm font-semibold text-red-300 transition hover:bg-red-400/15"
-                    >
-                      <X size={14} />
-                      Reset Sample
-                    </button>
-                  )}
-                </div>
-
-                {/* Success toast */}
-                {enrollSuccess && (
-                  <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-                    <CheckCircle2 size={20} className="shrink-0 text-emerald-400" />
-                    <p className="text-sm font-semibold text-emerald-300">Data wajah berhasil disimpan!</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Enrolled list */}
-              <div className="border-t border-white/10">
-                <div className="px-5 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                    Wajah Terdaftar ({wajah.length})
-                  </p>
-                </div>
-                <div className="max-h-52 overflow-y-auto divide-y divide-white/5">
-                  {wajah.length === 0 ? (
-                    <p className="px-5 py-4 text-xs text-white/30 text-center">Belum ada data wajah</p>
-                  ) : (
-                    wajah.map((item) => (
-                      <div key={item.id} className="flex items-center gap-3 px-5 py-3">
-                        <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-gold/15">
-                          <ShieldCheck size={14} className="text-gold" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-semibold text-white">{item.siswa?.nama_lengkap}</p>
-                          <p className="text-[11px] text-white/35">{item.siswa?.kelas || "-"}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── REKAP TAB ────────────────────────────────────────── */}
-        {tab === "rekap" && (
-          <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur overflow-hidden">
-            <div className="border-b border-white/10 px-5 py-4">
-              <h2 className="flex items-center gap-2 text-base font-bold text-white">
-                <UserCheck size={18} className="text-gold" />
-                Rekap Presensi Hari Ini
-              </h2>
-              <p className="mt-0.5 text-xs text-white/40">{tanggalLabel}</p>
-            </div>
-
-            {/* Progress bar */}
-            <div className="border-b border-white/10 px-5 py-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-white">{totalSiswaHadir} dari {totalSiswa} hadir</span>
-                <span className="text-sm font-bold text-gold">{pct}%</span>
-              </div>
-              <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-gold to-gold-soft transition-all"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Attendance list */}
-            <div className="divide-y divide-white/5">
-              {siswa.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 py-12 text-center">
-                  <Users size={32} className="text-white/15" />
-                  <p className="text-sm text-white/30">Data siswa kosong</p>
-                </div>
-              ) : (
-                siswa.map((item) => {
-                  const rec = presensi.find((r) => r.siswa_id === item.id);
-                  return (
-                    <div key={item.id} className="flex items-center gap-3 px-5 py-3.5">
-                      <div
-                        className={[
-                          "grid h-9 w-9 shrink-0 place-items-center rounded-xl",
-                          rec ? "bg-emerald-500/15" : "bg-white/5",
-                        ].join(" ")}
-                      >
-                        {rec ? (
-                          <CheckCircle2 size={18} className="text-emerald-400" />
-                        ) : (
-                          <XCircle size={18} className="text-white/20" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-white">{item.nama_lengkap}</p>
-                        <p className="text-xs text-white/40">{item.nis} &middot; {item.kelas || "-"}</p>
-                      </div>
-                      <div className="text-right">
-                        {rec ? (
-                          <>
-                            <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400">
-                              Hadir
-                            </span>
-                            <p className="mt-0.5 text-[11px] text-white/30">
-                              {rec.jam_masuk
-                                ? new Intl.DateTimeFormat("id-ID", {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  }).format(new Date(rec.jam_masuk))
-                                : "-"}
-                            </p>
-                          </>
-                        ) : (
-                          <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[11px] font-bold text-white/25">
-                            Belum
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
+                </>
               )}
             </div>
           </div>
-        )}
+
+          {/* Right Panel: scan results + daftar hadir hari ini */}
+          <div className="flex flex-col gap-5">
+            {/* Scan results terbaru */}
+            <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur overflow-hidden">
+              <div className="border-b border-white/10 px-5 py-4">
+                <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+                  <CheckCircle2 size={16} className="text-emerald-400" />
+                  Hasil Scan Terbaru
+                </h3>
+              </div>
+              <div className="divide-y divide-white/5">
+                {scanResults.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+                    <Scan size={28} className="text-white/15" />
+                    <p className="text-sm text-white/30">Belum ada scan.</p>
+                    <p className="text-xs text-white/20">Aktifkan kamera & mulai scan</p>
+                  </div>
+                ) : (
+                  scanResults.map((result, i) => (
+                    <div key={i} className="flex items-center gap-3 px-5 py-3">
+                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-500/15">
+                        <CheckCircle2 size={16} className="text-emerald-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-white">{result.nama}</p>
+                        <p className="text-xs text-white/40">{result.kelas} · {result.nis}</p>
+                      </div>
+                      <span className="shrink-0 text-xs font-mono text-white/40">{result.waktu}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Cara penggunaan */}
+              <div className="m-4 rounded-2xl border border-gold/20 bg-gold/8 p-3.5">
+                <p className="text-xs font-semibold text-gold-soft">Cara Penggunaan:</p>
+                <ol className="mt-1.5 space-y-1 text-xs text-white/50">
+                  <li className="flex gap-2"><span className="font-bold text-gold/60">1.</span> Aktifkan kamera</li>
+                  <li className="flex gap-2"><span className="font-bold text-gold/60">2.</span> Klik "Mulai Scan Otomatis"</li>
+                  <li className="flex gap-2"><span className="font-bold text-gold/60">3.</span> Arahkan wajah ke kamera</li>
+                  <li className="flex gap-2"><span className="font-bold text-gold/60">4.</span> Presensi tercatat otomatis</li>
+                </ol>
+              </div>
+            </div>
+
+            {/* Daftar hadir hari ini */}
+            <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur overflow-hidden flex-1">
+              <div className="border-b border-white/10 px-5 py-4">
+                <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+                  <UserCheck size={16} className="text-gold" />
+                  Sudah Hadir Hari Ini
+                </h3>
+                <p className="mt-0.5 text-xs text-white/40">{tanggalLabel}</p>
+              </div>
+
+              {/* Progress bar */}
+              <div className="border-b border-white/10 px-5 py-3">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-white/60">{totalSiswaHadir} dari {totalSiswa} siswa</span>
+                  <span className="text-xs font-bold text-gold">{pct}%</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-gold to-gold-soft transition-all duration-500"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="max-h-72 overflow-y-auto divide-y divide-white/5">
+                {presensi.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 py-8 text-center">
+                    <Users size={28} className="text-white/15" />
+                    <p className="text-sm text-white/30">Belum ada yang hadir</p>
+                  </div>
+                ) : (
+                  presensi.map((rec) => (
+                    <div key={rec.id} className="flex items-center gap-3 px-5 py-3">
+                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-500/15">
+                        <CheckCircle2 size={15} className="text-emerald-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-white">{rec.siswa?.nama_lengkap || "—"}</p>
+                        <p className="text-xs text-white/40">{rec.siswa?.kelas || "-"} · {rec.siswa?.nis || "-"}</p>
+                      </div>
+                      <span className="shrink-0 text-xs font-mono text-white/40">
+                        {rec.jam_masuk
+                          ? new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit" }).format(new Date(rec.jam_masuk))
+                          : "—"}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Footer link */}
         <div className="mt-8 text-center">

@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   ArrowRight,
+  Clock,
   GraduationCap,
   Landmark,
   ScanFace,
@@ -227,6 +228,13 @@ function SmpDashboardHome({ role }: { role: string }) {
 
   const visibleMenu = getSmpMenuForRole(role);
 
+  const tanggalLabel = new Intl.DateTimeFormat("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+
   return (
     <div className="grid min-w-0 max-w-full gap-4 overflow-x-hidden sm:gap-6">
       <section className="min-w-0 max-w-full rounded bg-white p-4 shadow-soft sm:p-6">
@@ -238,6 +246,10 @@ function SmpDashboardHome({ role }: { role: string }) {
         </h1>
         <p className="mt-3 text-sm leading-6 text-gray-600">
           Statistik utama, presensi hari ini, dan akses cepat modul sesuai role.
+        </p>
+        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-gray-100 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-500">
+          <Clock className="h-3 w-3" />
+          {tanggalLabel}
         </p>
       </section>
 
