@@ -563,20 +563,38 @@ export function SeksiCekPembayaran({
     setError('');
     setResult(null);
 
-    const table = entitas === 'smp' ? 'smp_students' : 'pesantren_santri';
-    const { data, error: dbError } = await supabase
-      .from(table)
-      .select('*')
-      .eq('nis', nis.trim())
-      .maybeSingle();
+    if (entitas === 'smp' || entitas === 'pesantren') {
+      const functionName =
+        entitas === 'smp' ? 'lookup_smp_student_record' : 'lookup_pesantren_student_record';
+      const { data, error: rpcError } = await supabase.rpc(functionName, {
+        p_kode_unik: nis.trim(),
+        p_client_key: navigator.userAgent,
+      });
 
-    setLoading(false);
-    if (dbError || !data) {
-      setError(`Data ${personLabel} tidak ditemukan.`);
-    } else {
-      setResult(data as Record<string, unknown>);
+      setLoading(false);
+      const payload = data as Record<string, unknown> | null;
+      if (rpcError || !payload || payload.status === 'not_found') {
+        setError(`Data ${personLabel} tidak ditemukan.`);
+        return;
+      }
+      if (payload.status === 'rate_limited') {
+        setError('Terlalu banyak percobaan. Silakan tunggu sebentar.');
+        return;
+      }
+      setResult(payload);
+      return;
     }
   };
+
+  const peserta = (result?.peserta || result?.santri) as Record<string, unknown> | undefined;
+  const tagihan = (result?.tagihan as Record<string, unknown>[] | undefined) || [];
+  const raport = (result?.raport as Record<string, unknown>[] | undefined) || [];
+  const formatCurrency = (value: unknown) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value || 0));
+  const raportPdfUrl = (path: unknown) =>
+    typeof path === 'string' && path
+      ? supabase.storage.from(entitas === 'smp' ? 'smp-raport-pdf' : 'pp-raport-pdf').getPublicUrl(path).data.publicUrl
+      : '';
 
   return (
     <section id="cek-santri" className="relative isolate overflow-hidden bg-green-950 py-20 text-white sm:py-24">
@@ -590,7 +608,7 @@ export function SeksiCekPembayaran({
           <input
             value={nis}
             onChange={(e) => setNis(e.target.value)}
-            placeholder={`Masukkan NIS ${personLabel}`}
+            placeholder={`Masukkan NIS / kode unik ${personLabel}`}
             className="min-h-12 flex-1 rounded-xl border border-white/10 bg-green-950/40 px-4 text-white placeholder:text-white/40 outline-none"
           />
           <button
@@ -602,7 +620,67 @@ export function SeksiCekPembayaran({
           </button>
         </div>
         {error && <p className="mt-4 text-red-300 text-sm">{error}</p>}
-        {result && (
+        {result && peserta ? (
+          <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="rounded bg-white/10 p-5">
+              <h3 className="font-semibold text-yellow-300 mb-3">Data {personLabel}</h3>
+              {[
+                ['Nama', peserta.nama],
+                ['NIS', peserta.nis],
+                ['Kelas', peserta.kelas],
+                ['Status', peserta.status],
+              ].map(([label, value]) => (
+                <div key={label as string} className="flex gap-2 border-b border-white/10 py-2 text-sm">
+                  <span className="w-24 shrink-0 text-white/60">{label as string}</span>
+                  <span className="text-white">{String(value ?? '-')}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid gap-4">
+              <div className="rounded bg-white/10 p-5">
+                <h3 className="font-semibold text-yellow-300">Ringkasan Pembayaran</h3>
+                <div className="mt-3 grid gap-2">
+                  {tagihan.length ? tagihan.slice(0, 6).map((item, index) => (
+                    <div key={String(item.id || index)} className="rounded border border-white/10 bg-white/5 p-3 text-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <span>{String(item.jenis_tagihan || 'Tagihan')}</span>
+                        <span className="font-semibold capitalize">{String(item.status || '-').replace(/_/g, ' ')}</span>
+                      </div>
+                      <div className="mt-2 text-white/65">
+                        Nominal {formatCurrency(item.nominal)} - Sisa {formatCurrency(item.sisa_tagihan)}
+                      </div>
+                    </div>
+                  )) : <p className="text-sm text-white/60">Belum ada tagihan tercatat.</p>}
+                </div>
+              </div>
+
+              <div className="rounded bg-white/10 p-5">
+                <h3 className="font-semibold text-yellow-300">Raport Terpublish</h3>
+                <div className="mt-3 grid gap-2">
+                  {raport.length ? raport.map((item, index) => {
+                    const url = raportPdfUrl(item.pdf_url);
+                    return (
+                      <div key={String(item.periode || index)} className="rounded border border-white/10 bg-white/5 p-3 text-sm">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="font-semibold">{String(item.periode || '-')}</p>
+                            <p className="mt-1 text-white/55">Publish: {item.published_at ? new Date(String(item.published_at)).toLocaleDateString('id-ID') : '-'}</p>
+                          </div>
+                          {url ? (
+                            <a href={url} target="_blank" rel="noreferrer" className="inline-flex justify-center rounded bg-green-500 px-4 py-2 font-bold text-green-950">
+                              Buka PDF
+                            </a>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  }) : <p className="text-sm text-white/60">Raport belum dipublish admin.</p>}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : result ? (
           <div className="mt-6 rounded bg-white/10 p-5 max-w-lg">
             <h3 className="font-semibold text-yellow-300 mb-3">Data {personLabel}</h3>
             {Object.entries(result)
@@ -614,7 +692,7 @@ export function SeksiCekPembayaran({
                 </div>
               ))}
           </div>
-        )}
+        ) : null}
       </div>
     </section>
   );

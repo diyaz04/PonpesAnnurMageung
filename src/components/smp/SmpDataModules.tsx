@@ -69,6 +69,62 @@ type RaportConfig = {
   format_nilai: "angka" | "huruf" | "predikat";
 };
 
+type RaportPeriode = {
+  id: string;
+  tahun_ajaran: string;
+  semester: string;
+  nama: string | null;
+  status: "draft" | "aktif" | "terbuka" | "ditutup" | "published";
+  tanggal_mulai: string | null;
+  tanggal_selesai: string | null;
+  catatan: string | null;
+};
+
+type RaportMapel = {
+  id: string;
+  periode_id: string;
+  kelas: string;
+  mata_pelajaran: string;
+  kelompok: string | null;
+  format_nilai: "angka" | "huruf" | "predikat";
+  kkm: number | null;
+  urutan: number;
+};
+
+type RaportPenugasan = {
+  id: string;
+  periode_id: string;
+  mapel_id: string;
+  guru_id: string;
+  siswa_id: string;
+  kelas: string;
+  guru?: Pick<Guru, "nama_lengkap" | "mata_pelajaran">;
+  mapel?: Pick<RaportMapel, "mata_pelajaran">;
+  siswa?: Pick<Siswa, "nama_lengkap" | "nis" | "kelas">;
+};
+
+type RaportNilaiDetail = {
+  id: string;
+  siswa_id: string;
+  mapel_id: string;
+  guru_id: string | null;
+  nilai: string | null;
+  predikat: string | null;
+  deskripsi: string | null;
+  catatan: string | null;
+};
+
+type RaportPublikasi = {
+  id: string;
+  periode_id: string;
+  siswa_id: string;
+  status: "draft" | "published";
+  pdf_url: string | null;
+  catatan: string | null;
+  published_at: string | null;
+  siswa?: Pick<Siswa, "nama_lengkap" | "nis" | "kelas">;
+};
+
 type PelanggaranJenis = {
   id: string;
   nama: string;
@@ -916,83 +972,428 @@ function GuruModule() {
 function RaportModule({ role }: { role: string }) {
   const { user } = useAuth();
   const isAdmin = role === "superadmin" || role === "admin";
-  const [configs, setConfigs] = useState<RaportConfig[]>([]);
+  const [periods, setPeriods] = useState<RaportPeriode[]>([]);
+  const [mapel, setMapel] = useState<RaportMapel[]>([]);
+  const [teachers, setTeachers] = useState<Guru[]>([]);
   const [siswa, setSiswa] = useState<Siswa[]>([]);
+  const [assignments, setAssignments] = useState<RaportPenugasan[]>([]);
+  const [nilaiRows, setNilaiRows] = useState<RaportNilaiDetail[]>([]);
+  const [publishedRows, setPublishedRows] = useState<RaportPublikasi[]>([]);
+  const [currentTeacher, setCurrentTeacher] = useState<Guru | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState("");
+  const [selectedKelas, setSelectedKelas] = useState("");
   const [selectedSiswa, setSelectedSiswa] = useState("");
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [configForm, setConfigForm] = useState<Partial<RaportConfig>>({ mata_pelajaran: "", kelas: "", semester: "", periode: "", format_nilai: "angka" });
+  const [values, setValues] = useState<Record<string, { nilai: string; predikat: string; deskripsi: string }>>({});
+  const [periodForm, setPeriodForm] = useState({
+    tahun_ajaran: `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
+    semester: "Ganjil",
+    status: "draft" as RaportPeriode["status"],
+    tanggal_mulai: "",
+    tanggal_selesai: "",
+    catatan: "",
+  });
+  const [mapelForm, setMapelForm] = useState({
+    kelas: "",
+    mata_pelajaran: "",
+    kelompok: "",
+    format_nilai: "angka" as RaportMapel["format_nilai"],
+    kkm: "",
+    urutan: 0,
+  });
+  const [assignmentForm, setAssignmentForm] = useState({ guru_id: "", kelas: "", mapel_id: "" });
+  const [assignedStudentIds, setAssignedStudentIds] = useState<string[]>([]);
   const [message, setMessage] = useState("");
 
   async function loadData() {
-    const [configResult, siswaResult] = await Promise.all([
-      supabase.from("smp_raport_config").select("*").order("created_at", { ascending: false }),
+    const [periodResult, teacherResult, siswaResult] = await Promise.all([
+      supabase.from("smp_raport_periode").select("*").order("created_at", { ascending: false }),
+      supabase.from("smp_guru").select("*").order("nama_lengkap"),
       supabase.from("smp_siswa").select("*").eq("status", "aktif").order("nama_lengkap"),
     ]);
-    setConfigs((configResult.data || []) as RaportConfig[]);
+    const loadedPeriods = (periodResult.data || []) as RaportPeriode[];
+    setPeriods(loadedPeriods);
+    setTeachers((teacherResult.data || []) as Guru[]);
     setSiswa((siswaResult.data || []) as Siswa[]);
+    setSelectedPeriod((cur) => cur || loadedPeriods.find((period) => ["aktif", "terbuka"].includes(period.status))?.id || loadedPeriods[0]?.id || "");
   }
-  useEffect(() => { loadData(); }, []);
-  useEffect(() => {
-    async function loadValues() {
-      if (!selectedSiswa) return setValues({});
-      const { data } = await supabase.from("smp_raport_nilai").select("config_id,nilai").eq("siswa_id", selectedSiswa);
-      setValues((data || []).reduce<Record<string, string>>((acc, row) => ({ ...acc, [row.config_id]: row.nilai || "" }), {}));
-    }
-    loadValues();
-  }, [selectedSiswa]);
 
-  async function saveConfig(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => { loadData(); }, []);
+
+  useEffect(() => {
+    async function loadTeacher() {
+      if (isAdmin || !user?.id) return setCurrentTeacher(null);
+      const { data } = await supabase.from("smp_guru").select("*").eq("user_id", user.id).maybeSingle();
+      setCurrentTeacher((data || null) as Guru | null);
+    }
+    loadTeacher();
+  }, [isAdmin, user?.id]);
+
+  useEffect(() => {
+    async function loadPeriodDetails() {
+      if (!selectedPeriod) {
+        setMapel([]);
+        setAssignments([]);
+        setNilaiRows([]);
+        setPublishedRows([]);
+        return;
+      }
+      const [mapelResult, assignmentResult, nilaiResult, publishResult] = await Promise.all([
+        supabase.from("smp_raport_mapel").select("*").eq("periode_id", selectedPeriod).order("kelas").order("urutan"),
+        supabase.from("smp_raport_penugasan").select("*, guru:smp_guru(nama_lengkap,mata_pelajaran), mapel:smp_raport_mapel(mata_pelajaran), siswa:smp_siswa(nama_lengkap,nis,kelas)").eq("periode_id", selectedPeriod).order("created_at", { ascending: false }),
+        supabase.from("smp_raport_nilai_detail").select("*"),
+        supabase.from("smp_raport_publikasi").select("*, siswa:smp_siswa(nama_lengkap,nis,kelas)").eq("periode_id", selectedPeriod).order("updated_at", { ascending: false }),
+      ]);
+      setMapel((mapelResult.data || []) as RaportMapel[]);
+      setAssignments((assignmentResult.data || []) as RaportPenugasan[]);
+      setNilaiRows((nilaiResult.data || []) as RaportNilaiDetail[]);
+      setPublishedRows((publishResult.data || []) as RaportPublikasi[]);
+    }
+    loadPeriodDetails();
+  }, [selectedPeriod]);
+
+  useEffect(() => {
+    if (!assignmentForm.kelas) {
+      setAssignedStudentIds([]);
+      return;
+    }
+    if (!assignmentForm.mapel_id) {
+      setAssignedStudentIds([]);
+      return;
+    }
+    setAssignedStudentIds(
+      assignments
+        .filter((item) => item.guru_id === assignmentForm.guru_id && item.kelas === assignmentForm.kelas && item.mapel_id === assignmentForm.mapel_id)
+        .map((item) => item.siswa_id),
+    );
+  }, [assignmentForm.guru_id, assignmentForm.kelas, assignmentForm.mapel_id, assignments]);
+
+  useEffect(() => {
+    if (!selectedSiswa) {
+      setValues({});
+      return;
+    }
+    const nextValues = nilaiRows
+      .filter((row) => row.siswa_id === selectedSiswa)
+      .reduce<Record<string, { nilai: string; predikat: string; deskripsi: string }>>((acc, row) => {
+        acc[row.mapel_id] = {
+          nilai: row.nilai || "",
+          predikat: row.predikat || "",
+          deskripsi: row.deskripsi || "",
+        };
+        return acc;
+      }, {});
+    setValues(nextValues);
+  }, [selectedSiswa, nilaiRows]);
+
+  const selectedPeriodRow = periods.find((period) => period.id === selectedPeriod);
+  const kelasList = useMemo(
+    () => Array.from(new Set(siswa.map((item) => item.kelas).filter(Boolean) as string[])).sort(),
+    [siswa],
+  );
+  const periodMapel = useMemo(() => {
+    return mapel.filter((item) => (selectedKelas ? item.kelas === selectedKelas : true));
+  }, [mapel, selectedKelas]);
+  const teacherAssignments = useMemo(() => {
+    if (isAdmin) return assignments;
+    if (!currentTeacher) return [];
+    return assignments.filter((item) => item.guru_id === currentTeacher.id);
+  }, [assignments, currentTeacher, isAdmin]);
+  const assignedSiswa = useMemo(() => {
+    const ids = new Set(teacherAssignments.map((item) => item.siswa_id));
+    return siswa.filter((item) => ids.has(item.id));
+  }, [siswa, teacherAssignments]);
+  const selected = siswa.find((item) => item.id === selectedSiswa);
+  const inputSiswaList = isAdmin ? siswa : assignedSiswa;
+  const inputMapel = useMemo(() => {
+    if (!selected) return [];
+    if (isAdmin) return mapel.filter((item) => item.kelas === selected.kelas);
+    const assignedMapelIds = new Set(teacherAssignments.filter((item) => item.siswa_id === selected.id).map((item) => item.mapel_id));
+    return mapel.filter((item) => item.kelas === selected.kelas && assignedMapelIds.has(item.id));
+  }, [isAdmin, mapel, selected, teacherAssignments]);
+  const canInput = isAdmin || ["aktif", "terbuka"].includes(selectedPeriodRow?.status || "");
+
+  async function savePeriod(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const { error } = await supabase.from("smp_raport_config").insert(configForm);
-    setMessage(error ? error.message : "Konfigurasi raport tersimpan.");
-    setConfigForm({ mata_pelajaran: "", kelas: "", semester: "", periode: "", format_nilai: "angka" });
+    const { error } = await supabase.from("smp_raport_periode").insert({
+      ...periodForm,
+      tanggal_mulai: periodForm.tanggal_mulai || null,
+      tanggal_selesai: periodForm.tanggal_selesai || null,
+      catatan: periodForm.catatan || null,
+      created_by: user?.id || null,
+    });
+    setMessage(error ? error.message : "Tahun ajaran dan semester raport tersimpan.");
+    if (!error) {
+      setPeriodForm((form) => ({ ...form, status: "draft", catatan: "" }));
+      loadData();
+    }
+  }
+
+  async function updatePeriodStatus(status: RaportPeriode["status"]) {
+    if (!selectedPeriod) return;
+    const { error } = await supabase.from("smp_raport_periode").update({ status }).eq("id", selectedPeriod);
+    setMessage(error ? error.message : `Status periode diubah menjadi ${status}.`);
     loadData();
   }
-  async function saveNilai() {
-    if (!selectedSiswa) return;
-    const { data: guru } = await supabase.from("smp_guru").select("id").eq("user_id", user?.id).maybeSingle();
-    const { error } = await supabase.from("smp_raport_nilai").upsert(configs.map((config) => ({ siswa_id: selectedSiswa, config_id: config.id, nilai: values[config.id] || null, guru_id: guru?.id || null })), { onConflict: "siswa_id,config_id" });
-    setMessage(error ? error.message : "Nilai raport tersimpan.");
+
+  async function saveMapel(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedPeriod) return setMessage("Pilih periode raport dulu.");
+    const { error } = await supabase.from("smp_raport_mapel").insert({
+      periode_id: selectedPeriod,
+      kelas: mapelForm.kelas,
+      mata_pelajaran: mapelForm.mata_pelajaran,
+      kelompok: mapelForm.kelompok || null,
+      format_nilai: mapelForm.format_nilai,
+      kkm: mapelForm.kkm ? Number(mapelForm.kkm) : null,
+      urutan: Number(mapelForm.urutan || 0),
+    });
+    setMessage(error ? error.message : "Mata pelajaran kelas tersimpan.");
+    if (!error) {
+      setMapelForm({ kelas: mapelForm.kelas, mata_pelajaran: "", kelompok: "", format_nilai: "angka", kkm: "", urutan: mapel.length + 1 });
+      setSelectedPeriod(selectedPeriod);
+      const { data } = await supabase.from("smp_raport_mapel").select("*").eq("periode_id", selectedPeriod).order("kelas").order("urutan");
+      setMapel((data || []) as RaportMapel[]);
+    }
   }
-  const selected = siswa.find((item) => item.id === selectedSiswa);
+
+  async function deleteMapel(row: RaportMapel) {
+    if (!confirm(`Hapus mapel ${row.mata_pelajaran} untuk kelas ${row.kelas}?`)) return;
+    const { error } = await supabase.from("smp_raport_mapel").delete().eq("id", row.id);
+    setMessage(error ? error.message : "Mata pelajaran dihapus.");
+    setMapel((cur) => cur.filter((item) => item.id !== row.id));
+  }
+
+  async function saveAssignments() {
+    if (!selectedPeriod || !assignmentForm.guru_id || !assignmentForm.kelas || !assignmentForm.mapel_id) return setMessage("Pilih periode, guru, kelas, dan mapel dulu.");
+    await supabase.from("smp_raport_penugasan").delete().eq("periode_id", selectedPeriod).eq("guru_id", assignmentForm.guru_id).eq("kelas", assignmentForm.kelas).eq("mapel_id", assignmentForm.mapel_id);
+    if (assignedStudentIds.length) {
+      const { error } = await supabase.from("smp_raport_penugasan").insert(
+        assignedStudentIds.map((siswaId) => ({
+          periode_id: selectedPeriod,
+          mapel_id: assignmentForm.mapel_id,
+          guru_id: assignmentForm.guru_id,
+          siswa_id: siswaId,
+          kelas: assignmentForm.kelas,
+        })),
+      );
+      if (error) return setMessage(error.message);
+    }
+    setMessage("Penugasan guru dan siswa tersimpan.");
+    const { data } = await supabase.from("smp_raport_penugasan").select("*, guru:smp_guru(nama_lengkap,mata_pelajaran), mapel:smp_raport_mapel(mata_pelajaran), siswa:smp_siswa(nama_lengkap,nis,kelas)").eq("periode_id", selectedPeriod).order("created_at", { ascending: false });
+    setAssignments((data || []) as RaportPenugasan[]);
+  }
+
+  async function saveNilai() {
+    if (!selectedSiswa || !selected) return setMessage("Pilih siswa dulu.");
+    if (!canInput) return setMessage("Periode ini belum dibuka admin untuk pengisian nilai.");
+    const payload = inputMapel.map((item) => ({
+      siswa_id: selectedSiswa,
+      mapel_id: item.id,
+      guru_id: currentTeacher?.id || null,
+      nilai: values[item.id]?.nilai || null,
+      predikat: values[item.id]?.predikat || null,
+      deskripsi: values[item.id]?.deskripsi || null,
+    }));
+    const { error } = await supabase.from("smp_raport_nilai_detail").upsert(payload, { onConflict: "siswa_id,mapel_id" });
+    setMessage(error ? error.message : "Nilai raport tersimpan.");
+    if (!error) {
+      const { data } = await supabase.from("smp_raport_nilai_detail").select("*");
+      setNilaiRows((data || []) as RaportNilaiDetail[]);
+    }
+  }
+
+  async function generateRaportPdf(student: Siswa, publish = false) {
+    if (!selectedPeriodRow) return setMessage("Pilih periode raport dulu.");
+    const studentMapel = mapel.filter((item) => item.kelas === student.kelas);
+    const rows = studentMapel.map((item) => ({
+      mapel: item,
+      nilai: nilaiRows.find((row) => row.siswa_id === student.id && row.mapel_id === item.id),
+    }));
+    const { jsPDF } = await import("jspdf");
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    doc.setFillColor(6, 78, 59);
+    doc.rect(0, 0, pageWidth, 34, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.text("RAPORT SISWA", pageWidth / 2, 13, { align: "center" });
+    doc.setFontSize(10);
+    doc.text("SMP MA'ARIF NU SARIWANGI", pageWidth / 2, 21, { align: "center" });
+    doc.setTextColor(17, 24, 39);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Nama: ${student.nama_lengkap}`, 14, 46);
+    doc.text(`NIS: ${student.nis}`, 14, 53);
+    doc.text(`Kelas: ${student.kelas || "-"}`, 14, 60);
+    doc.text(`Periode: ${selectedPeriodRow.nama || `${selectedPeriodRow.tahun_ajaran} - ${selectedPeriodRow.semester}`}`, 112, 46);
+    doc.text(`Status: ${publish ? "Published" : "Preview"}`, 112, 53);
+    let y = 74;
+    doc.setFont("helvetica", "bold");
+    doc.setFillColor(240, 253, 244);
+    doc.rect(14, y - 7, 182, 9, "F");
+    doc.text("Mata Pelajaran", 18, y);
+    doc.text("Nilai", 104, y);
+    doc.text("Predikat", 128, y);
+    doc.text("Deskripsi", 154, y);
+    y += 9;
+    doc.setFont("helvetica", "normal");
+    rows.forEach((row) => {
+      const deskripsi = doc.splitTextToSize(row.nilai?.deskripsi || "-", 38);
+      const rowHeight = Math.max(10, deskripsi.length * 5);
+      if (y + rowHeight > 280) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(row.mapel.mata_pelajaran, 18, y);
+      doc.text(row.nilai?.nilai || "-", 104, y);
+      doc.text(row.nilai?.predikat || "-", 128, y);
+      doc.text(deskripsi, 154, y);
+      doc.line(14, y + rowHeight - 5, 196, y + rowHeight - 5);
+      y += rowHeight;
+    });
+    y = Math.max(y + 12, 220);
+    doc.setFontSize(10);
+    doc.text("Wali Kelas", 32, y);
+    doc.text("Kepala Sekolah", 138, y);
+    doc.text("(________________)", 26, y + 30);
+    doc.text("(________________)", 132, y + 30);
+    const filename = `raport-${student.nis}-${selectedPeriodRow.tahun_ajaran.replace("/", "-")}-${selectedPeriodRow.semester}.pdf`;
+    if (!publish) {
+      doc.save(filename);
+      return;
+    }
+    const blob = doc.output("blob");
+    const path = `smp/${selectedPeriodRow.id}/${student.id}-${Date.now()}.pdf`;
+    const upload = await supabase.storage.from("smp-raport-pdf").upload(path, blob, { contentType: "application/pdf", upsert: true });
+    if (upload.error) return setMessage(upload.error.message);
+    const { error } = await supabase.from("smp_raport_publikasi").upsert({
+      periode_id: selectedPeriodRow.id,
+      siswa_id: student.id,
+      status: "published",
+      pdf_url: upload.data.path,
+      published_by: user?.id || null,
+      published_at: new Date().toISOString(),
+    }, { onConflict: "periode_id,siswa_id" });
+    setMessage(error ? error.message : `Raport ${student.nama_lengkap} dipublish.`);
+    const { data } = await supabase.from("smp_raport_publikasi").select("*, siswa:smp_siswa(nama_lengkap,nis,kelas)").eq("periode_id", selectedPeriodRow.id).order("updated_at", { ascending: false });
+    setPublishedRows((data || []) as RaportPublikasi[]);
+  }
+
+  function publicPdfUrl(path?: string | null) {
+    if (!path) return "";
+    return supabase.storage.from("smp-raport-pdf").getPublicUrl(path).data.publicUrl;
+  }
 
   return (
-    <ModuleShell title="Raport Siswa" description="Konfigurasi mata pelajaran dan pengisian nilai siswa.">
-      {isAdmin ? (
-        <form onSubmit={saveConfig} className="rounded bg-white p-5 shadow-soft">
-          <h2 className="text-lg font-semibold">Konfigurasi Penilaian</h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <input value={configForm.mata_pelajaran || ""} onChange={(e) => setConfigForm((c) => ({ ...c, mata_pelajaran: e.target.value }))} placeholder="Mata pelajaran" className={inputClass} />
-            <input value={configForm.kelas || ""} onChange={(e) => setConfigForm((c) => ({ ...c, kelas: e.target.value }))} placeholder="Kelas" className={inputClass} />
-            <input value={configForm.semester || ""} onChange={(e) => setConfigForm((c) => ({ ...c, semester: e.target.value }))} placeholder="Semester" className={inputClass} />
-            <input value={configForm.periode || ""} onChange={(e) => setConfigForm((c) => ({ ...c, periode: e.target.value }))} placeholder="Periode" className={inputClass} />
-            <select value={configForm.format_nilai || "angka"} onChange={(e) => setConfigForm((c) => ({ ...c, format_nilai: e.target.value as RaportConfig["format_nilai"] }))} className={inputClass}>
-              <option value="angka">Angka</option><option value="huruf">Huruf</option><option value="predikat">Predikat</option>
-            </select>
-          </div>
-          <button className="mt-4 rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">Tambah Konfigurasi</button>
-        </form>
-      ) : null}
+    <ModuleShell title="Raport Siswa" description="Admin mengatur tahun ajaran, semester, mapel per kelas, penugasan guru/siswa, lalu guru mengisi raport yang sudah dibuka.">
       <div className="rounded bg-white p-5 shadow-soft">
-        <select value={selectedSiswa} onChange={(e) => setSelectedSiswa(e.target.value)} className={inputClass}>
-          <option value="">Pilih siswa</option>
-          {siswa.map((item) => <option key={item.id} value={item.id}>{item.nama_lengkap} ({item.kelas || "-"})</option>)}
-        </select>
-        {selectedSiswa ? <div className="mt-5 grid gap-3 md:grid-cols-2">
-          {configs.map((config) => (
-            <label key={config.id} className="grid gap-2 text-sm font-semibold">
-              {config.mata_pelajaran} - {config.periode}
-              <input value={values[config.id] || ""} onChange={(e) => setValues((v) => ({ ...v, [config.id]: e.target.value }))} className={inputClass} />
-            </label>
-          ))}
-        </div> : null}
-        <button onClick={saveNilai} className="mt-4 rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">Simpan Nilai</button>
+        <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_1fr]">
+          <select value={selectedPeriod} onChange={(e) => { setSelectedPeriod(e.target.value); setSelectedSiswa(""); }} className={inputClass}>
+            <option value="">Pilih tahun ajaran / semester</option>
+            {periods.map((period) => <option key={period.id} value={period.id}>{period.nama || `${period.tahun_ajaran} - ${period.semester}`} ({period.status})</option>)}
+          </select>
+          <select value={selectedKelas} onChange={(e) => setSelectedKelas(e.target.value)} className={inputClass}>
+            <option value="">Semua kelas</option>
+            {kelasList.map((kelas) => <option key={kelas}>{kelas}</option>)}
+          </select>
+          <div className="rounded border border-gray-200 px-3 py-2 text-sm">
+            <span className="font-semibold">Status:</span> {selectedPeriodRow?.status || "-"}
+          </div>
+        </div>
         {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
       </div>
-      {selected ? <div className="rounded bg-white p-5 shadow-soft">
-        <h2 className="text-lg font-semibold">Preview Raport - {selected.nama_lengkap}</h2>
-        <div className="mt-4 grid gap-2">{configs.map((config) => <div key={config.id} className="flex justify-between rounded bg-gray-50 p-3 text-sm"><span>{config.mata_pelajaran}</span><span className="font-semibold">{values[config.id] || "-"}</span></div>)}</div>
-      </div> : null}
+
+      {isAdmin ? (
+        <>
+          <form onSubmit={savePeriod} className="rounded bg-white p-5 shadow-soft">
+            <h2 className="text-lg font-semibold">1. Tahun Ajaran & Semester</h2>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <input value={periodForm.tahun_ajaran} onChange={(e) => setPeriodForm((form) => ({ ...form, tahun_ajaran: e.target.value }))} placeholder="2026/2027" className={inputClass} />
+              <select value={periodForm.semester} onChange={(e) => setPeriodForm((form) => ({ ...form, semester: e.target.value }))} className={inputClass}><option>Ganjil</option><option>Genap</option></select>
+              <select value={periodForm.status} onChange={(e) => setPeriodForm((form) => ({ ...form, status: e.target.value as RaportPeriode["status"] }))} className={inputClass}><option value="draft">Draft</option><option value="aktif">Aktif</option><option value="terbuka">Terbuka untuk guru</option><option value="ditutup">Ditutup</option></select>
+              <input type="date" value={periodForm.tanggal_mulai} onChange={(e) => setPeriodForm((form) => ({ ...form, tanggal_mulai: e.target.value }))} className={inputClass} />
+              <input type="date" value={periodForm.tanggal_selesai} onChange={(e) => setPeriodForm((form) => ({ ...form, tanggal_selesai: e.target.value }))} className={inputClass} />
+              <input value={periodForm.catatan} onChange={(e) => setPeriodForm((form) => ({ ...form, catatan: e.target.value }))} placeholder="Catatan admin" className={inputClass} />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white"><Plus className="mr-2" size={17} />Buat Periode</button>
+              {(["draft", "aktif", "terbuka", "ditutup", "published"] as RaportPeriode["status"][]).map((status) => (
+                <button key={status} type="button" onClick={() => updatePeriodStatus(status)} className="rounded border px-3 py-2 text-sm font-semibold capitalize">{status}</button>
+              ))}
+            </div>
+          </form>
+
+          <form onSubmit={saveMapel} className="rounded bg-white p-5 shadow-soft">
+            <h2 className="text-lg font-semibold">2. Mata Pelajaran per Kelas</h2>
+            <div className="mt-4 grid gap-3 md:grid-cols-6">
+              <select value={mapelForm.kelas} onChange={(e) => setMapelForm((form) => ({ ...form, kelas: e.target.value }))} className={inputClass}><option value="">Kelas</option>{kelasList.map((kelas) => <option key={kelas}>{kelas}</option>)}</select>
+              <input value={mapelForm.mata_pelajaran} onChange={(e) => setMapelForm((form) => ({ ...form, mata_pelajaran: e.target.value }))} placeholder="Mata pelajaran" className={inputClass} />
+              <input value={mapelForm.kelompok} onChange={(e) => setMapelForm((form) => ({ ...form, kelompok: e.target.value }))} placeholder="Kelompok" className={inputClass} />
+              <select value={mapelForm.format_nilai} onChange={(e) => setMapelForm((form) => ({ ...form, format_nilai: e.target.value as RaportMapel["format_nilai"] }))} className={inputClass}><option value="angka">Angka</option><option value="huruf">Huruf</option><option value="predikat">Predikat</option></select>
+              <input type="number" value={mapelForm.kkm} onChange={(e) => setMapelForm((form) => ({ ...form, kkm: e.target.value }))} placeholder="KKM" className={inputClass} />
+              <input type="number" value={mapelForm.urutan} onChange={(e) => setMapelForm((form) => ({ ...form, urutan: Number(e.target.value) }))} placeholder="Urutan" className={inputClass} />
+            </div>
+            <button className="mt-4 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white"><Save className="mr-2" size={17} />Simpan Mapel</button>
+          </form>
+
+          <div className="rounded bg-white p-5 shadow-soft">
+            <h2 className="text-lg font-semibold">3. Assign Guru & Siswa</h2>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <select value={assignmentForm.guru_id} onChange={(e) => setAssignmentForm((form) => ({ ...form, guru_id: e.target.value }))} className={inputClass}><option value="">Pilih guru</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.nama_lengkap} {teacher.mata_pelajaran ? `- ${teacher.mata_pelajaran}` : ""}</option>)}</select>
+              <select value={assignmentForm.kelas} onChange={(e) => setAssignmentForm((form) => ({ ...form, kelas: e.target.value, mapel_id: "" }))} className={inputClass}><option value="">Pilih kelas</option>{kelasList.map((kelas) => <option key={kelas}>{kelas}</option>)}</select>
+              <select value={assignmentForm.mapel_id} onChange={(e) => setAssignmentForm((form) => ({ ...form, mapel_id: e.target.value }))} className={inputClass}><option value="">Pilih mapel</option>{mapel.filter((item) => item.kelas === assignmentForm.kelas).map((item) => <option key={item.id} value={item.id}>{item.mata_pelajaran}</option>)}</select>
+            </div>
+            {assignmentForm.kelas && assignmentForm.mapel_id ? (
+              <div className="mt-4 grid max-h-72 gap-2 overflow-y-auto rounded border border-gray-200 p-3 md:grid-cols-2">
+                {siswa.filter((item) => item.kelas === assignmentForm.kelas).map((item) => (
+                  <label key={item.id} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={assignedStudentIds.includes(item.id)} onChange={(event) => setAssignedStudentIds((cur) => event.target.checked ? [...cur, item.id] : cur.filter((id) => id !== item.id))} />
+                    {item.nama_lengkap} ({item.nis})
+                  </label>
+                ))}
+              </div>
+            ) : null}
+            <button onClick={saveAssignments} type="button" className="mt-4 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white"><UserCheck className="mr-2" size={17} />Simpan Penugasan</button>
+          </div>
+        </>
+      ) : null}
+
+      <div className="rounded bg-white p-5 shadow-soft">
+        <h2 className="text-lg font-semibold">{isAdmin ? "4. Pengisian & Preview Nilai" : "Pengisian Raport Guru"}</h2>
+        {!isAdmin && !canInput ? <p className="mt-3 rounded bg-amber-50 p-3 text-sm text-amber-800">Belum ada periode raport yang dibuka admin untuk pengisian nilai.</p> : null}
+        <select value={selectedSiswa} onChange={(e) => setSelectedSiswa(e.target.value)} className={`${inputClass} mt-4 w-full`}>
+          <option value="">Pilih siswa</option>
+          {inputSiswaList.map((item) => <option key={item.id} value={item.id}>{item.nama_lengkap} ({item.kelas || "-"})</option>)}
+        </select>
+        {selected ? (
+          <div className="mt-5 grid gap-4">
+            {inputMapel.length ? inputMapel.map((item) => (
+              <div key={item.id} className="grid gap-3 rounded border border-gray-200 p-4 md:grid-cols-[1fr_120px_120px_1.4fr]">
+                <div>
+                  <p className="font-semibold text-gray-950">{item.mata_pelajaran}</p>
+                  <p className="mt-1 text-xs text-gray-500">Kelas {item.kelas} {item.kkm ? `- KKM ${item.kkm}` : ""}</p>
+                </div>
+                <input value={values[item.id]?.nilai || ""} onChange={(e) => setValues((cur) => ({ ...cur, [item.id]: { nilai: e.target.value, predikat: cur[item.id]?.predikat || "", deskripsi: cur[item.id]?.deskripsi || "" } }))} placeholder="Nilai" className={inputClass} disabled={!canInput} />
+                <input value={values[item.id]?.predikat || ""} onChange={(e) => setValues((cur) => ({ ...cur, [item.id]: { nilai: cur[item.id]?.nilai || "", predikat: e.target.value, deskripsi: cur[item.id]?.deskripsi || "" } }))} placeholder="Predikat" className={inputClass} disabled={!canInput} />
+                <textarea value={values[item.id]?.deskripsi || ""} onChange={(e) => setValues((cur) => ({ ...cur, [item.id]: { nilai: cur[item.id]?.nilai || "", predikat: cur[item.id]?.predikat || "", deskripsi: e.target.value } }))} placeholder="Deskripsi capaian" rows={2} className="rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-700" disabled={!canInput} />
+              </div>
+            )) : <p className="rounded bg-gray-50 p-4 text-sm text-gray-600">Belum ada mapel untuk kelas siswa ini.</p>}
+            <div className="flex flex-wrap gap-2">
+              <button onClick={saveNilai} className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white"><Save className="mr-2" size={17} />Simpan Nilai</button>
+              {isAdmin ? <button onClick={() => generateRaportPdf(selected, false)} className="inline-flex items-center rounded border px-4 py-2 text-sm font-semibold"><Download className="mr-2" size={17} />Preview PDF</button> : null}
+              {isAdmin ? <button onClick={() => generateRaportPdf(selected, true)} className="inline-flex items-center rounded bg-gray-950 px-4 py-2 text-sm font-semibold text-white"><FileText className="mr-2" size={17} />Publish PDF</button> : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {isAdmin ? (
+        <>
+          <DataTable headers={["Kelas", "Mapel", "Kelompok", "Format", "KKM", "Aksi"]} rows={periodMapel.map((row) => [row.kelas, row.mata_pelajaran, row.kelompok || "-", row.format_nilai, row.kkm ?? "-", <button key="delete" onClick={() => deleteMapel(row)} className="rounded border px-3 py-2 text-xs font-semibold text-red-700">Hapus</button>])} />
+          <DataTable headers={["Guru", "Mapel", "Siswa", "Kelas"]} rows={assignments.map((row) => [row.guru?.nama_lengkap || "-", row.mapel?.mata_pelajaran || "-", row.siswa?.nama_lengkap || "-", row.kelas])} />
+          <DataTable headers={["Siswa", "Kelas", "Status", "Tanggal Publish", "PDF"]} rows={publishedRows.map((row) => [row.siswa?.nama_lengkap || "-", row.siswa?.kelas || "-", row.status, formatDate(row.published_at), row.pdf_url ? <a key="pdf" href={publicPdfUrl(row.pdf_url)} target="_blank" rel="noreferrer" className="font-semibold text-emerald-800">Buka PDF</a> : "-"])} />
+        </>
+      ) : null}
     </ModuleShell>
   );
 }
