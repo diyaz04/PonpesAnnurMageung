@@ -11,7 +11,7 @@ function RouteLoading() {
   return (
     <div className="grid min-h-screen place-items-center bg-cream-50 px-4">
       <div className="rounded bg-white px-6 py-5 text-center shadow-soft">
-        <p className="text-sm font-semibold text-gold-dark">
+        <p className="text-sm font-semibold text-green-700">
           Memeriksa sesi admin...
         </p>
       </div>
@@ -23,7 +23,7 @@ function AccessDenied() {
   return (
     <div className="grid min-h-[60vh] place-items-center px-4">
       <div className="max-w-md rounded bg-white p-6 text-center shadow-soft">
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-dark">
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-green-700">
           Akses Ditolak
         </p>
         <h1 className="mt-3 text-2xl font-semibold text-gray-950">

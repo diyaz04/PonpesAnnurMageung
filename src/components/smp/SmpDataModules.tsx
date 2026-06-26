@@ -228,7 +228,7 @@ function ModuleShell({
   return (
     <section className="grid gap-5">
       <div className="rounded bg-white p-6 shadow-soft">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold-dark">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">
           Modul Admin SMP
         </p>
         <h1 className="mt-3 text-2xl font-semibold text-gray-950">{title}</h1>
@@ -603,7 +603,7 @@ function DataSiswaModule() {
             type="button"
             disabled={generatingDocs || !filteredRows.length}
             onClick={downloadAllCards}
-            className="inline-flex items-center rounded bg-gold px-4 py-2 text-sm font-semibold text-emerald-950 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
+            className="inline-flex items-center rounded bg-green-500 px-4 py-2 text-sm font-semibold text-emerald-950 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
           >
             <Download className="mr-2" size={17} />
             {generatingDocs ? "Membuat PDF..." : "Download Semua Kartu"}
@@ -1446,7 +1446,7 @@ function PresensiModule() {
             <div className="mt-4 flex flex-wrap gap-2">
               <button onClick={startCamera} className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white"><Camera className="mr-2" size={17} />Aktifkan Kamera</button>
               <button onClick={stopCamera} className="rounded border px-4 py-2 text-sm font-semibold">Matikan</button>
-              {mode === "presensi" ? <button onClick={startRealtimeAttendance} className="rounded bg-gold px-4 py-2 text-sm font-semibold text-emerald-950">Mulai Real-time</button> : null}
+              {mode === "presensi" ? <button onClick={startRealtimeAttendance} className="rounded bg-green-500 px-4 py-2 text-sm font-semibold text-emerald-950">Mulai Real-time</button> : null}
             </div>
           </div>
           {mode === "enroll" ? (

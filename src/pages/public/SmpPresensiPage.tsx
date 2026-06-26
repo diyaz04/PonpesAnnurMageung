@@ -117,10 +117,10 @@ function AccessGate({ onUnlock }: { onUnlock: () => void }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-navy px-4">
+    <div className="flex min-h-screen items-center justify-center bg-green-950 px-4">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-gold/10 blur-3xl" />
-        <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-navy-mid/60 blur-3xl" />
+        <div className="absolute -top-32 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-green-400/10 blur-3xl" />
+        <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-green-800/60 blur-3xl" />
       </div>
       <div className="absolute inset-0 bg-hero-grid bg-[size:48px_48px] opacity-20" />
 
@@ -142,16 +142,16 @@ function AccessGate({ onUnlock }: { onUnlock: () => void }) {
 
         <div className="mb-8 flex flex-col items-center gap-4">
           <div className="relative">
-            <div className="absolute -inset-3 rounded-3xl bg-gold/20 blur-xl" />
+            <div className="absolute -inset-3 rounded-3xl bg-green-400/20 blur-xl" />
             <img
               src={smpLogoUrl}
               alt="SMP Ma'arif NU"
-              className="relative h-20 w-20 rounded-2xl border-2 border-gold/30 bg-white object-contain p-2 shadow-2xl"
+              className="relative h-20 w-20 rounded-2xl border-2 border-green-400/30 bg-white object-contain p-2 shadow-2xl"
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
           </div>
           <div className="text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold-soft/70">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-300/70">
               SMP Ma'arif NU Sariwangi
             </p>
             <h1 className="mt-1 font-display text-2xl font-bold text-white">
@@ -165,8 +165,8 @@ function AccessGate({ onUnlock }: { onUnlock: () => void }) {
 
         <div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
           <div className="mb-6 flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gold/20">
-              <KeyRound className="text-gold" size={20} />
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-green-400/20">
+              <KeyRound className="text-green-400" size={20} />
             </div>
             <div>
               <p className="text-sm font-semibold text-white">Masukkan Kode Akses</p>
@@ -185,7 +185,7 @@ function AccessGate({ onUnlock }: { onUnlock: () => void }) {
               "w-full rounded-xl border bg-white/5 px-4 py-3.5 text-sm text-white placeholder-white/30 outline-none transition-all",
               error
                 ? "border-red-400/60 focus:border-red-400"
-                : "border-white/15 focus:border-gold/50 focus:ring-2 focus:ring-gold/20",
+                : "border-white/15 focus:border-green-400/50 focus:ring-2 focus:ring-green-500/20",
             ].join(" ")}
           />
 
@@ -198,7 +198,7 @@ function AccessGate({ onUnlock }: { onUnlock: () => void }) {
 
           <button
             onClick={tryUnlock}
-            className="mt-4 w-full rounded-xl bg-gold py-3.5 text-sm font-bold text-navy transition hover:-translate-y-0.5 hover:bg-gold-soft active:translate-y-0"
+            className="mt-4 w-full rounded-xl bg-green-500 py-3.5 text-sm font-bold text-green-950 transition hover:-translate-y-0.5 hover:bg-green-200 active:translate-y-0"
           >
             Buka Halaman Presensi
           </button>
@@ -488,16 +488,16 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
   const pct = totalSiswa > 0 ? Math.round((totalSiswaHadir / totalSiswa) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-navy text-white">
+    <div className="min-h-screen bg-green-950 text-white">
       {/* Ambient */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-32 right-0 h-[500px] w-[500px] rounded-full bg-gold/8 blur-3xl" />
-        <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-navy-mid/40 blur-3xl" />
+        <div className="absolute -top-32 right-0 h-[500px] w-[500px] rounded-full bg-green-500/8 blur-3xl" />
+        <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-green-800/40 blur-3xl" />
         <div className="absolute inset-0 bg-hero-grid bg-[size:48px_48px] opacity-15" />
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-navy/90 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-green-950/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <Link to="/smp" className="flex items-center gap-3">
             <img
@@ -507,7 +507,7 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
             <div className="leading-tight">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gold-soft/70">SMP Ma'arif NU</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-green-300/70">SMP Ma'arif NU</p>
               <p className="text-sm font-bold text-white">Presensi Digital</p>
             </div>
           </Link>
@@ -555,7 +555,7 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
             <div className="border-b border-white/10 px-5 py-4">
               <h2 className="flex items-center gap-2 text-base font-bold text-white">
-                <Scan size={18} className="text-gold" />
+                <Scan size={18} className="text-green-400" />
                 Kamera Presensi
               </h2>
               <p className="mt-0.5 text-xs text-white/40">
@@ -563,7 +563,7 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
               </p>
             </div>
 
-            <div className="relative bg-navy-950">
+            <div className="relative bg-green-950">
               <div className="relative aspect-video">
                 <video
                   ref={videoRef}
@@ -591,12 +591,12 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
                       height: `${(faceBox.h / 720) * 100}%`,
                     }}
                   >
-                    <span className="absolute left-0 top-0 h-6 w-6 border-l-2 border-t-2 border-gold" />
-                    <span className="absolute right-0 top-0 h-6 w-6 border-r-2 border-t-2 border-gold" />
-                    <span className="absolute bottom-0 left-0 h-6 w-6 border-b-2 border-l-2 border-gold" />
-                    <span className="absolute bottom-0 right-0 h-6 w-6 border-b-2 border-r-2 border-gold" />
+                    <span className="absolute left-0 top-0 h-6 w-6 border-l-2 border-t-2 border-green-500" />
+                    <span className="absolute right-0 top-0 h-6 w-6 border-r-2 border-t-2 border-green-500" />
+                    <span className="absolute bottom-0 left-0 h-6 w-6 border-b-2 border-l-2 border-green-500" />
+                    <span className="absolute bottom-0 right-0 h-6 w-6 border-b-2 border-r-2 border-green-500" />
                     {confidence !== null && (
-                      <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gold px-2.5 py-0.5 text-[11px] font-bold text-navy">
+                      <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-green-500 px-2.5 py-0.5 text-[11px] font-bold text-green-950">
                         {Math.round(confidence * 100)}%
                       </span>
                     )}
@@ -604,7 +604,7 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
                 )}
 
                 {!cameraOn && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-navy-950">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-green-950">
                     <CameraOff size={40} className="text-white/20" />
                     <p className="text-sm text-white/40">Kamera belum aktif</p>
                   </div>
@@ -612,13 +612,13 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
 
                 {scanning && (
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                    <span className="h-32 w-32 animate-ping rounded-full border-2 border-gold/30" />
+                    <span className="h-32 w-32 animate-ping rounded-full border-2 border-green-400/30" />
                   </div>
                 )}
               </div>
 
               {statusMsg && (
-                <div className="border-t border-white/5 bg-navy/80 px-4 py-2.5 text-center text-sm text-white/70">
+                <div className="border-t border-white/5 bg-green-950/80 px-4 py-2.5 text-center text-sm text-white/70">
                   {modelLoading && <Loader2 size={14} className="mr-2 inline animate-spin" />}
                   {statusMsg}
                 </div>
@@ -631,7 +631,7 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
                 <button
                   onClick={startCamera}
                   disabled={cameraLoading || modelLoading}
-                  className="flex items-center gap-2 rounded-xl bg-gold px-5 py-2.5 text-sm font-bold text-navy disabled:opacity-60"
+                  className="flex items-center gap-2 rounded-xl bg-green-500 px-5 py-2.5 text-sm font-bold text-green-950 disabled:opacity-60"
                 >
                   {cameraLoading || modelLoading ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -705,13 +705,13 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
               </div>
 
               {/* Cara penggunaan */}
-              <div className="m-4 rounded-2xl border border-gold/20 bg-gold/8 p-3.5">
-                <p className="text-xs font-semibold text-gold-soft">Cara Penggunaan:</p>
+              <div className="m-4 rounded-2xl border border-green-400/20 bg-green-500/8 p-3.5">
+                <p className="text-xs font-semibold text-green-300">Cara Penggunaan:</p>
                 <ol className="mt-1.5 space-y-1 text-xs text-white/50">
-                  <li className="flex gap-2"><span className="font-bold text-gold/60">1.</span> Aktifkan kamera</li>
-                  <li className="flex gap-2"><span className="font-bold text-gold/60">2.</span> Klik "Mulai Scan Otomatis"</li>
-                  <li className="flex gap-2"><span className="font-bold text-gold/60">3.</span> Arahkan wajah ke kamera</li>
-                  <li className="flex gap-2"><span className="font-bold text-gold/60">4.</span> Presensi tercatat otomatis</li>
+                  <li className="flex gap-2"><span className="font-bold text-green-400/60">1.</span> Aktifkan kamera</li>
+                  <li className="flex gap-2"><span className="font-bold text-green-400/60">2.</span> Klik "Mulai Scan Otomatis"</li>
+                  <li className="flex gap-2"><span className="font-bold text-green-400/60">3.</span> Arahkan wajah ke kamera</li>
+                  <li className="flex gap-2"><span className="font-bold text-green-400/60">4.</span> Presensi tercatat otomatis</li>
                 </ol>
               </div>
             </div>
@@ -720,7 +720,7 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
             <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur overflow-hidden flex-1">
               <div className="border-b border-white/10 px-5 py-4">
                 <h3 className="flex items-center gap-2 text-sm font-bold text-white">
-                  <UserCheck size={16} className="text-gold" />
+                  <UserCheck size={16} className="text-green-400" />
                   Sudah Hadir Hari Ini
                 </h3>
                 <p className="mt-0.5 text-xs text-white/40">{tanggalLabel}</p>
@@ -730,11 +730,11 @@ function PresensiApp({ onLock }: { onLock: () => void }) {
               <div className="border-b border-white/10 px-5 py-3">
                 <div className="mb-1.5 flex items-center justify-between">
                   <span className="text-xs font-semibold text-white/60">{totalSiswaHadir} dari {totalSiswa} siswa</span>
-                  <span className="text-xs font-bold text-gold">{pct}%</span>
+                  <span className="text-xs font-bold text-green-400">{pct}%</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-gold to-gold-soft transition-all duration-500"
+                    className="h-full rounded-full bg-gradient-to-r from-green-500 to-green-300 transition-all duration-500"
                     style={{ width: `${pct}%` }}
                   />
                 </div>

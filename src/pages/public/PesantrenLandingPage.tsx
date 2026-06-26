@@ -518,7 +518,7 @@ export default function PesantrenLandingPage() {
 
   return (
     <div className="public-page">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-navy/95 text-white shadow-[0_10px_40px_rgba(7,21,33,.16)] backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-green-950/95 text-white shadow-[0_10px_40px_rgba(16,43,30,.16)] backdrop-blur-xl">
         <nav className="section-shell flex h-[76px] items-center justify-between">
           <a href="#beranda" className="flex items-center gap-3">
             {logoUrl ? (
@@ -528,12 +528,12 @@ export default function PesantrenLandingPage() {
                 className="h-12 w-12 rounded-2xl border border-white/15 bg-white object-contain p-1 shadow-lg"
               />
             ) : (
-              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gold text-sm font-black text-navy">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-green-500 text-sm font-black text-green-950">
                 AN
               </span>
             )}
             <span className="leading-tight">
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-soft">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-green-300">
                 Pondok Pesantren
               </span>
               <span className="mt-1 block text-sm font-bold text-white">
@@ -554,7 +554,7 @@ export default function PesantrenLandingPage() {
             ))}
             <Link
               to="/admin/pesantren"
-              className="ml-2 inline-flex items-center justify-center rounded-full border border-gold/40 bg-gold px-4 py-2.5 text-[13px] font-bold text-navy transition hover:-translate-y-0.5 hover:bg-gold-soft"
+              className="ml-2 inline-flex items-center justify-center rounded-full border border-green-400/40 bg-green-500 px-4 py-2.5 text-[13px] font-bold text-green-950 transition hover:-translate-y-0.5 hover:bg-green-200"
             >
               Login Dashboard
             </Link>
@@ -571,7 +571,7 @@ export default function PesantrenLandingPage() {
         </nav>
 
         {mobileOpen ? (
-          <div className="border-t border-white/10 bg-navy-950 px-4 py-4 shadow-2xl lg:hidden">
+          <div className="border-t border-white/10 bg-green-950 px-4 py-4 shadow-2xl lg:hidden">
             <div className="mx-auto grid max-w-7xl gap-1">
               {navItems.map((item) => (
                 <a
@@ -585,7 +585,7 @@ export default function PesantrenLandingPage() {
               ))}
               <Link
                 to="/admin/pesantren"
-                className="mt-2 inline-flex items-center justify-center rounded-xl bg-gold px-4 py-3 text-sm font-bold text-navy"
+                className="mt-2 inline-flex items-center justify-center rounded-xl bg-green-500 px-4 py-3 text-sm font-bold text-green-950"
                 onClick={() => setMobileOpen(false)}
               >
                 Login Dashboard Pesantren
@@ -595,7 +595,7 @@ export default function PesantrenLandingPage() {
         ) : null}
       </header>
 
-      <section id="beranda" className="relative isolate overflow-hidden bg-navy text-white">
+      <section id="beranda" className="relative isolate overflow-hidden bg-green-950 text-white">
         <div className="absolute inset-0 -z-20">
           <img
             src={heroImage}
@@ -604,14 +604,14 @@ export default function PesantrenLandingPage() {
             className="h-full w-full object-cover"
             style={{ opacity: heroBackgroundOpacity }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-navy-950/95 via-navy-950/90 to-navy/75" />
-          <div className="absolute inset-0 bg-navy/25" />
+          <div className="absolute inset-0 bg-gradient-to-r from-green-950/95 via-green-950/90 to-green-900/75" />
+          <div className="absolute inset-0 bg-green-900/25" />
         </div>
         <div className="absolute inset-0 -z-10 bg-hero-grid bg-[size:52px_52px] opacity-40" />
-        <div className="absolute -right-32 top-16 -z-10 h-96 w-96 rounded-full bg-gold/15 blur-3xl" />
+        <div className="absolute -right-32 top-16 -z-10 h-96 w-96 rounded-full bg-green-400/15 blur-3xl" />
         <div className="section-shell grid min-h-[calc(100svh-76px)] items-center gap-12 py-16 lg:grid-cols-[1.05fr_.95fr] lg:py-20">
           <div className="relative z-10 min-w-0">
-            <p className="inline-flex max-w-full items-center gap-2 rounded-2xl border border-gold/30 bg-gold/10 px-3 py-2 text-[10px] font-bold uppercase leading-4 tracking-[0.12em] text-gold-soft sm:rounded-full sm:px-4 sm:text-xs sm:tracking-[0.18em]">
+            <p className="inline-flex max-w-full items-center gap-2 rounded-2xl border border-green-400/30 bg-green-400/10 px-3 py-2 text-[10px] font-bold uppercase leading-4 tracking-[0.12em] text-green-300 sm:rounded-full sm:px-4 sm:text-xs sm:tracking-[0.18em]">
               <Sparkles className="shrink-0" size={15} />
               <span>Pendidikan Islam & Pembinaan Karakter</span>
             </p>
@@ -624,7 +624,7 @@ export default function PesantrenLandingPage() {
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <a
                 href={getContent("hero", "cta_primary_url", "#saran")}
-                className="inline-flex items-center justify-center rounded-full bg-gold px-6 py-3.5 text-sm font-bold text-navy shadow-glow transition hover:-translate-y-0.5 hover:bg-gold-soft"
+                className="inline-flex items-center justify-center rounded-full bg-green-500 px-6 py-3.5 text-sm font-bold text-green-950 shadow-glow transition hover:-translate-y-0.5 hover:bg-green-200"
               >
                 {getContent("hero", "cta_primary_text", "Daftar Santri Baru")}
                 <ArrowUpRight className="ml-2" size={18} />
@@ -643,24 +643,24 @@ export default function PesantrenLandingPage() {
                 ["Beradab", "Budaya Santri"],
               ].map(([value, label]) => (
                 <div key={label}>
-                  <p className="font-display text-xl font-bold text-gold-soft sm:text-2xl">{value}</p>
+                  <p className="font-display text-xl font-bold text-green-300 sm:text-2xl">{value}</p>
                   <p className="mt-1 text-[11px] leading-4 text-white/50 sm:text-xs">{label}</p>
                 </div>
               ))}
             </div>
           </div>
           <div className="relative mx-auto min-w-0 w-full max-w-xl lg:ml-auto">
-            <div className="absolute -left-5 top-12 h-32 w-32 rounded-full border border-gold/20" />
-            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-3xl bg-gold/20 blur-xl" />
+            <div className="absolute -left-5 top-12 h-32 w-32 rounded-full border border-green-400/20" />
+            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-3xl bg-green-400/20 blur-xl" />
             <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur">
               <img
                 src={heroImage}
                 alt="Foto Pondok Pesantren An-Nur Mageung"
                 className="aspect-[4/5] w-full rounded-[1.55rem] object-cover sm:aspect-[5/4] lg:aspect-[4/5]"
               />
-              <div className="absolute inset-x-5 bottom-5 rounded-2xl border border-white/20 bg-navy/80 p-4 backdrop-blur-xl sm:p-5">
+              <div className="absolute inset-x-5 bottom-5 rounded-2xl border border-white/20 bg-green-950/80 p-4 backdrop-blur-xl sm:p-5">
                 <div className="flex items-start gap-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold text-navy">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-green-500 text-green-950">
                     <BookOpen size={21} />
                   </span>
                   <div>
@@ -673,7 +673,7 @@ export default function PesantrenLandingPage() {
               </div>
             </div>
             <div className="glass-card animate-float-slow absolute -left-3 top-8 hidden rounded-2xl p-3 sm:flex sm:items-center sm:gap-3 lg:-left-14">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-gold text-navy"><ShieldCheck size={20} /></span>
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-green-500 text-green-950"><ShieldCheck size={20} /></span>
               <div><p className="text-xs font-bold">Lingkungan Aman</p><p className="text-[11px] text-white/55">Terarah & terpantau</p></div>
             </div>
           </div>
@@ -705,8 +705,8 @@ export default function PesantrenLandingPage() {
               className={[
                 "shrink-0 rounded-full border px-5 py-2.5 text-sm font-semibold transition",
                 activeProfile === key
-                  ? "border-navy bg-navy text-white shadow-lg"
-                  : "border-navy/10 bg-white text-slate-600 hover:border-navy/25 hover:text-navy",
+                  ? "border-green-950 bg-green-950 text-white shadow-lg"
+                  : "border-green-900/10 bg-white text-slate-600 hover:border-green-900/25 hover:text-green-950",
               ].join(" ")}
             >
               {label}
@@ -718,7 +718,7 @@ export default function PesantrenLandingPage() {
           {activeProfile === "visi" ? (
             <div className="grid gap-5 md:grid-cols-2">
               <article className="premium-card p-6 sm:p-8">
-                <h3 className="font-display text-2xl font-bold text-navy">Visi</h3>
+                <h3 className="font-display text-2xl font-bold text-green-950">Visi</h3>
                 <p className="mt-4 leading-7 text-gray-700">
                   {getContent(
                     "profil",
@@ -728,7 +728,7 @@ export default function PesantrenLandingPage() {
                 </p>
               </article>
               <article className="premium-card p-6 sm:p-8">
-                <h3 className="font-display text-2xl font-bold text-navy">Misi</h3>
+                <h3 className="font-display text-2xl font-bold text-green-950">Misi</h3>
                 <p className="mt-4 whitespace-pre-line leading-7 text-gray-700">
                   {getContent(
                     "profil",
@@ -742,7 +742,7 @@ export default function PesantrenLandingPage() {
 
           {activeProfile === "sejarah" ? (
             <article className="premium-card p-6 sm:p-8">
-              <h3 className="text-xl font-semibold text-navy">
+              <h3 className="text-xl font-semibold text-green-950">
                 Sejarah Singkat
               </h3>
               <p className="mt-4 whitespace-pre-line leading-8 text-gray-700">
@@ -767,7 +767,7 @@ export default function PesantrenLandingPage() {
                   <h3 className="mt-4 text-lg font-semibold text-gray-950">
                     {leader.nama}
                   </h3>
-                  <p className="mt-1 text-sm font-semibold text-navy-mid">
+                  <p className="mt-1 text-sm font-semibold text-green-700">
                     {leader.jabatan}
                   </p>
                   <p className="mt-3 text-sm leading-6 text-gray-600">
@@ -780,7 +780,7 @@ export default function PesantrenLandingPage() {
 
           {activeProfile === "tertib" ? (
             <article className="premium-card p-6 sm:p-8">
-              <h3 className="text-xl font-semibold text-navy">Tata Tertib</h3>
+              <h3 className="text-xl font-semibold text-green-950">Tata Tertib</h3>
               <p className="mt-4 whitespace-pre-line leading-8 text-gray-700">
                 {getContent(
                   "profil",
@@ -818,15 +818,15 @@ export default function PesantrenLandingPage() {
         </div>
       </section>
 
-      <section className="relative isolate overflow-hidden bg-navy py-16 text-white">
+      <section className="relative isolate overflow-hidden bg-green-950 py-16 text-white">
         <div className="absolute inset-0 -z-10 bg-hero-grid bg-[size:52px_52px] opacity-30" />
         <div className="section-shell">
-          <p className="section-kicker !text-gold-soft">
+          <p className="section-kicker !text-green-300">
             Lembaga di Bawah Pesantren
           </p>
           <div className="mt-6 grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
             <div className="flex gap-4">
-              <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gold text-lg font-black text-navy shadow-glow">
+              <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-green-500 text-lg font-black text-green-950 shadow-glow">
                 SMP
               </span>
               <div>
@@ -840,7 +840,7 @@ export default function PesantrenLandingPage() {
             </div>
             <Link
               to="/smp"
-              className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3.5 text-sm font-bold text-navy transition hover:-translate-y-0.5 hover:bg-cream-100"
+              className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3.5 text-sm font-bold text-green-950 transition hover:-translate-y-0.5 hover:bg-cream-100"
             >
               Kunjungi Website
               <ExternalLink className="ml-2" size={17} />
@@ -874,10 +874,10 @@ export default function PesantrenLandingPage() {
                   className="image-zoom aspect-[16/10] w-full object-cover"
                 />
                 <div className="p-5">
-                  <p className="text-sm text-navy-mid">
+                  <p className="text-sm text-green-700">
                     {formatDate(item.tanggal || item.created_at)}
                   </p>
-                  <h3 className="mt-2 font-display text-xl font-bold leading-7 text-navy">
+                  <h3 className="mt-2 font-display text-xl font-bold leading-7 text-green-950">
                     {item.judul}
                   </h3>
                   <p className="mt-3 text-sm leading-6 text-gray-600">
@@ -894,7 +894,7 @@ export default function PesantrenLandingPage() {
         </div>
       </section>
 
-      <section id="agenda" className="border-y border-navy/5 bg-white py-20 sm:py-24">
+      <section id="agenda" className="border-y border-green-900/5 bg-white py-20 sm:py-24">
         <div className="section-shell">
           <p className="section-kicker">
             Agenda
@@ -907,9 +907,9 @@ export default function PesantrenLandingPage() {
               agenda.map((item) => (
                 <article
                   key={item.id}
-                  className="grid gap-4 rounded-2xl border border-navy/10 bg-[#f9f8f4] p-5 transition hover:border-gold/50 hover:shadow-soft md:grid-cols-[180px_1fr]"
+                  className="grid gap-4 rounded-2xl border border-green-900/10 bg-[#f9f8f4] p-5 transition hover:border-green-400/50 hover:shadow-soft md:grid-cols-[180px_1fr]"
                 >
-                  <div className="flex items-center gap-3 text-navy">
+                  <div className="flex items-center gap-3 text-green-950">
                     <CalendarDays size={22} />
                     <span className="font-semibold">{formatDate(item.tanggal)}</span>
                   </div>
@@ -918,7 +918,7 @@ export default function PesantrenLandingPage() {
                       {item.judul}
                     </h3>
                     {item.lokasi ? (
-                      <p className="mt-1 text-sm font-medium text-navy-mid">
+                      <p className="mt-1 text-sm font-medium text-green-700">
                         {item.lokasi}
                       </p>
                     ) : null}
@@ -931,7 +931,7 @@ export default function PesantrenLandingPage() {
                 </article>
               ))
             ) : (
-              <div className="rounded border border-navy/10 bg-krem-50 p-6 text-sm text-gray-600">
+              <div className="rounded border border-green-900/10 bg-krem-50 p-6 text-sm text-gray-600">
                 Agenda terdekat belum tersedia.
               </div>
             )}
@@ -955,8 +955,8 @@ export default function PesantrenLandingPage() {
               className={[
                 "shrink-0 rounded-full border px-5 py-2.5 text-sm font-semibold",
                 activeAlbum === album
-                  ? "border-emerald-800 bg-navy text-white"
-                  : "border-navy/15 bg-white text-gray-700",
+                  ? "border-emerald-800 bg-green-950 text-white"
+                  : "border-green-900/15 bg-white text-gray-700",
               ].join(" ")}
             >
               {album}
@@ -972,7 +972,7 @@ export default function PesantrenLandingPage() {
               className="premium-card group overflow-hidden text-left"
             >
               {item.tipe === "video" ? (
-                <div className="grid aspect-[4/3] place-items-center bg-navy text-white">
+                <div className="grid aspect-[4/3] place-items-center bg-green-950 text-white">
                   <ImageIcon size={32} />
                 </div>
               ) : (
@@ -983,7 +983,7 @@ export default function PesantrenLandingPage() {
                 />
               )}
               <div className="p-4">
-                <p className="text-sm font-semibold text-navy">
+                <p className="text-sm font-semibold text-green-950">
                   {item.album || "Umum"}
                 </p>
                 <p className="mt-1 text-sm text-gray-600">
@@ -995,11 +995,11 @@ export default function PesantrenLandingPage() {
         </div>
       </section>
 
-      <section id="cek-santri" className="relative isolate overflow-hidden bg-navy py-20 text-white sm:py-24">
+      <section id="cek-santri" className="relative isolate overflow-hidden bg-green-950 py-20 text-white sm:py-24">
         <div className="absolute inset-0 -z-10 bg-hero-grid bg-[size:52px_52px] opacity-30" />
         <div className="section-shell grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
           <div>
-            <p className="section-kicker !text-gold-soft">
+            <p className="section-kicker !text-green-300">
               Cek Pembayaran & Record Santri
             </p>
             <h2 className="mt-4 font-display text-3xl font-bold sm:text-5xl">
@@ -1019,7 +1019,7 @@ export default function PesantrenLandingPage() {
               <button
                 type="submit"
                 disabled={lookupLoading}
-                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-gold px-5 text-sm font-bold text-navy transition hover:bg-gold-soft disabled:opacity-70"
+                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-green-500 px-5 text-sm font-bold text-green-950 transition hover:bg-green-200 disabled:opacity-70"
               >
                 <Search className="mr-2" size={18} />
                 {lookupLoading ? "Memeriksa..." : "Cek Data"}
@@ -1043,7 +1043,7 @@ export default function PesantrenLandingPage() {
                       className="h-24 w-24 rounded object-cover"
                     />
                   ) : (
-                    <div className="grid h-24 w-24 place-items-center rounded bg-navy-50 text-navy">
+                    <div className="grid h-24 w-24 place-items-center rounded bg-green-50 text-green-950">
                       <FileText size={28} />
                     </div>
                   )}
@@ -1052,7 +1052,7 @@ export default function PesantrenLandingPage() {
                     <p className="mt-1 text-sm text-gray-600">
                       NIS {lookup.santri.nis} - {lookup.santri.kelas}
                     </p>
-                    <p className="mt-2 inline-flex rounded bg-navy-50 px-3 py-1 text-sm font-semibold capitalize text-navy-mid">
+                    <p className="mt-2 inline-flex rounded bg-green-50 px-3 py-1 text-sm font-semibold capitalize text-green-700">
                       {lookup.santri.status}
                     </p>
                   </div>
@@ -1064,7 +1064,7 @@ export default function PesantrenLandingPage() {
                     <button
                       type="button"
                       onClick={downloadStudentSummary}
-                      className="inline-flex items-center rounded border border-navy/15 px-3 py-2 text-sm font-semibold text-navy hover:bg-navy-50"
+                      className="inline-flex items-center rounded border border-green-900/15 px-3 py-2 text-sm font-semibold text-green-950 hover:bg-green-50"
                     >
                       <Download className="mr-2" size={16} />
                       Unduh Rekap PDF
@@ -1086,7 +1086,7 @@ export default function PesantrenLandingPage() {
                                 Jatuh tempo {formatDate(bill.jatuh_tempo)}
                               </p>
                             </div>
-                            <span className="rounded bg-navy-50 px-3 py-1 text-sm font-semibold capitalize text-navy-mid">
+                            <span className="rounded bg-green-50 px-3 py-1 text-sm font-semibold capitalize text-green-700">
                               {bill.status.replace("_", " ")}
                             </span>
                           </div>
@@ -1111,7 +1111,7 @@ export default function PesantrenLandingPage() {
                                       href={payment.kuitansi_url}
                                       target="_blank"
                                       rel="noreferrer"
-                                      className="inline-flex items-center font-semibold text-navy-mid"
+                                      className="inline-flex items-center font-semibold text-green-700"
                                     >
                                       Unduh Kuitansi
                                       <Download className="ml-1" size={14} />
@@ -1157,7 +1157,7 @@ export default function PesantrenLandingPage() {
             ) : (
               <div className="grid min-h-[360px] place-items-center rounded border border-dashed border-emerald-900/20 bg-krem-50 p-6 text-center">
                 <div>
-                  <CheckCircle2 className="mx-auto text-navy-mid" size={36} />
+                  <CheckCircle2 className="mx-auto text-green-700" size={36} />
                   <p className="mt-4 font-semibold text-gray-950">
                     Data akan muncul setelah kode valid.
                   </p>
@@ -1194,7 +1194,7 @@ export default function PesantrenLandingPage() {
                 onChange={(event) =>
                   setSuggestionForm((form) => ({ ...form, nama: event.target.value }))
                 }
-                className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-navy-light"
+                className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
               />
             </label>
             <label className="grid gap-2 text-sm font-semibold text-gray-700">
@@ -1207,7 +1207,7 @@ export default function PesantrenLandingPage() {
                     kontak: event.target.value,
                   }))
                 }
-                className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-navy-light"
+                className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
               />
             </label>
           </div>
@@ -1219,26 +1219,26 @@ export default function PesantrenLandingPage() {
                 setSuggestionForm((form) => ({ ...form, pesan: event.target.value }))
               }
               rows={5}
-              className="rounded border border-gray-200 px-3 py-3 font-normal outline-none focus:ring-2 focus:ring-navy-light"
+              className="rounded border border-gray-200 px-3 py-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
             />
           </label>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               type="submit"
               disabled={suggestionLoading}
-              className="inline-flex items-center justify-center rounded bg-navy px-5 py-3 text-sm font-semibold text-white hover:bg-navy disabled:opacity-70"
+              className="inline-flex items-center justify-center rounded bg-green-950 px-5 py-3 text-sm font-semibold text-white hover:bg-green-950 disabled:opacity-70"
             >
               <MessageSquare className="mr-2" size={18} />
               {suggestionLoading ? "Mengirim..." : "Kirim Pesan"}
             </button>
             {suggestionStatus ? (
-              <p className="text-sm font-medium text-navy-mid">{suggestionStatus}</p>
+              <p className="text-sm font-medium text-green-700">{suggestionStatus}</p>
             ) : null}
           </div>
         </form>
       </section>
 
-      <footer className="border-t border-white/10 bg-navy-950 text-white">
+      <footer className="border-t border-white/10 bg-green-950 text-white">
         <div className="section-shell grid gap-8 py-12 md:grid-cols-[1.2fr_0.8fr]">
           <div>
             <h2 className="font-display text-2xl font-bold text-white">
@@ -1270,7 +1270,7 @@ export default function PesantrenLandingPage() {
                     href={url}
                     target="_blank"
                     rel="noreferrer"
-                    className="capitalize text-gold-soft hover:text-white"
+                    className="capitalize text-green-300 hover:text-white"
                   >
                     {item}
                   </a>

@@ -6,20 +6,20 @@ const config: Config = {
     extend: {
       colors: {
         navy: {
-          DEFAULT: "#0B1F33",
-          50: "#F1F6F8",
-          100: "#DDE9EE",
-          200: "#B8CED8",
-          300: "#89AABB",
-          400: "#5C849A",
-          500: "#3F687F",
-          600: "#315269",
-          700: "#294355",
-          800: "#233847",
-          900: "#0B1F33",
-          950: "#071521",
-          mid: "#123B52",
-          light: "#2A6074",
+          DEFAULT: "#102B1E",
+          50: "#EBF9F2",
+          100: "#C0EDD5",
+          200: "#7DD4A4",
+          300: "#5ABF88",
+          400: "#3DB872",
+          500: "#2E8A5A",
+          600: "#1E5C40",
+          700: "#194E37",
+          800: "#14402E",
+          900: "#102B1E",
+          950: "#0A1E14",
+          mid: "#1E5C40",
+          light: "#2E8A5A",
         },
         cream: {
           50: "#FFFCF4",
@@ -27,10 +27,10 @@ const config: Config = {
           200: "#EFE2BF",
         },
         gold: {
-          DEFAULT: "#D4AF37",
-          deep: "#C9A84C",
-          dark: "#8F7423",
-          soft: "#F2E4B0",
+          DEFAULT: "#3DB872",
+          deep: "#2E8A5A",
+          dark: "#1E5C40",
+          soft: "#C0EDD5",
         },
       },
       fontFamily: {
@@ -49,9 +49,9 @@ const config: Config = {
         ],
       },
       boxShadow: {
-        soft: "0 18px 50px rgba(11, 31, 51, 0.09)",
-        card: "0 24px 70px rgba(11, 31, 51, 0.12)",
-        glow: "0 18px 48px rgba(212, 175, 55, 0.2)",
+        soft: "0 18px 50px rgba(16, 43, 30, 0.09)",
+        card: "0 24px 70px rgba(16, 43, 30, 0.12)",
+        glow: "0 18px 48px rgba(61, 184, 114, 0.25)",
       },
       backgroundImage: {
         "hero-grid":

@@ -276,7 +276,7 @@ export default function SmpLandingPage() {
 
   return (
     <div className="public-page">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-navy/95 text-white shadow-[0_10px_40px_rgba(7,21,33,.16)] backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-green-950/95 text-white shadow-[0_10px_40px_rgba(16,43,30,.16)] backdrop-blur-xl">
         <nav className="section-shell flex h-[76px] items-center justify-between">
           <a href="#beranda" className="flex items-center gap-3">
             {logoUrl ? (
@@ -286,12 +286,12 @@ export default function SmpLandingPage() {
                 className="h-12 w-12 rounded-2xl border border-white/15 bg-white object-contain p-1 shadow-lg"
               />
             ) : (
-              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gold text-sm font-black text-navy">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-green-500 text-sm font-black text-green-950">
                 SMP
               </span>
             )}
             <span className="leading-tight">
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-soft">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-green-300">
                 SMP Ma'arif NU
               </span>
               <span className="mt-1 block text-sm font-bold text-white">Sariwangi</span>
@@ -317,7 +317,7 @@ export default function SmpLandingPage() {
             </Link>
             <Link
               to="/admin/smp"
-              className="ml-2 inline-flex items-center justify-center rounded-full border border-gold/40 bg-gold px-4 py-2.5 text-[13px] font-bold text-navy transition hover:-translate-y-0.5 hover:bg-gold-soft"
+              className="ml-2 inline-flex items-center justify-center rounded-full border border-green-400/40 bg-green-500 px-4 py-2.5 text-[13px] font-bold text-green-950 transition hover:-translate-y-0.5 hover:bg-green-200"
             >
               Login Dashboard
             </Link>
@@ -334,7 +334,7 @@ export default function SmpLandingPage() {
         </nav>
 
         {mobileOpen ? (
-          <div className="border-t border-white/10 bg-navy-950 px-4 py-4 shadow-2xl lg:hidden">
+          <div className="border-t border-white/10 bg-green-950 px-4 py-4 shadow-2xl lg:hidden">
             <div className="mx-auto grid max-w-7xl gap-1">
               {navItems.map((item) => (
                 <a
@@ -356,7 +356,7 @@ export default function SmpLandingPage() {
               </Link>
               <Link
                 to="/admin/smp"
-                className="mt-1 inline-flex items-center justify-center rounded-xl bg-gold px-4 py-3 text-sm font-bold text-navy"
+                className="mt-1 inline-flex items-center justify-center rounded-xl bg-green-500 px-4 py-3 text-sm font-bold text-green-950"
                 onClick={() => setMobileOpen(false)}
               >
                 Login Dashboard SMP
@@ -366,7 +366,7 @@ export default function SmpLandingPage() {
         ) : null}
       </header>
 
-      <section id="beranda" className="relative isolate overflow-hidden bg-navy text-white">
+      <section id="beranda" className="relative isolate overflow-hidden bg-green-950 text-white">
         <div className="absolute inset-0 -z-20">
           <img
             src={heroImage}
@@ -375,14 +375,14 @@ export default function SmpLandingPage() {
             className="h-full w-full object-cover"
             style={{ opacity: heroBackgroundOpacity }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-navy-950/95 via-navy-950/90 to-navy/75" />
-          <div className="absolute inset-0 bg-navy/25" />
+          <div className="absolute inset-0 bg-gradient-to-r from-green-950/95 via-green-950/90 to-green-900/75" />
+          <div className="absolute inset-0 bg-green-900/25" />
         </div>
         <div className="absolute inset-0 -z-10 bg-hero-grid bg-[size:52px_52px] opacity-40" />
-        <div className="absolute -right-32 top-16 -z-10 h-96 w-96 rounded-full bg-gold/15 blur-3xl" />
+        <div className="absolute -right-32 top-16 -z-10 h-96 w-96 rounded-full bg-green-400/15 blur-3xl" />
         <div className="section-shell grid min-h-[calc(100svh-76px)] items-center gap-12 py-16 lg:grid-cols-[1.05fr_.95fr] lg:py-20">
           <div className="relative z-10 min-w-0">
-            <p className="inline-flex max-w-full items-center gap-2 rounded-2xl border border-gold/30 bg-gold/10 px-3 py-2 text-[10px] font-bold uppercase leading-4 tracking-[0.12em] text-gold-soft sm:rounded-full sm:px-4 sm:text-xs sm:tracking-[0.18em]">
+            <p className="inline-flex max-w-full items-center gap-2 rounded-2xl border border-green-400/30 bg-green-400/10 px-3 py-2 text-[10px] font-bold uppercase leading-4 tracking-[0.12em] text-green-300 sm:rounded-full sm:px-4 sm:text-xs sm:tracking-[0.18em]">
               <Sparkles className="shrink-0" size={15} />
               <span>Sekolah Islam Berbasis Karakter</span>
             </p>
@@ -396,7 +396,7 @@ export default function SmpLandingPage() {
               {spmbActive ? (
                 <a
                   href={getContent("hero", "cta_primary_url", "#spmb")}
-                  className="inline-flex items-center justify-center rounded-full bg-gold px-6 py-3.5 text-sm font-bold text-navy shadow-glow transition hover:-translate-y-0.5 hover:bg-gold-soft"
+                  className="inline-flex items-center justify-center rounded-full bg-green-500 px-6 py-3.5 text-sm font-bold text-green-950 shadow-glow transition hover:-translate-y-0.5 hover:bg-green-200"
                 >
                   {getContent("hero", "cta_primary_text", "Daftar SPMB")}
                   <ArrowUpRight className="ml-2" size={18} />
@@ -416,23 +416,23 @@ export default function SmpLandingPage() {
                 ["Terarah", "Pengembangan Bakat"],
               ].map(([value, label]) => (
                 <div key={label}>
-                  <p className="font-display text-xl font-bold text-gold-soft sm:text-2xl">{value}</p>
+                  <p className="font-display text-xl font-bold text-green-300 sm:text-2xl">{value}</p>
                   <p className="mt-1 text-[11px] leading-4 text-white/50 sm:text-xs">{label}</p>
                 </div>
               ))}
             </div>
           </div>
           <div className="relative mx-auto min-w-0 w-full max-w-xl lg:ml-auto">
-            <div className="absolute -left-5 top-12 h-32 w-32 rounded-full border border-gold/20" />
+            <div className="absolute -left-5 top-12 h-32 w-32 rounded-full border border-green-400/20" />
             <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur">
               <img
                 src={heroImage}
                 alt="Foto SMP Ma'arif NU Sariwangi"
                 className="aspect-[4/5] w-full rounded-[1.55rem] object-cover sm:aspect-[5/4] lg:aspect-[4/5]"
               />
-              <div className="absolute inset-x-5 bottom-5 rounded-2xl border border-white/20 bg-navy/80 p-4 backdrop-blur-xl sm:p-5">
+              <div className="absolute inset-x-5 bottom-5 rounded-2xl border border-white/20 bg-green-950/80 p-4 backdrop-blur-xl sm:p-5">
                 <div className="flex items-start gap-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold text-navy">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-green-500 text-green-950">
                     <BookOpenCheck size={21} />
                   </span>
                   <div>
@@ -445,7 +445,7 @@ export default function SmpLandingPage() {
               </div>
             </div>
             <div className="glass-card animate-float-slow absolute -left-3 top-8 hidden rounded-2xl p-3 sm:flex sm:items-center sm:gap-3 lg:-left-14">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-gold text-navy"><Trophy size={20} /></span>
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-green-500 text-green-950"><Trophy size={20} /></span>
               <div><p className="text-xs font-bold">Potensi Maksimal</p><p className="text-[11px] text-white/55">Akademik & nonakademik</p></div>
             </div>
           </div>
@@ -477,8 +477,8 @@ export default function SmpLandingPage() {
               className={[
                 "shrink-0 rounded-full border px-5 py-2.5 text-sm font-semibold transition",
                 activeProfile === key
-                  ? "border-navy bg-navy text-white shadow-lg"
-                  : "border-navy/10 bg-white text-slate-600 hover:border-navy/25 hover:text-navy",
+                  ? "border-green-950 bg-green-950 text-white shadow-lg"
+                  : "border-green-900/10 bg-white text-slate-600 hover:border-green-900/25 hover:text-green-950",
               ].join(" ")}
             >
               {label}
@@ -490,7 +490,7 @@ export default function SmpLandingPage() {
           {activeProfile === "visi" ? (
             <div className="grid gap-5 md:grid-cols-2">
               <article className="premium-card p-6 sm:p-8">
-                <h3 className="font-display text-2xl font-bold text-navy">Visi</h3>
+                <h3 className="font-display text-2xl font-bold text-green-950">Visi</h3>
                 <p className="mt-4 leading-7 text-gray-700">
                   {getContent(
                     "profil",
@@ -500,7 +500,7 @@ export default function SmpLandingPage() {
                 </p>
               </article>
               <article className="premium-card p-6 sm:p-8">
-                <h3 className="font-display text-2xl font-bold text-navy">Misi</h3>
+                <h3 className="font-display text-2xl font-bold text-green-950">Misi</h3>
                 <p className="mt-4 whitespace-pre-line leading-7 text-gray-700">
                   {getContent(
                     "profil",
@@ -514,7 +514,7 @@ export default function SmpLandingPage() {
 
           {activeProfile === "sejarah" ? (
             <article className="premium-card p-6 sm:p-8">
-              <h3 className="text-xl font-semibold text-navy">
+              <h3 className="text-xl font-semibold text-green-950">
                 Sejarah Singkat
               </h3>
               <p className="mt-4 whitespace-pre-line leading-8 text-gray-700">
@@ -539,7 +539,7 @@ export default function SmpLandingPage() {
                   <h3 className="mt-4 text-lg font-semibold text-gray-950">
                     {leader.nama}
                   </h3>
-                  <p className="mt-1 text-sm font-semibold text-navy-mid">
+                  <p className="mt-1 text-sm font-semibold text-green-700">
                     {leader.jabatan}
                   </p>
                   <p className="mt-3 text-sm leading-6 text-gray-600">
@@ -552,7 +552,7 @@ export default function SmpLandingPage() {
 
           {activeProfile === "tertib" ? (
             <article className="premium-card p-6 sm:p-8">
-              <h3 className="text-xl font-semibold text-navy">Tata Tertib</h3>
+              <h3 className="text-xl font-semibold text-green-950">Tata Tertib</h3>
               <p className="mt-4 whitespace-pre-line leading-8 text-gray-700">
                 {getContent(
                   "profil",
@@ -591,11 +591,11 @@ export default function SmpLandingPage() {
       </section>
 
       {spmbActive ? (
-        <section id="spmb" className="relative isolate overflow-hidden bg-navy py-20 text-white sm:py-24">
+        <section id="spmb" className="relative isolate overflow-hidden bg-green-950 py-20 text-white sm:py-24">
           <div className="absolute inset-0 -z-10 bg-hero-grid bg-[size:52px_52px] opacity-30" />
           <div className="section-shell grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
             <div>
-              <p className="section-kicker !text-gold-soft">
+              <p className="section-kicker !text-green-300">
                 SPMB
               </p>
               <h2 className="mt-4 font-display text-3xl font-bold sm:text-5xl">
@@ -611,7 +611,7 @@ export default function SmpLandingPage() {
               <button
                 type="button"
                 onClick={() => setSpmbOpen(true)}
-                className="mt-7 inline-flex items-center rounded-full bg-gold px-6 py-3.5 text-sm font-bold text-navy shadow-glow transition hover:-translate-y-0.5 hover:bg-gold-soft"
+                className="mt-7 inline-flex items-center rounded-full bg-green-500 px-6 py-3.5 text-sm font-bold text-green-950 shadow-glow transition hover:-translate-y-0.5 hover:bg-green-200"
               >
                 Isi Form Pendaftaran
                 <Send className="ml-2" size={17} />
@@ -626,7 +626,7 @@ export default function SmpLandingPage() {
                 ["Biaya", getContent("spmb", "biaya", "Informasi biaya pendaftaran menyusul.")],
               ].map(([title, text]) => (
                 <article key={title} className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
-                  <h3 className="font-semibold text-gold-soft">{title}</h3>
+                  <h3 className="font-semibold text-green-300">{title}</h3>
                   <p className="mt-3 whitespace-pre-line text-sm leading-6 text-cream-50">
                     {text}
                   </p>
@@ -651,10 +651,10 @@ export default function SmpLandingPage() {
       />
 
       {/* ── Presensi Digital Section ───────────────────────── */}
-      <section id="presensi-digital" className="relative isolate overflow-hidden bg-navy py-20 text-white sm:py-24">
+      <section id="presensi-digital" className="relative isolate overflow-hidden bg-green-950 py-20 text-white sm:py-24">
         <div className="absolute inset-0 -z-10 bg-hero-grid bg-[size:52px_52px] opacity-25" />
         <div className="absolute -left-20 top-0 -z-10 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="absolute -right-20 bottom-0 -z-10 h-72 w-72 rounded-full bg-gold/10 blur-3xl" />
+        <div className="absolute -right-20 bottom-0 -z-10 h-72 w-72 rounded-full bg-green-400/10 blur-3xl" />
         <div className="section-shell">
           <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
@@ -662,7 +662,7 @@ export default function SmpLandingPage() {
                 Presensi Digital
               </p>
               <h2 className="mt-4 font-display text-3xl font-bold leading-tight sm:text-5xl">
-                Absensi siswa lebih cepat dengan <span className="text-gold-soft">Face Recognition</span>
+                Absensi siswa lebih cepat dengan <span className="text-green-300">Face Recognition</span>
               </h2>
               <p className="mt-5 max-w-xl leading-7 text-white/60">
                 Sistem presensi berbasis pengenalan wajah secara real-time. Siswa cukup menghadap kamera — absensi tercatat otomatis tanpa perlu tanda tangan atau kartu.
@@ -698,7 +698,7 @@ export default function SmpLandingPage() {
 
       <SectionSaranKritik entitas="smp" entityLabel="SMP Ma'arif NU Sariwangi" />
 
-      <footer className="border-t border-white/10 bg-navy-950 text-white">
+      <footer className="border-t border-white/10 bg-green-950 text-white">
         <div className="section-shell grid gap-8 py-12 md:grid-cols-[1.2fr_0.8fr]">
           <div>
             <h2 className="font-display text-2xl font-bold text-white">
@@ -730,7 +730,7 @@ export default function SmpLandingPage() {
                     href={url}
                     target="_blank"
                     rel="noreferrer"
-                    className="capitalize text-gold-soft hover:text-white"
+                    className="capitalize text-green-300 hover:text-white"
                   >
                     {item}
                   </a>
@@ -742,11 +742,11 @@ export default function SmpLandingPage() {
       </footer>
 
       {spmbOpen ? (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-navy-950/80 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-green-950/80 p-4 backdrop-blur-sm">
           <div className="mx-auto my-8 max-w-3xl rounded-[1.5rem] bg-white p-5 shadow-card sm:p-8">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold-dark">
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-green-700">
                   Form SPMB
                 </p>
                 <h2 className="mt-2 text-2xl font-semibold text-gray-950">
@@ -775,7 +775,7 @@ export default function SmpLandingPage() {
                         nama_lengkap: event.target.value,
                       }))
                     }
-                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-navy-light"
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </label>
                 <label className="grid gap-2 text-sm font-semibold text-gray-700">
@@ -788,7 +788,7 @@ export default function SmpLandingPage() {
                         jenis_kelamin: event.target.value,
                       }))
                     }
-                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-navy-light"
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
                   >
                     <option value="">Pilih</option>
                     <option value="L">Laki-laki</option>
@@ -806,7 +806,7 @@ export default function SmpLandingPage() {
                         tanggal_lahir: event.target.value,
                       }))
                     }
-                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-navy-light"
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </label>
                 <label className="grid gap-2 text-sm font-semibold text-gray-700">
@@ -819,7 +819,7 @@ export default function SmpLandingPage() {
                         asal_sekolah: event.target.value,
                       }))
                     }
-                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-navy-light"
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </label>
                 <label className="grid gap-2 text-sm font-semibold text-gray-700">
@@ -832,7 +832,7 @@ export default function SmpLandingPage() {
                         nama_orang_tua: event.target.value,
                       }))
                     }
-                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-navy-light"
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </label>
                 <label className="grid gap-2 text-sm font-semibold text-gray-700">
@@ -842,7 +842,7 @@ export default function SmpLandingPage() {
                     onChange={(event) =>
                       setSpmbForm((form) => ({ ...form, no_hp: event.target.value }))
                     }
-                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-navy-light"
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </label>
               </div>
@@ -855,7 +855,7 @@ export default function SmpLandingPage() {
                     setSpmbForm((form) => ({ ...form, alamat: event.target.value }))
                   }
                   rows={3}
-                  className="rounded border border-gray-200 px-3 py-3 font-normal outline-none focus:ring-2 focus:ring-navy-light"
+                  className="rounded border border-gray-200 px-3 py-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
                 />
               </label>
 
@@ -878,13 +878,13 @@ export default function SmpLandingPage() {
                 <button
                   type="submit"
                   disabled={spmbLoading}
-                  className="inline-flex items-center justify-center rounded bg-navy px-5 py-3 text-sm font-semibold text-white hover:bg-navy disabled:opacity-70"
+                  className="inline-flex items-center justify-center rounded bg-green-950 px-5 py-3 text-sm font-semibold text-white hover:bg-green-950 disabled:opacity-70"
                 >
                   <GraduationCap className="mr-2" size={18} />
                   {spmbLoading ? "Mengirim..." : "Kirim Pendaftaran"}
                 </button>
                 {spmbStatus ? (
-                  <p className="text-sm font-medium text-navy-mid">{spmbStatus}</p>
+                  <p className="text-sm font-medium text-green-700">{spmbStatus}</p>
                 ) : null}
               </div>
             </form>

@@ -139,7 +139,7 @@ export default function AccountManagementModule({
   return (
     <section className="grid gap-5">
       <div className="rounded bg-white p-6 shadow-soft">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold-dark">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">
           Super Admin
         </p>
         <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

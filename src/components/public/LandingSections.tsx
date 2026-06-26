@@ -448,8 +448,8 @@ export function SectionBerita({
               </div>
             )}
             <div className="p-6">
-              <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gold-dark">{new Date(item.created_at).toLocaleDateString('id-ID')}</p>
-              <h3 className="mb-3 font-display text-xl font-bold leading-snug text-navy">{item.judul}</h3>
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-green-700">{new Date(item.created_at).toLocaleDateString('id-ID')}</p>
+              <h3 className="mb-3 font-display text-xl font-bold leading-snug text-green-950">{item.judul}</h3>
               {item.ringkasan && <p className="text-sm text-gray-600 leading-6">{item.ringkasan}</p>}
             </div>
           </article>
@@ -476,15 +476,15 @@ export function SectionAgenda({ entitas, entityLabel }: { entitas: string; entit
   if (!items.length) return null;
 
   return (
-    <section id="agenda" className="border-y border-navy/5 bg-white py-20 sm:py-24">
+    <section id="agenda" className="border-y border-green-900/5 bg-white py-20 sm:py-24">
       <div className="section-shell">
         <p className="section-kicker">Kalender Kegiatan</p>
         <h2 className="section-title">Agenda {entityLabel}</h2>
         <div className="mt-10 grid gap-4 md:grid-cols-2">
           {items.map((item) => (
-            <div key={item.id} className="group flex gap-5 rounded-2xl border border-navy/10 bg-[#f9f8f4] p-5 transition hover:border-gold/50 hover:shadow-soft">
-              <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-navy px-1 py-2 text-center text-white shadow-lg">
-                <span className="block text-2xl font-bold leading-none text-gold-soft">
+            <div key={item.id} className="group flex gap-5 rounded-2xl border border-green-900/10 bg-[#f9f8f4] p-5 transition hover:border-green-400/50 hover:shadow-soft">
+              <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-green-950 px-1 py-2 text-center text-white shadow-lg">
+                <span className="block text-2xl font-bold leading-none text-green-300">
                   {new Date(item.tanggal).getDate()}
                 </span>
                 <span className="block text-[10px] font-semibold uppercase tracking-wider">
@@ -492,7 +492,7 @@ export function SectionAgenda({ entitas, entityLabel }: { entitas: string; entit
                 </span>
               </div>
               <div>
-                <h3 className="font-display text-lg font-bold text-navy">{item.judul}</h3>
+                <h3 className="font-display text-lg font-bold text-green-950">{item.judul}</h3>
                 {item.lokasi && <p className="text-sm text-gray-500 mt-1">{item.lokasi}</p>}
               </div>
             </div>
@@ -524,14 +524,14 @@ export function SectionGaleri({ entitas }: { entitas: string }) {
       <h2 className="section-title mb-10">Galeri Foto</h2>
       <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3">
         {items.map((item) => (
-          <div key={item.id} className="group relative aspect-square overflow-hidden rounded-2xl bg-navy shadow-soft sm:rounded-[1.5rem]">
+          <div key={item.id} className="group relative aspect-square overflow-hidden rounded-2xl bg-green-950 shadow-soft sm:rounded-[1.5rem]">
             <img
               src={item.foto_url}
               alt={item.keterangan || 'Galeri'}
               className="image-zoom h-full w-full object-cover"
             />
             {item.keterangan && (
-              <div className="absolute inset-0 flex items-end bg-gradient-to-t from-navy/90 via-transparent to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="absolute inset-0 flex items-end bg-gradient-to-t from-green-950/90 via-transparent to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100">
                 <p className="text-sm font-medium text-white">{item.keterangan}</p>
               </div>
             )}
@@ -579,11 +579,11 @@ export function SeksiCekPembayaran({
   };
 
   return (
-    <section id="cek-santri" className="relative isolate overflow-hidden bg-navy py-20 text-white sm:py-24">
+    <section id="cek-santri" className="relative isolate overflow-hidden bg-green-950 py-20 text-white sm:py-24">
       <div className="absolute inset-0 -z-10 bg-hero-grid bg-[size:52px_52px] opacity-30" />
-      <div className="absolute -right-20 top-0 -z-10 h-72 w-72 rounded-full bg-gold/15 blur-3xl" />
+      <div className="absolute -right-20 top-0 -z-10 h-72 w-72 rounded-full bg-green-400/15 blur-3xl" />
       <div className="section-shell">
-        <p className="section-kicker !text-gold-soft">Layanan Digital</p>
+        <p className="section-kicker !text-green-300">Layanan Digital</p>
         <h2 className="mt-4 max-w-2xl font-display text-3xl font-bold sm:text-5xl">Cek Pembayaran & {recordLabel}</h2>
         <p className="mt-4 max-w-xl text-sm leading-7 text-white/60">Akses informasi administrasi secara cepat dan mandiri menggunakan nomor induk.</p>
         <div className="mt-8 flex max-w-xl flex-col gap-3 rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur sm:flex-row">
@@ -591,12 +591,12 @@ export function SeksiCekPembayaran({
             value={nis}
             onChange={(e) => setNis(e.target.value)}
             placeholder={`Masukkan NIS ${personLabel}`}
-            className="min-h-12 flex-1 rounded-xl border border-white/10 bg-navy/40 px-4 text-white placeholder:text-white/40 outline-none"
+            className="min-h-12 flex-1 rounded-xl border border-white/10 bg-green-950/40 px-4 text-white placeholder:text-white/40 outline-none"
           />
           <button
             onClick={handleCek}
             disabled={loading}
-            className="min-h-12 rounded-xl bg-gold px-6 font-bold text-navy transition hover:bg-gold-soft disabled:opacity-60"
+            className="min-h-12 rounded-xl bg-green-500 px-6 font-bold text-green-950 transition hover:bg-green-200 disabled:opacity-60"
           >
             {loading ? 'Cek...' : 'Cek'}
           </button>
@@ -668,7 +668,7 @@ export function SectionSaranKritik({
             value={form.nama}
             onChange={(e) => setForm((f) => ({ ...f, nama: e.target.value }))}
             placeholder="Nama Anda"
-            className="min-h-12 rounded-xl border border-navy/10 bg-[#f9f8f4] px-4 font-normal outline-none"
+            className="min-h-12 rounded-xl border border-green-900/10 bg-[#f9f8f4] px-4 font-normal outline-none"
           />
         </label>
         <label className="grid gap-2 text-sm font-semibold text-gray-700">
@@ -678,17 +678,17 @@ export function SectionSaranKritik({
             onChange={(e) => setForm((f) => ({ ...f, pesan: e.target.value }))}
             rows={4}
             placeholder="Tuliskan saran atau kritik Anda..."
-            className="rounded-xl border border-navy/10 bg-[#f9f8f4] px-4 py-3 font-normal outline-none"
+            className="rounded-xl border border-green-900/10 bg-[#f9f8f4] px-4 py-3 font-normal outline-none"
           />
         </label>
         <button
           type="submit"
           disabled={loading}
-          className="rounded-xl bg-navy px-5 py-3.5 text-sm font-bold text-white transition hover:bg-navy-mid disabled:opacity-60"
+          className="rounded-xl bg-green-950 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-green-800 disabled:opacity-60"
         >
           {loading ? 'Mengirim...' : 'Kirim Pesan'}
         </button>
-        {status && <p className="text-sm text-navy-mid font-medium">{status}</p>}
+        {status && <p className="text-sm text-green-700 font-medium">{status}</p>}
       </form>
       </div>
     </section>

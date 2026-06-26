@@ -23,6 +23,20 @@ export type StudentDocumentData = {
 const cardWidth = 85.6;
 const cardHeight = 54;
 
+// Palette C — Sage Mint Modern
+const C = {
+  deepest:  [16, 43, 30]   as const,  // #102B1E
+  dark:     [30, 92, 64]   as const,  // #1E5C40
+  mid:      [46, 138, 90]  as const,  // #2E8A5A
+  bright:   [61, 184, 114] as const,  // #3DB872
+  light:    [125, 212, 164] as const, // #7DD4A4
+  pale:     [192, 237, 213] as const, // #C0EDD5
+  palest:   [235, 249, 242] as const, // #EBF9F2
+  white:    [255, 255, 255] as const,
+  slate:    [120, 144, 156] as const,
+  ink:      [15, 23, 42]   as const,
+};
+
 function entityConfig(entity: StudentDocumentEntity) {
   return entity === "smp"
     ? {
@@ -31,8 +45,8 @@ function entityConfig(entity: StudentDocumentEntity) {
         cardTitle: "KARTU SISWA",
         personLabel: "Siswa",
         logoUrl: smpLogoUrl,
-        primary: [6, 95, 70] as const,
-        accent: [217, 174, 75] as const,
+        primary: C.deepest,
+        accent: C.bright,
       }
     : {
         name: "Pondok Pesantren An-Nur Mageung",
@@ -40,8 +54,8 @@ function entityConfig(entity: StudentDocumentEntity) {
         cardTitle: "KARTU SANTRI",
         personLabel: "Santri",
         logoUrl: pesantrenLogoUrl,
-        primary: [6, 95, 70] as const,
-        accent: [217, 174, 75] as const,
+        primary: C.deepest,
+        accent: C.bright,
       };
 }
 
@@ -85,49 +99,15 @@ async function qrToDataUrl(value: string) {
     errorCorrectionLevel: "M",
     margin: 1,
     width: 240,
+    color: { dark: "#102B1E", light: "#EBF9F2" },
   });
-}
-
-function addLogoPlaceholder(doc: PdfDoc, x: number, y: number, size: number, shortName: string) {
-  doc.setFillColor(255, 255, 255);
-  doc.circle(x + size / 2, y + size / 2, size / 2, "F");
-  doc.setTextColor(6, 95, 70);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(size > 14 ? 12 : 8);
-  doc.text(shortName, x + size / 2, y + size / 2 + 2, { align: "center" });
-}
-
-function addPhotoPlaceholder(doc: PdfDoc, x: number, y: number, w: number, h: number) {
-  doc.setFillColor(241, 245, 249);
-  doc.roundedRect(x, y, w, h, 2, 2, "F");
-  doc.setTextColor(100, 116, 139);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text("FOTO", x + w / 2, y + h / 2 + 1, { align: "center" });
 }
 
 function imageFormat(dataUrl: string) {
   return dataUrl.includes("image/png") ? "PNG" : "JPEG";
 }
 
-function addLabeledText(
-  doc: PdfDoc,
-  label: string,
-  value: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-) {
-  doc.setTextColor(100, 116, 139);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.text(label, x, y);
-  doc.setTextColor(15, 23, 42);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text(value || "-", x, y + 3.8, { maxWidth });
-}
-
+// ─── Front card ───────────────────────────────────────────────────────────────
 async function addCardFront(
   doc: PdfDoc,
   entity: StudentDocumentEntity,
@@ -135,46 +115,114 @@ async function addCardFront(
   assets?: { logo?: string | null; photo?: string | null; qr?: string },
 ) {
   const config = entityConfig(entity);
-  const logo = assets?.logo ?? (await imageToDataUrl(config.logoUrl));
+  const logo  = assets?.logo  ?? (await imageToDataUrl(config.logoUrl));
   const photo = assets?.photo ?? (await imageToDataUrl(student.fotoUrl));
-  const qr = assets?.qr ?? (await qrToDataUrl(student.kodeUnik));
+  const qr    = assets?.qr    ?? (await qrToDataUrl(student.kodeUnik));
 
-  doc.setFillColor(...config.primary);
-  doc.rect(0, 0, cardWidth, cardHeight, "F");
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(4, 4, cardWidth - 8, cardHeight - 8, 3, 3, "F");
-  doc.setFillColor(...config.primary);
-  doc.roundedRect(4, 4, cardWidth - 8, 14, 3, 3, "F");
-  doc.rect(4, 11, cardWidth - 8, 7, "F");
+  // ── white base ──
+  doc.setFillColor(...C.white);
+  doc.roundedRect(0, 0, cardWidth, cardHeight, 3, 3, "F");
 
-  if (logo) doc.addImage(logo, imageFormat(logo), 7, 6, 10, 10);
-  else addLogoPlaceholder(doc, 7, 6, 10, config.shortName);
+  // ── dark green header band ──
+  doc.setFillColor(...C.deepest);
+  doc.roundedRect(0, 0, cardWidth, 16, 3, 3, "F");
+  doc.rect(0, 13, cardWidth, 3, "F"); // square off bottom of rounded rect
 
-  doc.setTextColor(255, 255, 255);
+  // ── logo circle in header ──
+  doc.setFillColor(...C.bright);
+  doc.circle(8.5, 8, 5.5, "F");
+  if (logo) {
+    doc.addImage(logo, imageFormat(logo), 3.5, 3, 10, 10);
+  } else {
+    doc.setTextColor(...C.white);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(5.5);
+    doc.text(config.shortName, 8.5, 9, { align: "center" });
+  }
+
+  // ── card type + institution name ──
+  doc.setTextColor(...C.light);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text(config.cardTitle, 19, 10.5);
+  doc.setFontSize(6);
+  doc.text(config.cardTitle, 17, 7);
+
+  doc.setTextColor(...C.white);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.4);
-  doc.text(config.name, 19, 14.3);
+  doc.setFontSize(5.8);
+  doc.text(config.name, 17, 12);
 
-  if (photo) doc.addImage(photo, imageFormat(photo), 7, 22, 20, 25);
-  else addPhotoPlaceholder(doc, 7, 22, 20, 25);
+  // ── subtle left accent stripe ──
+  doc.setFillColor(...C.bright);
+  doc.roundedRect(3, 18, 1.5, cardHeight - 22, 0.5, 0.5, "F");
 
-  doc.addImage(qr, imageFormat(qr), 65, 31, 14, 14);
-  doc.setTextColor(100, 116, 139);
+  // ── photo box ──
+  const photoX = 7, photoY = 19, photoW = 18, photoH = 24;
+  doc.setFillColor(...C.palest);
+  doc.roundedRect(photoX, photoY, photoW, photoH, 2, 2, "F");
+  doc.setDrawColor(...C.pale);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(photoX, photoY, photoW, photoH, 2, 2, "S");
+  if (photo) {
+    doc.addImage(photo, imageFormat(photo), photoX, photoY, photoW, photoH);
+  } else {
+    doc.setTextColor(...C.mid);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(5.5);
+    doc.text("FOTO", photoX + photoW / 2, photoY + photoH / 2 + 1, { align: "center" });
+  }
+
+  // ── info rows (center column) ──
+  const infoX = 29;
+  const rows: [string, string][] = [
+    ["Nama", student.nama],
+    [student.nomorIndukLabel, student.nomorInduk],
+    [entity === "smp" ? "Kelas" : "Angkatan", String(student.kelas || student.tahunMasuk || "-")],
+    ["J. Kelamin", student.jenisKelamin === "L" ? "Laki-laki" : student.jenisKelamin === "P" ? "Perempuan" : student.jenisKelamin],
+  ];
+  let rowY = 21;
+  rows.forEach(([label, value]) => {
+    doc.setTextColor(...C.slate);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(5.5);
+    doc.text(label, infoX, rowY);
+    doc.setTextColor(...C.deepest);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(label === "Nama" ? 7.5 : 7);
+    doc.text(value || "-", infoX, rowY + 3.2, { maxWidth: 32 });
+    rowY += label === "Nama" ? 11 : 9.5;
+  });
+
+  // ── QR code — bottom-right corner ──
+  const qrSize = 14;
+  const qrX = cardWidth - qrSize - 4;
+  const qrY = cardHeight - qrSize - 6;
+  doc.setFillColor(...C.palest);
+  doc.roundedRect(qrX - 1, qrY - 1, qrSize + 2, qrSize + 2, 1.5, 1.5, "F");
+  doc.setDrawColor(...C.pale);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(qrX - 1, qrY - 1, qrSize + 2, qrSize + 2, 1.5, 1.5, "S");
+  doc.addImage(qr, imageFormat(qr), qrX, qrY, qrSize, qrSize);
+  doc.setTextColor(...C.slate);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.5);
-  doc.text("Kode Akses", 72, 47.5, { align: "center" });
+  doc.setFontSize(4.8);
+  doc.text("Kode Akses", qrX + qrSize / 2 - 0.5, cardHeight - 1.2, { align: "center" });
 
-  addLabeledText(doc, "Nama", student.nama, 31, 24, 31);
-  addLabeledText(doc, student.nomorIndukLabel, student.nomorInduk, 31, 33, 31);
-  addLabeledText(doc, entity === "smp" ? "Kelas" : "Angkatan", String(student.kelas || student.tahunMasuk || "-"), 31, 42, 31);
-
-  doc.setFillColor(...config.accent);
-  doc.roundedRect(7, 49, cardWidth - 14, 3, 1, 1, "F");
+  // ── footer gradient stripe (5 segments) ──
+  const stripeColors = [C.deepest, C.dark, C.mid, C.bright, C.light];
+  const segW = (cardWidth - 6) / stripeColors.length;
+  stripeColors.forEach((col, i) => {
+    doc.setFillColor(...col);
+    const rx = i === 0 ? 1 : 0;
+    const lx = i === stripeColors.length - 1 ? 1 : 0;
+    if (rx || lx) {
+      doc.roundedRect(3 + i * segW, cardHeight - 3, segW, 2.5, rx, lx, "F");
+    } else {
+      doc.rect(3 + i * segW, cardHeight - 3, segW, 2.5, "F");
+    }
+  });
 }
 
+// ─── Back card ────────────────────────────────────────────────────────────────
 async function addCardBack(
   doc: PdfDoc,
   entity: StudentDocumentEntity,
@@ -183,35 +231,96 @@ async function addCardBack(
 ) {
   const config = entityConfig(entity);
   const logo = assets?.logo ?? (await imageToDataUrl(config.logoUrl));
-  const qr = assets?.qr ?? (await qrToDataUrl(student.kodeUnik));
+  const qr   = assets?.qr   ?? (await qrToDataUrl(student.kodeUnik));
 
-  doc.setFillColor(255, 255, 255);
-  doc.rect(0, 0, cardWidth, cardHeight, "F");
-  doc.setDrawColor(...config.primary);
-  doc.setLineWidth(0.8);
-  doc.roundedRect(3, 3, cardWidth - 6, cardHeight - 6, 3, 3, "S");
+  // ── white base ──
+  doc.setFillColor(...C.white);
+  doc.roundedRect(0, 0, cardWidth, cardHeight, 3, 3, "F");
 
-  if (logo) doc.addImage(logo, imageFormat(logo), 7, 7, 12, 12);
-  else addLogoPlaceholder(doc, 7, 7, 12, config.shortName);
+  // ── header band ──
+  doc.setFillColor(...C.dark);
+  doc.roundedRect(0, 0, cardWidth, 14, 3, 3, "F");
+  doc.rect(0, 11, cardWidth, 3, "F");
 
-  doc.setTextColor(15, 23, 42);
+  // ── logo in header ──
+  doc.setFillColor(...C.bright);
+  doc.circle(7.5, 7, 4.5, "F");
+  if (logo) {
+    doc.addImage(logo, imageFormat(logo), 3, 2.5, 9, 9);
+  } else {
+    doc.setTextColor(...C.white);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(5);
+    doc.text(config.shortName, 7.5, 8, { align: "center" });
+  }
+
+  doc.setTextColor(...C.white);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text("INFORMASI AKSES", 22, 10.5);
-  doc.setTextColor(100, 116, 139);
+  doc.setFontSize(6.5);
+  doc.text("INFORMASI AKSES", 15, 7);
+  doc.setTextColor(...C.light);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.2);
-  doc.text("Scan QR untuk cek pembayaran dan record.", 22, 14.5);
+  doc.setFontSize(5.2);
+  doc.text("Scan QR untuk cek pembayaran dan record.", 15, 11.5);
 
-  doc.addImage(qr, imageFormat(qr), 7, 24, 20, 20);
-  addLabeledText(doc, "Kode Akses", student.kodeUnik, 31, 25, 46);
-  addLabeledText(doc, "Nama Wali", student.namaWali || "-", 31, 34, 46);
-  addLabeledText(doc, "Kontak Wali", student.noHpWali || "-", 31, 43, 46);
+  // ── QR code (left) ──
+  const qrSize = 20;
+  doc.setFillColor(...C.palest);
+  doc.roundedRect(4, 17, qrSize + 2, qrSize + 2, 2, 2, "F");
+  doc.setDrawColor(...C.pale);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(4, 17, qrSize + 2, qrSize + 2, 2, 2, "S");
+  doc.addImage(qr, imageFormat(qr), 5, 18, qrSize, qrSize);
 
-  doc.setFillColor(...config.primary);
-  doc.rect(3, 49, cardWidth - 6, 2, "F");
+  // ── kode unik chip ──
+  const chipX = 29, chipY = 17;
+  doc.setFillColor(...C.palest);
+  doc.setDrawColor(...C.pale);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(chipX, chipY, 53, 9, 1.5, 1.5, "FD");
+  doc.setTextColor(...C.mid);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(5);
+  doc.text("KODE UNIK", chipX + 2, chipY + 3.2);
+  doc.setTextColor(...C.deepest);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.text(student.kodeUnik, chipX + 2, chipY + 7.2);
+
+  // ── wali info rows ──
+  const infoRows: [string, string][] = [
+    ["Nama Wali",    student.namaWali  || "-"],
+    ["Kontak Wali",  student.noHpWali  || "-"],
+  ];
+  let ry = 31;
+  infoRows.forEach(([label, value]) => {
+    doc.setTextColor(...C.slate);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(5.5);
+    doc.text(label, 29, ry);
+    doc.setTextColor(...C.deepest);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.text(value, 29, ry + 3.5, { maxWidth: 53 });
+    ry += 10;
+  });
+
+  // ── footer bar ──
+  doc.setFillColor(...C.deepest);
+  doc.roundedRect(0, cardHeight - 7, cardWidth, 7, 3, 3, "F");
+  doc.rect(0, cardHeight - 10, cardWidth, 3, "F");
+  doc.setTextColor(255, 255, 255, 0.6);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(5);
+  doc.text(
+    `${config.name} — Tasikmalaya`,
+    cardWidth / 2,
+    cardHeight - 3,
+    { align: "center" },
+  );
 }
 
+// ─── Asset preloader ──────────────────────────────────────────────────────────
 async function preloadAssets(entity: StudentDocumentEntity, student: StudentDocumentData) {
   const config = entityConfig(entity);
   const [logo, photo, qr] = await Promise.all([
@@ -222,6 +331,7 @@ async function preloadAssets(entity: StudentDocumentEntity, student: StudentDocu
   return { logo, photo, qr };
 }
 
+// ─── Public exports ───────────────────────────────────────────────────────────
 export async function downloadStudentCard(
   entity: StudentDocumentEntity,
   student: StudentDocumentData,
@@ -260,12 +370,13 @@ export async function downloadAllStudentCards(
   doc.save(`semua-kartu-${entity}.pdf`);
 }
 
+// ─── Biodata A4 ───────────────────────────────────────────────────────────────
 function addInfoRow(doc: PdfDoc, label: string, value: string, x: number, y: number, width = 155) {
-  doc.setTextColor(100, 116, 139);
+  doc.setTextColor(...C.slate);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.text(label, x, y);
-  doc.setTextColor(15, 23, 42);
+  doc.setTextColor(...C.ink);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.text(value || "-", x + 42, y, { maxWidth: width - 42 });
@@ -284,12 +395,24 @@ export async function downloadStudentBiodata(
     qrToDataUrl(student.kodeUnik),
   ]);
 
-  doc.setFillColor(...config.primary);
+  // header
+  doc.setFillColor(...C.deepest);
   doc.rect(0, 0, 210, 34, "F");
-  if (logo) doc.addImage(logo, imageFormat(logo), 14, 8, 18, 18);
-  else addLogoPlaceholder(doc, 14, 8, 18, config.shortName);
+  // accent stripe
+  doc.setFillColor(...C.bright);
+  doc.rect(0, 30, 210, 4, "F");
 
-  doc.setTextColor(255, 255, 255);
+  if (logo) doc.addImage(logo, imageFormat(logo), 14, 8, 18, 18);
+  else {
+    doc.setFillColor(...C.bright);
+    doc.circle(23, 17, 9, "F");
+    doc.setTextColor(...C.white);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.text(config.shortName, 23, 19, { align: "center" });
+  }
+
+  doc.setTextColor(...C.white);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
   doc.text(`BIODATA ${config.personLabel.toUpperCase()}`, 38, 15);
@@ -297,31 +420,51 @@ export async function downloadStudentBiodata(
   doc.setFontSize(10);
   doc.text(config.name, 38, 22);
 
+  // body card
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(14, 45, 182, 215, 4, 4, "F");
-  doc.setDrawColor(226, 232, 240);
+  doc.setDrawColor(...C.pale);
+  doc.setLineWidth(0.5);
   doc.roundedRect(14, 45, 182, 215, 4, 4, "S");
 
+  // left accent stripe on body card
+  doc.setFillColor(...C.bright);
+  doc.roundedRect(14, 45, 3, 215, 2, 2, "F");
+
   if (photo) doc.addImage(photo, imageFormat(photo), 24, 58, 35, 45);
-  else addPhotoPlaceholder(doc, 24, 58, 35, 45);
+  else {
+    doc.setFillColor(...C.palest);
+    doc.roundedRect(24, 58, 35, 45, 2, 2, "F");
+    doc.setDrawColor(...C.pale);
+    doc.roundedRect(24, 58, 35, 45, 2, 2, "S");
+    doc.setTextColor(...C.mid);
+    doc.setFontSize(8);
+    doc.text("FOTO", 41.5, 82, { align: "center" });
+  }
 
+  // QR
+  doc.setFillColor(...C.palest);
+  doc.roundedRect(149, 56, 36, 36, 2, 2, "F");
+  doc.setDrawColor(...C.pale);
+  doc.roundedRect(149, 56, 36, 36, 2, 2, "S");
   doc.addImage(qr, imageFormat(qr), 151, 58, 32, 32);
-  doc.setTextColor(100, 116, 139);
-  doc.setFontSize(8);
-  doc.text("Kode akses cek pembayaran dan record", 167, 95, { align: "center", maxWidth: 48 });
+  doc.setTextColor(...C.slate);
+  doc.setFontSize(7.5);
+  doc.text("Kode akses cek pembayaran dan record", 167, 97, { align: "center", maxWidth: 48 });
 
-  doc.setTextColor(15, 23, 42);
+  doc.setTextColor(...C.ink);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.text(student.nama, 68, 63, { maxWidth: 78 });
   doc.setFontSize(10);
-  doc.setTextColor(...config.primary);
+  doc.setTextColor(...C.dark);
   doc.text(`${student.nomorIndukLabel}: ${student.nomorInduk}`, 68, 77);
   doc.text(`Status: ${student.status || "aktif"}`, 68, 85);
 
-  doc.setDrawColor(203, 213, 225);
+  doc.setDrawColor(...C.pale);
+  doc.setLineWidth(0.5);
   doc.line(24, 115, 186, 115);
-  doc.setTextColor(15, 23, 42);
+  doc.setTextColor(...C.ink);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text("Data Lengkap", 24, 127);
@@ -345,9 +488,12 @@ export async function downloadStudentBiodata(
     y += label === "Alamat" ? 16 : 10;
   });
 
-  doc.setFillColor(...config.accent);
-  doc.roundedRect(24, 238, 162, 8, 2, 2, "F");
-  doc.setTextColor(15, 23, 42);
+  // footer chip
+  doc.setFillColor(...C.palest);
+  doc.setDrawColor(...C.pale);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(24, 238, 162, 8, 2, 2, "FD");
+  doc.setTextColor(...C.dark);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.text("Dokumen biodata ini digenerate dari dashboard administrasi.", 105, 243.3, {

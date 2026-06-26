@@ -121,7 +121,7 @@ export default function LoginPage() {
   if (loading) {
     return (
       <div className="grid min-h-screen place-items-center bg-krem-50 px-4">
-        <p className="text-sm font-semibold text-gold-dark">
+        <p className="text-sm font-semibold text-green-700">
           Memeriksa sesi admin...
         </p>
       </div>
@@ -146,7 +146,7 @@ export default function LoginPage() {
             }}
           />
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-dark">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
               Admin
             </p>
             <p className="mt-0.5 text-sm font-semibold text-gray-800">
@@ -176,7 +176,7 @@ export default function LoginPage() {
               id="email"
               type="email"
               autoComplete="email"
-              className="mt-2 w-full rounded border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20"
+              className="mt-2 w-full rounded border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
               placeholder="admin@example.com"
               {...register("email")}
             />
@@ -194,7 +194,7 @@ export default function LoginPage() {
             >
               Password
             </label>
-            <div className="mt-2 flex rounded border border-gray-300 bg-white focus-within:border-gold focus-within:ring-2 focus-within:ring-gold/20">
+            <div className="mt-2 flex rounded border border-gray-300 bg-white focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-500/20">
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
@@ -205,7 +205,7 @@ export default function LoginPage() {
               />
               <button
                 type="button"
-                className="grid w-11 place-items-center text-gray-500 transition hover:text-gold-dark"
+                className="grid w-11 place-items-center text-gray-500 transition hover:text-green-700"
                 aria-label={
                   showPassword ? "Sembunyikan password" : "Tampilkan password"
                 }
@@ -239,7 +239,7 @@ export default function LoginPage() {
 
         <Link
           to="/"
-          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded border border-navy/15 px-4 py-2.5 text-sm font-semibold text-navy transition hover:bg-navy-50"
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded border border-green-900/15 px-4 py-2.5 text-sm font-semibold text-green-950 transition hover:bg-green-50"
         >
           <ArrowLeft size={17} />
           Kembali ke Landing Page

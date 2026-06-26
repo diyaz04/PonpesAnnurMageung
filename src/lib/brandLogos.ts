@@ -1,5 +1,5 @@
 export const pesantrenLogoUrl =
-  "https://lh3.googleusercontent.com/d/1GdV6eAN5azpBBox0c6WZVij_zWQPb6aG";
+  "https://lh3.googleusercontent.com/d/1qnsLAlaefiFGUVN2ep-c19rbigOpguhk";
 
 export const smpLogoUrl =
-  "https://lh3.googleusercontent.com/d/1sXfNq3zEpIp5sKGSNbgPz6rYB0b0RZZi";
+  "https://lh3.googleusercontent.com/d/1hC8NzkNzzZ_18cTC5g8XEAsCa5Mt4VA0";

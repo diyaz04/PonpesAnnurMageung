@@ -1667,7 +1667,7 @@ export default function FinanceModule({
   return (
     <section className="grid gap-5">
       <div className="rounded bg-white p-6 shadow-soft">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold-dark">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">
           Modul Keuangan Terpusat
         </p>
         <h1 className="mt-3 text-2xl font-semibold text-gray-950">
@@ -1704,7 +1704,7 @@ export default function FinanceModule({
                 onClick={() => setTab(key as typeof tab)}
                 className={[
                   "inline-flex items-center rounded px-4 py-2 text-sm font-semibold",
-                  tab === key ? "bg-gold text-emerald-950" : "bg-gray-100 text-gray-700",
+                  tab === key ? "bg-green-500 text-emerald-950" : "bg-gray-100 text-gray-700",
                 ].join(" ")}
               >
                 <TabIcon className="mr-2" size={16} />
@@ -1790,8 +1790,8 @@ export default function FinanceModule({
                   {formatCurrency(settingSummary.monthly)}
                 </p>
               </div>
-              <div className="rounded bg-gold/20 p-3">
-                <p className="text-xs text-gold-dark">Tabungan/bln</p>
+              <div className="rounded bg-green-400/20 p-3">
+                <p className="text-xs text-green-700">Tabungan/bln</p>
                 <p className="font-semibold text-gray-950">
                   {formatCurrency(settingSummary.savings)}
                 </p>
@@ -2164,7 +2164,7 @@ export default function FinanceModule({
                     }
                     className={inputClass}
                   />
-                  <button className="inline-flex items-center justify-center rounded bg-gold px-4 py-2 text-sm font-semibold text-emerald-950">
+                  <button className="inline-flex items-center justify-center rounded bg-green-500 px-4 py-2 text-sm font-semibold text-emerald-950">
                     <Plus className="mr-2" size={17} />
                     Assign
                   </button>
@@ -2791,8 +2791,8 @@ export default function FinanceModule({
                   )}
                 </p>
               </div>
-              <div className="rounded bg-gold/20 p-4">
-                <p className="text-sm text-gold-dark">Tagihan belum lunas</p>
+              <div className="rounded bg-green-400/20 p-4">
+                <p className="text-sm text-green-700">Tagihan belum lunas</p>
                 <p className="mt-2 text-xl font-semibold text-gray-950">
                   {arrears.length}
                 </p>

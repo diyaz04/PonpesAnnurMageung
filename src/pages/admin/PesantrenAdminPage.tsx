@@ -259,7 +259,7 @@ function PesantrenDashboardHome({ role }: { role: string }) {
   return (
     <div className="grid min-w-0 max-w-full gap-4 overflow-x-hidden sm:gap-6">
       <section className="min-w-0 max-w-full rounded bg-white p-4 shadow-soft sm:p-6">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold-dark">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">
           Dashboard Pesantren
         </p>
         <h1 className="mt-3 break-words text-xl font-semibold leading-snug text-gray-950 sm:text-2xl">

@@ -3,13 +3,13 @@
 @tailwind utilities;
 
 :root {
-  --navy: #0b1f33;
-  --navy-mid: #123b52;
-  --navy-light: #2a6074;
-  --navy-muted: #2A4A72;
-  --gold: #d4af37;
-  --gold-soft: #f2d27b;
-  --gold-pale: #FAF0DC;
+  --navy: #102B1E;
+  --navy-mid: #1E5C40;
+  --navy-light: #2E8A5A;
+  --navy-muted: #1E5C40;
+  --gold: #3DB872;
+  --gold-soft: #7DD4A4;
+  --gold-pale: #EBF9F2;
   --cream: #f7f5ef;
 
   color: #1a1a1a;
@@ -28,7 +28,7 @@ body {
   margin: 0;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at 10% 5%, rgba(212, 175, 55, 0.08), transparent 24rem),
+    radial-gradient(circle at 10% 5%, rgba(61, 184, 114, 0.08), transparent 24rem),
     var(--cream);
 }
 
@@ -61,7 +61,7 @@ a {
 
 input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(42, 96, 116, 0.2);
+  box-shadow: 0 0 0 3px rgba(46, 138, 90, 0.2);
 }
 
 @layer components {
@@ -74,16 +74,16 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   }
 
   .section-kicker {
-    @apply inline-flex max-w-full items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-gold-dark sm:text-xs sm:tracking-[0.22em];
+    @apply inline-flex max-w-full items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-green-700 sm:text-xs sm:tracking-[0.22em];
   }
 
   .section-kicker::before {
     content: "";
-    @apply h-px w-8 bg-gold;
+    @apply h-px w-8 bg-green-500;
   }
 
   .section-title {
-    @apply mt-4 max-w-3xl font-display text-3xl font-bold leading-tight tracking-[-0.025em] text-navy sm:text-4xl lg:text-5xl;
+    @apply mt-4 max-w-3xl font-display text-3xl font-bold leading-tight tracking-[-0.025em] text-green-950 sm:text-4xl lg:text-5xl;
   }
 
   .glass-card {
@@ -91,7 +91,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   }
 
   .premium-card {
-    @apply rounded-[1.5rem] border border-navy/10 bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-card;
+    @apply rounded-[1.5rem] border border-green-900/10 bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-card;
   }
 
   .image-zoom {
