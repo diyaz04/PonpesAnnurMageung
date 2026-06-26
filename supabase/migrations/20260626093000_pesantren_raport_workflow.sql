@@ -1,6 +1,12 @@
 -- Configurable Pesantren raport workflow: academic periods, kitab/pelajaran
 -- groups, asatidz-santri assignments, grading details, and published PDFs.
 
+alter table public.pp_santri
+add column if not exists kelas_pengajian text;
+
+create index if not exists pp_santri_kelas_pengajian_idx
+on public.pp_santri (kelas_pengajian);
+
 insert into storage.buckets (id, name, public)
 values ('pp-raport-pdf', 'pp-raport-pdf', true)
 on conflict (id) do update set public = excluded.public;
@@ -386,7 +392,7 @@ begin
       on nd.mapel_id = rm.id
      and nd.santri_id = pub.santri_id
     where rm.periode_id = pub.periode_id
-      and rm.kelompok = concat('Angkatan ', santri_row.tahun_masuk)
+      and rm.kelompok = coalesce(nullif(santri_row.kelas_pengajian, ''), 'Belum diatur')
   ) nilai on true
   where pub.santri_id = santri_row.id
     and pub.status = 'published';
@@ -398,7 +404,8 @@ begin
       'nama', santri_row.nama_lengkap,
       'nis', santri_row.nis,
       'kode_unik', santri_row.kode_unik,
-      'kelas', concat('Angkatan ', santri_row.tahun_masuk),
+      'kelas', coalesce(nullif(santri_row.kelas_pengajian, ''), 'Belum diatur'),
+      'tahun_masuk', santri_row.tahun_masuk,
       'status', santri_row.status
     ),
     'tagihan', tagihan_data,

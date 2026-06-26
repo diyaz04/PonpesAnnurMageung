@@ -42,6 +42,7 @@ type Santri = {
   nama_lengkap: string;
   jenis_kelamin: "L" | "P";
   tahun_masuk: number;
+  kelas_pengajian: string | null;
   tanggal_lahir: string | null;
   alamat: string | null;
   nama_wali: string | null;
@@ -96,7 +97,7 @@ type RaportPenugasan = {
   kelompok: string;
   guru?: Pick<Asatidz, "nama_lengkap">;
   mapel?: Pick<RaportMapel, "mata_pelajaran">;
-  santri?: Pick<Santri, "nama_lengkap" | "nis" | "tahun_masuk">;
+  santri?: Pick<Santri, "nama_lengkap" | "nis" | "tahun_masuk" | "kelas_pengajian">;
 };
 
 type RaportNilaiDetail = {
@@ -118,7 +119,7 @@ type RaportPublikasi = {
   pdf_url: string | null;
   catatan: string | null;
   published_at: string | null;
-  santri?: Pick<Santri, "nama_lengkap" | "nis" | "tahun_masuk">;
+  santri?: Pick<Santri, "nama_lengkap" | "nis" | "tahun_masuk" | "kelas_pengajian">;
 };
 
 type PelanggaranJenis = {
@@ -152,10 +153,32 @@ type SuratArchive = {
   created_at: string;
 };
 
+type PerizinanRow = {
+  id: string;
+  santri_id: string;
+  jenis_izin: string;
+  tujuan: string | null;
+  alasan: string;
+  tanggal_mulai: string;
+  tanggal_selesai: string | null;
+  jam_keluar: string | null;
+  jam_kembali: string | null;
+  penjemput: string | null;
+  no_hp_penjemput: string | null;
+  penanggung_jawab: string | null;
+  status: "diajukan" | "disetujui" | "selesai" | "ditolak" | "dibatalkan";
+  catatan: string | null;
+  nomor_surat: string | null;
+  file_url: string | null;
+  created_at: string;
+  santri?: Pick<Santri, "nama_lengkap" | "nis" | "kelas_pengajian" | "tahun_masuk" | "nama_wali">;
+};
+
 const emptySantri: Partial<Santri> = {
   nama_lengkap: "",
   jenis_kelamin: "L",
   tahun_masuk: new Date().getFullYear(),
+  kelas_pengajian: "",
   tanggal_lahir: "",
   alamat: "",
   nama_wali: "",
@@ -169,6 +192,7 @@ type SantriImportKey =
   | "nama_lengkap"
   | "jenis_kelamin"
   | "tahun_masuk"
+  | "kelas_pengajian"
   | "tanggal_lahir"
   | "alamat"
   | "nama_wali"
@@ -181,6 +205,7 @@ const santriImportColumns: ExcelColumn<SantriImportKey>[] = [
   { key: "nama_lengkap", header: "Nama Lengkap", required: true, example: "Ahmad Fauzi" },
   { key: "jenis_kelamin", header: "Jenis Kelamin", required: true, example: "L" },
   { key: "tahun_masuk", header: "Tahun Masuk", required: true, example: "2026" },
+  { key: "kelas_pengajian", header: "Kelas Pengajian", example: "Ibtida A" },
   { key: "tanggal_lahir", header: "Tanggal Lahir", example: "2012-05-20" },
   { key: "alamat", header: "Alamat", example: "Sariwangi, Tasikmalaya" },
   { key: "nama_wali", header: "Nama Wali", example: "Bapak Abdullah" },
@@ -221,6 +246,10 @@ function buildNis(tahunMasuk: number, gender: string, sequence: number) {
 
 function matchesSearch(value: string | null | undefined, query: string) {
   return (value || "").toLowerCase().includes(query.toLowerCase());
+}
+
+function kelasPengajianLabel(row: Pick<Santri, "kelas_pengajian">) {
+  return row.kelas_pengajian || "Belum diatur";
 }
 
 function Field({
@@ -372,6 +401,7 @@ function DataSantriModule() {
       nama_lengkap: editing.nama_lengkap,
       jenis_kelamin: editing.jenis_kelamin,
       tahun_masuk: Number(editing.tahun_masuk),
+      kelas_pengajian: editing.kelas_pengajian || null,
       tanggal_lahir: editing.tanggal_lahir || null,
       alamat: editing.alamat || null,
       nama_wali: editing.nama_wali || null,
@@ -462,6 +492,7 @@ function DataSantriModule() {
           nama_lengkap: nama,
           jenis_kelamin: jenisKelamin,
           tahun_masuk: Number(tahunMasuk),
+          kelas_pengajian: excelCellToText(row.kelas_pengajian) || null,
           tanggal_lahir: parseExcelDate(row.tanggal_lahir),
           alamat: excelCellToText(row.alamat) || null,
           nama_wali: excelCellToText(row.nama_wali) || null,
@@ -582,7 +613,7 @@ function DataSantriModule() {
     ctx.fillText(row.nama_lengkap, 50, 230);
     ctx.font = "22px sans-serif";
     ctx.fillText(`NIS: ${row.nis}`, 50, 280);
-    ctx.fillText(`Kelas: Angkatan ${row.tahun_masuk}`, 50, 325);
+    ctx.fillText(`Kelas: ${row.kelas_pengajian || `Angkatan ${row.tahun_masuk}`}`, 50, 325);
 
     if (row.foto_url) {
       try {
@@ -737,6 +768,19 @@ function DataSantriModule() {
                 className={inputClass}
               />
             </Field>
+            <Field label="Kelas pengajian">
+              <input
+                value={editing.kelas_pengajian || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({
+                    ...current,
+                    kelas_pengajian: event.target.value,
+                  }))
+                }
+                placeholder="Contoh: Ibtida A"
+                className={inputClass}
+              />
+            </Field>
             <Field label="NIS">
               <input
                 value={editing.nis || ""}
@@ -862,6 +906,7 @@ function DataSantriModule() {
                 <th className="px-4 py-3">Nama</th>
                 <th className="px-4 py-3">JK</th>
                 <th className="px-4 py-3">Tahun</th>
+                <th className="px-4 py-3">Kelas Pengajian</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Aksi</th>
               </tr>
@@ -873,6 +918,7 @@ function DataSantriModule() {
                   <td className="px-4 py-3">{row.nama_lengkap}</td>
                   <td className="px-4 py-3">{row.jenis_kelamin}</td>
                   <td className="px-4 py-3">{row.tahun_masuk}</td>
+                  <td className="px-4 py-3">{row.kelas_pengajian || "-"}</td>
                   <td className="px-4 py-3 capitalize">{row.status}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
@@ -957,7 +1003,7 @@ function DataSantriModule() {
               <h2 className="mt-1 text-lg font-semibold">{selectedCard.nama_lengkap}</h2>
               <p className="mt-2 text-sm text-gray-600">NIS {selectedCard.nis}</p>
               <p className="text-sm text-gray-600">
-                Angkatan {selectedCard.tahun_masuk}
+                Kelas pengajian {selectedCard.kelas_pengajian || `Angkatan ${selectedCard.tahun_masuk}`}
               </p>
               <div className="mt-4 flex items-end justify-between">
                 {selectedCard.foto_url ? (
@@ -1492,9 +1538,9 @@ function RaportModule({ role }: { role: string }) {
       }
       const [mapelResult, assignmentResult, nilaiResult, publishResult] = await Promise.all([
         supabase.from("pp_raport_mapel").select("*").eq("periode_id", selectedPeriod).order("kelompok").order("urutan"),
-        supabase.from("pp_raport_penugasan").select("*, guru:pp_asatidz(nama_lengkap), mapel:pp_raport_mapel(mata_pelajaran), santri:pp_santri(nama_lengkap,nis,tahun_masuk)").eq("periode_id", selectedPeriod).order("created_at", { ascending: false }),
+        supabase.from("pp_raport_penugasan").select("*, guru:pp_asatidz(nama_lengkap), mapel:pp_raport_mapel(mata_pelajaran), santri:pp_santri(nama_lengkap,nis,tahun_masuk,kelas_pengajian)").eq("periode_id", selectedPeriod).order("created_at", { ascending: false }),
         supabase.from("pp_raport_nilai_detail").select("*"),
-        supabase.from("pp_raport_publikasi").select("*, santri:pp_santri(nama_lengkap,nis,tahun_masuk)").eq("periode_id", selectedPeriod).order("updated_at", { ascending: false }),
+        supabase.from("pp_raport_publikasi").select("*, santri:pp_santri(nama_lengkap,nis,tahun_masuk,kelas_pengajian)").eq("periode_id", selectedPeriod).order("updated_at", { ascending: false }),
       ]);
       setMapel((mapelResult.data || []) as RaportMapel[]);
       setAssignments((assignmentResult.data || []) as RaportPenugasan[]);
@@ -1536,7 +1582,7 @@ function RaportModule({ role }: { role: string }) {
 
   const selectedPeriodRow = periods.find((period) => period.id === selectedPeriod);
   const kelompokList = useMemo(
-    () => Array.from(new Set(santri.map((item) => `Angkatan ${item.tahun_masuk}`))).sort(),
+    () => Array.from(new Set(santri.map((item) => kelasPengajianLabel(item)))).sort(),
     [santri],
   );
   const periodMapel = useMemo(
@@ -1556,7 +1602,7 @@ function RaportModule({ role }: { role: string }) {
   const inputSantriList = isAdmin ? santri : assignedSantri;
   const inputMapel = useMemo(() => {
     if (!selected) return [];
-    const kelompok = `Angkatan ${selected.tahun_masuk}`;
+    const kelompok = kelasPengajianLabel(selected);
     if (isAdmin) return mapel.filter((item) => item.kelompok === kelompok);
     const assignedMapelIds = new Set(teacherAssignments.filter((item) => item.santri_id === selected.id).map((item) => item.mapel_id));
     return mapel.filter((item) => item.kelompok === kelompok && assignedMapelIds.has(item.id));
@@ -1598,7 +1644,7 @@ function RaportModule({ role }: { role: string }) {
       kkm: mapelForm.kkm ? Number(mapelForm.kkm) : null,
       urutan: Number(mapelForm.urutan || 0),
     });
-    setMessage(error ? error.message : "Pelajaran/kitab kelompok tersimpan.");
+    setMessage(error ? error.message : "Pelajaran/kitab kelas pengajian tersimpan.");
     if (!error) {
       setMapelForm({ kelompok: mapelForm.kelompok, mata_pelajaran: "", kategori: "", format_nilai: "angka", kkm: "", urutan: mapel.length + 1 });
       const { data } = await supabase.from("pp_raport_mapel").select("*").eq("periode_id", selectedPeriod).order("kelompok").order("urutan");
@@ -1614,7 +1660,7 @@ function RaportModule({ role }: { role: string }) {
   }
 
   async function saveAssignments() {
-    if (!selectedPeriod || !assignmentForm.guru_id || !assignmentForm.kelompok || !assignmentForm.mapel_id) return setMessage("Pilih periode, asatidz, kelompok, dan pelajaran dulu.");
+    if (!selectedPeriod || !assignmentForm.guru_id || !assignmentForm.kelompok || !assignmentForm.mapel_id) return setMessage("Pilih periode, asatidz, kelas pengajian, dan pelajaran dulu.");
     await supabase.from("pp_raport_penugasan").delete().eq("periode_id", selectedPeriod).eq("guru_id", assignmentForm.guru_id).eq("kelompok", assignmentForm.kelompok).eq("mapel_id", assignmentForm.mapel_id);
     if (assignedSantriIds.length) {
       const { error } = await supabase.from("pp_raport_penugasan").insert(
@@ -1629,7 +1675,7 @@ function RaportModule({ role }: { role: string }) {
       if (error) return setMessage(error.message);
     }
     setMessage("Penugasan asatidz dan santri tersimpan.");
-    const { data } = await supabase.from("pp_raport_penugasan").select("*, guru:pp_asatidz(nama_lengkap), mapel:pp_raport_mapel(mata_pelajaran), santri:pp_santri(nama_lengkap,nis,tahun_masuk)").eq("periode_id", selectedPeriod).order("created_at", { ascending: false });
+    const { data } = await supabase.from("pp_raport_penugasan").select("*, guru:pp_asatidz(nama_lengkap), mapel:pp_raport_mapel(mata_pelajaran), santri:pp_santri(nama_lengkap,nis,tahun_masuk,kelas_pengajian)").eq("periode_id", selectedPeriod).order("created_at", { ascending: false });
     setAssignments((data || []) as RaportPenugasan[]);
   }
 
@@ -1654,7 +1700,7 @@ function RaportModule({ role }: { role: string }) {
 
   async function generateRaportPdf(student: Santri, publish = false) {
     if (!selectedPeriodRow) return setMessage("Pilih periode raport dulu.");
-    const kelompok = `Angkatan ${student.tahun_masuk}`;
+    const kelompok = kelasPengajianLabel(student);
     const studentMapel = mapel.filter((item) => item.kelompok === kelompok);
     const rows = studentMapel.map((item) => ({
       mapel: item,
@@ -1675,7 +1721,7 @@ function RaportModule({ role }: { role: string }) {
     doc.setFont("helvetica", "normal");
     doc.text(`Nama: ${student.nama_lengkap}`, 14, 46);
     doc.text(`NIS: ${student.nis}`, 14, 53);
-    doc.text(`Kelompok: ${kelompok}`, 14, 60);
+    doc.text(`Kelas Pengajian: ${kelompok}`, 14, 60);
     doc.text(`Periode: ${selectedPeriodRow.nama || `${selectedPeriodRow.tahun_ajaran} - ${selectedPeriodRow.semester}`}`, 112, 46);
     doc.text(`Status: ${publish ? "Published" : "Preview"}`, 112, 53);
     let y = 74;
@@ -1726,7 +1772,7 @@ function RaportModule({ role }: { role: string }) {
       published_at: new Date().toISOString(),
     }, { onConflict: "periode_id,santri_id" });
     setMessage(error ? error.message : `Raport ${student.nama_lengkap} dipublish.`);
-    const { data } = await supabase.from("pp_raport_publikasi").select("*, santri:pp_santri(nama_lengkap,nis,tahun_masuk)").eq("periode_id", selectedPeriodRow.id).order("updated_at", { ascending: false });
+    const { data } = await supabase.from("pp_raport_publikasi").select("*, santri:pp_santri(nama_lengkap,nis,tahun_masuk,kelas_pengajian)").eq("periode_id", selectedPeriodRow.id).order("updated_at", { ascending: false });
     setPublishedRows((data || []) as RaportPublikasi[]);
   }
 
@@ -1738,7 +1784,7 @@ function RaportModule({ role }: { role: string }) {
   return (
     <ModuleShell
       title="Raport Santri"
-      description="Admin mengatur tahun ajaran, semester, pelajaran/kitab per kelompok, penugasan asatidz/santri, lalu guru mengisi raport yang sudah dibuka."
+      description="Admin mengatur tahun ajaran, semester, pelajaran/kitab per kelas pengajian, penugasan asatidz/santri, lalu guru mengisi raport yang sudah dibuka."
     >
       <div className="rounded bg-white p-5 shadow-soft">
         <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_1fr]">
@@ -1747,7 +1793,7 @@ function RaportModule({ role }: { role: string }) {
             {periods.map((period) => <option key={period.id} value={period.id}>{period.nama || `${period.tahun_ajaran} - ${period.semester}`} ({period.status})</option>)}
           </select>
           <select value={selectedKelompok} onChange={(event) => setSelectedKelompok(event.target.value)} className={inputClass}>
-            <option value="">Semua kelompok</option>
+            <option value="">Semua kelas pengajian</option>
             {kelompokList.map((kelompok) => <option key={kelompok}>{kelompok}</option>)}
           </select>
           <div className="rounded border border-gray-200 px-3 py-2 text-sm">
@@ -1778,9 +1824,9 @@ function RaportModule({ role }: { role: string }) {
           </form>
 
           <form onSubmit={saveMapel} className="rounded bg-white p-5 shadow-soft">
-            <h2 className="text-lg font-semibold">2. Pelajaran / Kitab per Kelompok</h2>
+            <h2 className="text-lg font-semibold">2. Pelajaran / Kitab per Kelas Pengajian</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-6">
-              <select value={mapelForm.kelompok} onChange={(event) => setMapelForm((form) => ({ ...form, kelompok: event.target.value }))} className={inputClass}><option value="">Kelompok</option>{kelompokList.map((kelompok) => <option key={kelompok}>{kelompok}</option>)}</select>
+              <select value={mapelForm.kelompok} onChange={(event) => setMapelForm((form) => ({ ...form, kelompok: event.target.value }))} className={inputClass}><option value="">Kelas pengajian</option>{kelompokList.map((kelompok) => <option key={kelompok}>{kelompok}</option>)}</select>
               <input value={mapelForm.mata_pelajaran} onChange={(event) => setMapelForm((form) => ({ ...form, mata_pelajaran: event.target.value }))} placeholder="Pelajaran / kitab" className={inputClass} />
               <input value={mapelForm.kategori} onChange={(event) => setMapelForm((form) => ({ ...form, kategori: event.target.value }))} placeholder="Kategori" className={inputClass} />
               <select value={mapelForm.format_nilai} onChange={(event) => setMapelForm((form) => ({ ...form, format_nilai: event.target.value as RaportMapel["format_nilai"] }))} className={inputClass}><option value="angka">Angka</option><option value="huruf">Huruf</option><option value="predikat">Predikat</option></select>
@@ -1794,12 +1840,12 @@ function RaportModule({ role }: { role: string }) {
             <h2 className="text-lg font-semibold">3. Assign Asatidz & Santri</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <select value={assignmentForm.guru_id} onChange={(event) => setAssignmentForm((form) => ({ ...form, guru_id: event.target.value }))} className={inputClass}><option value="">Pilih asatidz</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.nama_lengkap}</option>)}</select>
-              <select value={assignmentForm.kelompok} onChange={(event) => setAssignmentForm((form) => ({ ...form, kelompok: event.target.value, mapel_id: "" }))} className={inputClass}><option value="">Pilih kelompok</option>{kelompokList.map((kelompok) => <option key={kelompok}>{kelompok}</option>)}</select>
+              <select value={assignmentForm.kelompok} onChange={(event) => setAssignmentForm((form) => ({ ...form, kelompok: event.target.value, mapel_id: "" }))} className={inputClass}><option value="">Pilih kelas pengajian</option>{kelompokList.map((kelompok) => <option key={kelompok}>{kelompok}</option>)}</select>
               <select value={assignmentForm.mapel_id} onChange={(event) => setAssignmentForm((form) => ({ ...form, mapel_id: event.target.value }))} className={inputClass}><option value="">Pilih pelajaran</option>{mapel.filter((item) => item.kelompok === assignmentForm.kelompok).map((item) => <option key={item.id} value={item.id}>{item.mata_pelajaran}</option>)}</select>
             </div>
             {assignmentForm.kelompok && assignmentForm.mapel_id ? (
               <div className="mt-4 grid max-h-72 gap-2 overflow-y-auto rounded border border-gray-200 p-3 md:grid-cols-2">
-                {santri.filter((item) => `Angkatan ${item.tahun_masuk}` === assignmentForm.kelompok).map((item) => (
+                {santri.filter((item) => kelasPengajianLabel(item) === assignmentForm.kelompok).map((item) => (
                   <label key={item.id} className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={assignedSantriIds.includes(item.id)} onChange={(event) => setAssignedSantriIds((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))} />
                     {item.nama_lengkap} ({item.nis})
@@ -1817,7 +1863,7 @@ function RaportModule({ role }: { role: string }) {
         {!isAdmin && !canInput ? <p className="mt-3 rounded bg-amber-50 p-3 text-sm text-amber-800">Belum ada periode raport yang dibuka admin untuk pengisian nilai.</p> : null}
         <select value={selectedSantri} onChange={(event) => setSelectedSantri(event.target.value)} className={`${inputClass} mt-4 w-full`}>
           <option value="">Pilih santri</option>
-          {inputSantriList.map((item) => <option key={item.id} value={item.id}>{item.nama_lengkap} (Angkatan {item.tahun_masuk})</option>)}
+          {inputSantriList.map((item) => <option key={item.id} value={item.id}>{item.nama_lengkap} ({kelasPengajianLabel(item)})</option>)}
         </select>
         {selected ? (
           <div className="mt-5 grid gap-4">
@@ -1831,7 +1877,7 @@ function RaportModule({ role }: { role: string }) {
                 <input value={values[item.id]?.predikat || ""} onChange={(event) => setValues((current) => ({ ...current, [item.id]: { nilai: current[item.id]?.nilai || "", predikat: event.target.value, deskripsi: current[item.id]?.deskripsi || "" } }))} placeholder="Predikat" className={inputClass} disabled={!canInput} />
                 <textarea value={values[item.id]?.deskripsi || ""} onChange={(event) => setValues((current) => ({ ...current, [item.id]: { nilai: current[item.id]?.nilai || "", predikat: current[item.id]?.predikat || "", deskripsi: event.target.value } }))} placeholder="Deskripsi capaian" rows={2} className="rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-700" disabled={!canInput} />
               </div>
-            )) : <p className="rounded bg-gray-50 p-4 text-sm text-gray-600">Belum ada pelajaran untuk kelompok santri ini.</p>}
+            )) : <p className="rounded bg-gray-50 p-4 text-sm text-gray-600">Belum ada pelajaran untuk kelas pengajian santri ini.</p>}
             <div className="flex flex-wrap gap-2">
               <button onClick={saveNilai} className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white"><Save className="mr-2" size={17} />Simpan Nilai</button>
               {isAdmin ? <button onClick={() => generateRaportPdf(selected, false)} className="inline-flex items-center rounded border px-4 py-2 text-sm font-semibold"><Download className="mr-2" size={17} />Preview PDF</button> : null}
@@ -1843,9 +1889,9 @@ function RaportModule({ role }: { role: string }) {
 
       {isAdmin ? (
         <>
-          <DataTable headers={["Kelompok", "Pelajaran", "Kategori", "Format", "KKM", "Aksi"]} rows={periodMapel.map((row) => [row.kelompok, row.mata_pelajaran, row.kategori || "-", row.format_nilai, row.kkm ?? "-", <button key="delete" onClick={() => deleteMapel(row)} className="rounded border px-3 py-2 text-xs font-semibold text-red-700">Hapus</button>])} />
-          <DataTable headers={["Asatidz", "Pelajaran", "Santri", "Kelompok"]} rows={assignments.map((row) => [row.guru?.nama_lengkap || "-", row.mapel?.mata_pelajaran || "-", row.santri?.nama_lengkap || "-", row.kelompok])} />
-          <DataTable headers={["Santri", "Kelompok", "Status", "Tanggal Publish", "PDF"]} rows={publishedRows.map((row) => [row.santri?.nama_lengkap || "-", row.santri ? `Angkatan ${row.santri.tahun_masuk}` : "-", row.status, formatDate(row.published_at), row.pdf_url ? <a key="pdf" href={publicPdfUrl(row.pdf_url)} target="_blank" rel="noreferrer" className="font-semibold text-emerald-800">Buka PDF</a> : "-"])} />
+          <DataTable headers={["Kelas Pengajian", "Pelajaran", "Kategori", "Format", "KKM", "Aksi"]} rows={periodMapel.map((row) => [row.kelompok, row.mata_pelajaran, row.kategori || "-", row.format_nilai, row.kkm ?? "-", <button key="delete" onClick={() => deleteMapel(row)} className="rounded border px-3 py-2 text-xs font-semibold text-red-700">Hapus</button>])} />
+          <DataTable headers={["Asatidz", "Pelajaran", "Santri", "Kelas Pengajian"]} rows={assignments.map((row) => [row.guru?.nama_lengkap || "-", row.mapel?.mata_pelajaran || "-", row.santri?.nama_lengkap || "-", row.kelompok])} />
+          <DataTable headers={["Santri", "Kelas Pengajian", "Status", "Tanggal Publish", "PDF"]} rows={publishedRows.map((row) => [row.santri?.nama_lengkap || "-", row.santri ? kelasPengajianLabel(row.santri) : "-", row.status, formatDate(row.published_at), row.pdf_url ? <a key="pdf" href={publicPdfUrl(row.pdf_url)} target="_blank" rel="noreferrer" className="font-semibold text-emerald-800">Buka PDF</a> : "-"])} />
         </>
       ) : null}
     </ModuleShell>
@@ -2161,6 +2207,264 @@ function CapaianModule() {
   );
 }
 
+function PerizinanModule({ role }: { role: string }) {
+  const { user } = useAuth();
+  const isStaff = ["superadmin", "admin", "guru"].includes(role);
+  const [santri, setSantri] = useState<Santri[]>([]);
+  const [records, setRecords] = useState<PerizinanRow[]>([]);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [selected, setSelected] = useState<PerizinanRow | null>(null);
+  const [form, setForm] = useState({
+    santri_id: "",
+    jenis_izin: "Pulang",
+    tujuan: "",
+    alasan: "",
+    tanggal_mulai: new Date().toISOString().slice(0, 10),
+    tanggal_selesai: new Date().toISOString().slice(0, 10),
+    jam_keluar: "",
+    jam_kembali: "",
+    penjemput: "",
+    no_hp_penjemput: "",
+    penanggung_jawab: "",
+    catatan: "",
+    nomor_surat: "",
+  });
+  const [message, setMessage] = useState("");
+
+  async function loadData() {
+    const [santriResult, izinResult] = await Promise.all([
+      supabase.from("pp_santri").select("*").eq("status", "aktif").order("nama_lengkap"),
+      supabase
+        .from("pp_perizinan")
+        .select("*, santri:pp_santri(nama_lengkap,nis,kelas_pengajian,tahun_masuk,nama_wali)")
+        .order("tanggal_mulai", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(200),
+    ]);
+    setSantri((santriResult.data || []) as Santri[]);
+    setRecords((izinResult.data || []) as PerizinanRow[]);
+  }
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const selectedSantri = santri.find((item) => item.id === form.santri_id);
+  const filteredRecords = records.filter((row) => statusFilter ? row.status === statusFilter : true);
+
+  function buildNomorSurat() {
+    if (form.nomor_surat.trim()) return form.nomor_surat.trim();
+    const date = new Date(form.tanggal_mulai || new Date());
+    return `IZIN/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}/${randomCode(4)}`;
+  }
+
+  function buildPermissionText(nomorSurat: string) {
+    return [
+      `SURAT IZIN ${form.jenis_izin.toUpperCase()}`,
+      `Nomor: ${nomorSurat}`,
+      "",
+      "Yang bertanda tangan di bawah ini menerangkan bahwa santri berikut:",
+      `Nama: ${selectedSantri?.nama_lengkap || "-"}`,
+      `NIS: ${selectedSantri?.nis || "-"}`,
+      `Kelas Pengajian: ${selectedSantri ? kelasPengajianLabel(selectedSantri) : "-"}`,
+      `Wali: ${selectedSantri?.nama_wali || "-"}`,
+      "",
+      `Diberikan izin untuk: ${form.jenis_izin}`,
+      `Tujuan: ${form.tujuan || "-"}`,
+      `Alasan: ${form.alasan || "-"}`,
+      `Tanggal: ${formatDate(form.tanggal_mulai)} s.d. ${formatDate(form.tanggal_selesai)}`,
+      `Jam keluar: ${form.jam_keluar || "-"}`,
+      `Perkiraan kembali: ${form.jam_kembali || "-"}`,
+      `Penjemput/Pendamping: ${form.penjemput || "-"}`,
+      `No. HP Penjemput: ${form.no_hp_penjemput || "-"}`,
+      "",
+      "Surat ini dibuat sebagai bukti bahwa santri yang bersangkutan telah mendapatkan izin dari pihak pesantren.",
+      form.catatan ? `Catatan: ${form.catatan}` : "",
+    ].filter(Boolean).join("\n");
+  }
+
+  async function generatePdfBlob(nomorSurat: string) {
+    const { jsPDF } = await import("jspdf");
+    const doc = new jsPDF();
+    const text = buildPermissionText(nomorSurat);
+    doc.setFillColor(6, 78, 59);
+    doc.rect(0, 0, 210, 30, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("PONDOK PESANTREN AN-NUR MAGEUNG", 105, 13, { align: "center" });
+    doc.setFontSize(9);
+    doc.text("Mageung, Sariwangi, Tasikmalaya", 105, 21, { align: "center" });
+    doc.setTextColor(17, 24, 39);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(doc.splitTextToSize(text, 170), 20, 45);
+    doc.text("Petugas Pesantren", 140, 240);
+    doc.text(form.penanggung_jawab || "(________________)", 136, 270);
+    return { doc, blob: doc.output("blob") };
+  }
+
+  async function savePermission(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    if (!isStaff) return setMessage("Akses tidak tersedia.");
+    if (!form.santri_id || !form.alasan.trim() || !form.tanggal_mulai) {
+      setMessage("Pilih santri, isi alasan, dan tanggal izin.");
+      return;
+    }
+    const nomorSurat = buildNomorSurat();
+    const { doc, blob } = await generatePdfBlob(nomorSurat);
+    const path = `pesantren/${form.santri_id}/${Date.now()}-${randomCode(6)}.pdf`;
+    const upload = await supabase.storage.from("pp-perizinan-pdf").upload(path, blob, {
+      contentType: "application/pdf",
+    });
+    if (upload.error) {
+      setMessage(upload.error.message);
+      return;
+    }
+    const { error } = await supabase.from("pp_perizinan").insert({
+      santri_id: form.santri_id,
+      jenis_izin: form.jenis_izin,
+      tujuan: form.tujuan || null,
+      alasan: form.alasan,
+      tanggal_mulai: form.tanggal_mulai,
+      tanggal_selesai: form.tanggal_selesai || null,
+      jam_keluar: form.jam_keluar || null,
+      jam_kembali: form.jam_kembali || null,
+      penjemput: form.penjemput || null,
+      no_hp_penjemput: form.no_hp_penjemput || null,
+      penanggung_jawab: form.penanggung_jawab || null,
+      status: "disetujui",
+      catatan: form.catatan || null,
+      nomor_surat: nomorSurat,
+      file_url: upload.data.path,
+      dibuat_oleh: user?.id || null,
+    });
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    doc.save(`${nomorSurat.replace(/\//g, "-")}.pdf`);
+    setForm({
+      santri_id: "",
+      jenis_izin: "Pulang",
+      tujuan: "",
+      alasan: "",
+      tanggal_mulai: new Date().toISOString().slice(0, 10),
+      tanggal_selesai: new Date().toISOString().slice(0, 10),
+      jam_keluar: "",
+      jam_kembali: "",
+      penjemput: "",
+      no_hp_penjemput: "",
+      penanggung_jawab: "",
+      catatan: "",
+      nomor_surat: "",
+    });
+    setMessage("Izin santri tersimpan dan surat izin berhasil dibuat.");
+    loadData();
+  }
+
+  async function updateStatus(row: PerizinanRow, status: PerizinanRow["status"]) {
+    const { error } = await supabase.from("pp_perizinan").update({ status }).eq("id", row.id);
+    setMessage(error ? error.message : "Status perizinan diperbarui.");
+    loadData();
+  }
+
+  function publicPdfUrl(path?: string | null) {
+    if (!path) return "";
+    return supabase.storage.from("pp-perizinan-pdf").getPublicUrl(path).data.publicUrl;
+  }
+
+  return (
+    <ModuleShell
+      title="Perizinan Santri"
+      description="Catat izin pulang/keluar santri, generate surat bukti izin, dan tampilkan lognya di record santri."
+    >
+      <form onSubmit={savePermission} className="rounded bg-white p-5 shadow-soft">
+        <h2 className="text-lg font-semibold">Catat Izin & Generate Surat</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <select value={form.santri_id} onChange={(event) => setForm((current) => ({ ...current, santri_id: event.target.value }))} className={inputClass}>
+            <option value="">Pilih santri</option>
+            {santri.map((item) => <option key={item.id} value={item.id}>{item.nama_lengkap} ({kelasPengajianLabel(item)})</option>)}
+          </select>
+          <select value={form.jenis_izin} onChange={(event) => setForm((current) => ({ ...current, jenis_izin: event.target.value }))} className={inputClass}>
+            <option value="Pulang">Pulang</option>
+            <option value="Keluar Pesantren">Keluar Pesantren</option>
+            <option value="Berobat">Berobat</option>
+            <option value="Kegiatan Keluarga">Kegiatan Keluarga</option>
+            <option value="Lainnya">Lainnya</option>
+          </select>
+          <input value={form.nomor_surat} onChange={(event) => setForm((current) => ({ ...current, nomor_surat: event.target.value }))} placeholder="Nomor surat otomatis jika kosong" className={inputClass} />
+          <input value={form.tujuan} onChange={(event) => setForm((current) => ({ ...current, tujuan: event.target.value }))} placeholder="Tujuan" className={inputClass} />
+          <input value={form.alasan} onChange={(event) => setForm((current) => ({ ...current, alasan: event.target.value }))} placeholder="Alasan izin" className={inputClass} />
+          <input value={form.penjemput} onChange={(event) => setForm((current) => ({ ...current, penjemput: event.target.value }))} placeholder="Penjemput/pendamping" className={inputClass} />
+          <input value={form.no_hp_penjemput} onChange={(event) => setForm((current) => ({ ...current, no_hp_penjemput: event.target.value }))} placeholder="No HP penjemput" className={inputClass} />
+          <input value={form.penanggung_jawab} onChange={(event) => setForm((current) => ({ ...current, penanggung_jawab: event.target.value }))} placeholder="Penanggung jawab/petugas" className={inputClass} />
+          <input type="date" value={form.tanggal_mulai} onChange={(event) => setForm((current) => ({ ...current, tanggal_mulai: event.target.value }))} className={inputClass} />
+          <input type="date" value={form.tanggal_selesai} onChange={(event) => setForm((current) => ({ ...current, tanggal_selesai: event.target.value }))} className={inputClass} />
+          <input type="time" value={form.jam_keluar} onChange={(event) => setForm((current) => ({ ...current, jam_keluar: event.target.value }))} className={inputClass} />
+          <input type="time" value={form.jam_kembali} onChange={(event) => setForm((current) => ({ ...current, jam_kembali: event.target.value }))} className={inputClass} />
+        </div>
+        <textarea value={form.catatan} onChange={(event) => setForm((current) => ({ ...current, catatan: event.target.value }))} rows={3} placeholder="Catatan tambahan" className="mt-3 w-full rounded border border-gray-200 px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-700" />
+        <button className="mt-4 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+          <FileText className="mr-2" size={17} />
+          Simpan & Generate Surat
+        </button>
+        {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
+      </form>
+
+      <div className="rounded bg-white p-5 shadow-soft">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={inputClass}>
+            <option value="">Semua status</option>
+            <option value="diajukan">Diajukan</option>
+            <option value="disetujui">Disetujui</option>
+            <option value="selesai">Selesai</option>
+            <option value="ditolak">Ditolak</option>
+            <option value="dibatalkan">Dibatalkan</option>
+          </select>
+        </div>
+      </div>
+
+      <DataTable
+        headers={["Tanggal", "Santri", "Jenis", "Tujuan", "Status", "Surat", "Aksi"]}
+        rows={filteredRecords.map((row) => [
+          `${formatDate(row.tanggal_mulai)} - ${formatDate(row.tanggal_selesai)}`,
+          row.santri?.nama_lengkap || "-",
+          row.jenis_izin,
+          row.tujuan || "-",
+          row.status,
+          row.file_url ? <a key="pdf" href={publicPdfUrl(row.file_url)} target="_blank" rel="noreferrer" className="font-semibold text-emerald-800">Buka Surat</a> : "-",
+          <div key="actions" className="flex flex-wrap gap-2">
+            <button onClick={() => setSelected(row)} className="rounded border px-3 py-2 text-xs font-semibold">Detail</button>
+            {(["selesai", "dibatalkan"] as const).map((status) => (
+              <button key={status} onClick={() => updateStatus(row, status)} className="rounded border px-3 py-2 text-xs font-semibold capitalize">{status}</button>
+            ))}
+          </div>,
+        ])}
+      />
+
+      {selected ? (
+        <div className="rounded bg-white p-5 shadow-soft">
+          <h2 className="text-lg font-semibold">Detail Izin - {selected.santri?.nama_lengkap || "-"}</h2>
+          <div className="mt-4 grid gap-2 text-sm md:grid-cols-2">
+            <p>Nomor surat: {selected.nomor_surat || "-"}</p>
+            <p>Kelas pengajian: {selected.santri ? kelasPengajianLabel(selected.santri) : "-"}</p>
+            <p>Jenis: {selected.jenis_izin}</p>
+            <p>Status: {selected.status}</p>
+            <p>Tujuan: {selected.tujuan || "-"}</p>
+            <p>Alasan: {selected.alasan}</p>
+            <p>Penjemput: {selected.penjemput || "-"}</p>
+            <p>No HP: {selected.no_hp_penjemput || "-"}</p>
+            <p className="md:col-span-2">Catatan: {selected.catatan || "-"}</p>
+          </div>
+          <button onClick={() => setSelected(null)} className="mt-4 rounded border px-4 py-2 text-sm font-semibold">Tutup Detail</button>
+        </div>
+      ) : null}
+    </ModuleShell>
+  );
+}
+
 function SuratModule() {
   const { user } = useAuth();
   const [santri, setSantri] = useState<Santri[]>([]);
@@ -2441,6 +2745,7 @@ export function PesantrenDataModule({
   if (slug === "raport-santri") return <RaportModule role={role} />;
   if (slug === "catatan-pelanggaran") return <PelanggaranModule role={role} />;
   if (slug === "capaian-santri") return <CapaianModule />;
+  if (slug === "perizinan") return <PerizinanModule role={role} />;
   if (slug === "manajemen-akun") return <AccountManagementModule entity="pesantren" />;
   if (slug === "surat-keluar") return <SuratModule />;
   if (slug === "psb") return <PsbModule />;

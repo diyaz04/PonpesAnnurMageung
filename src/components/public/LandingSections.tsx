@@ -589,11 +589,16 @@ export function SeksiCekPembayaran({
   const peserta = (result?.peserta || result?.santri) as Record<string, unknown> | undefined;
   const tagihan = (result?.tagihan as Record<string, unknown>[] | undefined) || [];
   const raport = (result?.raport as Record<string, unknown>[] | undefined) || [];
+  const perizinan = (result?.perizinan as Record<string, unknown>[] | undefined) || [];
   const formatCurrency = (value: unknown) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value || 0));
   const raportPdfUrl = (path: unknown) =>
     typeof path === 'string' && path
       ? supabase.storage.from(entitas === 'smp' ? 'smp-raport-pdf' : 'pp-raport-pdf').getPublicUrl(path).data.publicUrl
+      : '';
+  const izinPdfUrl = (path: unknown) =>
+    typeof path === 'string' && path
+      ? supabase.storage.from('pp-perizinan-pdf').getPublicUrl(path).data.publicUrl
       : '';
 
   return (
@@ -678,6 +683,36 @@ export function SeksiCekPembayaran({
                   }) : <p className="text-sm text-white/60">Raport belum dipublish admin.</p>}
                 </div>
               </div>
+
+              {entitas === 'pesantren' ? (
+                <div className="rounded bg-white/10 p-5">
+                  <h3 className="font-semibold text-yellow-300">Riwayat Perizinan</h3>
+                  <div className="mt-3 grid gap-2">
+                    {perizinan.length ? perizinan.map((item, index) => {
+                      const url = izinPdfUrl(item.file_url);
+                      return (
+                        <div key={String(item.id || index)} className="rounded border border-white/10 bg-white/5 p-3 text-sm">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="font-semibold">{String(item.jenis_izin || 'Izin')} - {String(item.status || '-')}</p>
+                              <p className="mt-1 text-white/55">
+                                {item.tanggal_mulai ? new Date(String(item.tanggal_mulai)).toLocaleDateString('id-ID') : '-'}
+                                {item.tanggal_selesai ? ` s.d. ${new Date(String(item.tanggal_selesai)).toLocaleDateString('id-ID')}` : ''}
+                              </p>
+                              <p className="mt-1 text-white/65">{String(item.tujuan || item.alasan || '-')}</p>
+                            </div>
+                            {url ? (
+                              <a href={url} target="_blank" rel="noreferrer" className="inline-flex justify-center rounded bg-green-500 px-4 py-2 font-bold text-green-950">
+                                Buka Surat
+                              </a>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    }) : <p className="text-sm text-white/60">Belum ada catatan perizinan.</p>}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : result ? (
