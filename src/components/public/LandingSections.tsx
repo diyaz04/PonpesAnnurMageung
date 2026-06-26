@@ -592,6 +592,18 @@ export function SeksiCekPembayaran({
   const perizinan = (result?.perizinan as Record<string, unknown>[] | undefined) || [];
   const formatCurrency = (value: unknown) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value || 0));
+  const formatPublicDateTime = (value: unknown) =>
+    value
+      ? new Intl.DateTimeFormat('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(new Date(String(value)))
+      : '-';
+  const izinStatusLabel = (value: unknown) =>
+    value === 'selesai' ? 'Sudah kembali' : String(value || '-').replace(/_/g, ' ');
   const raportPdfUrl = (path: unknown) =>
     typeof path === 'string' && path
       ? supabase.storage.from(entitas === 'smp' ? 'smp-raport-pdf' : 'pp-raport-pdf').getPublicUrl(path).data.publicUrl
@@ -694,11 +706,14 @@ export function SeksiCekPembayaran({
                         <div key={String(item.id || index)} className="rounded border border-white/10 bg-white/5 p-3 text-sm">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                              <p className="font-semibold">{String(item.jenis_izin || 'Izin')} - {String(item.status || '-')}</p>
+                              <p className="font-semibold">{String(item.jenis_izin || 'Izin')} - {izinStatusLabel(item.status)}</p>
                               <p className="mt-1 text-white/55">
                                 {item.tanggal_mulai ? new Date(String(item.tanggal_mulai)).toLocaleDateString('id-ID') : '-'}
                                 {item.tanggal_selesai ? ` s.d. ${new Date(String(item.tanggal_selesai)).toLocaleDateString('id-ID')}` : ''}
                               </p>
+                              {item.waktu_kembali_aktual ? (
+                                <p className="mt-1 font-semibold text-green-300">Sudah kembali: {formatPublicDateTime(item.waktu_kembali_aktual)}</p>
+                              ) : null}
                               <p className="mt-1 text-white/65">{String(item.tujuan || item.alasan || '-')}</p>
                             </div>
                             {url ? (

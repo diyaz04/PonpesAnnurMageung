@@ -8,6 +8,7 @@ import PesantrenAdminPage from "./pages/admin/PesantrenAdminPage";
 import SmpAdminPage from "./pages/admin/SmpAdminPage";
 import PesantrenArticlePage from "./pages/public/PesantrenArticlePage";
 import PesantrenLandingPage from "./pages/public/PesantrenLandingPage";
+import PermissionValidationPage from "./pages/public/PermissionValidationPage";
 import SmpLandingPage from "./pages/public/SmpLandingPage";
 import SmpPresensiPage from "./pages/public/SmpPresensiPage";
 
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="berita/:id" element={<PesantrenArticlePage />} />
         <Route path="smp/berita/:id" element={<PesantrenArticlePage />} />
         <Route path="smp" element={<SmpLandingPage />} />
+        <Route path="validasi-izin/:id" element={<PermissionValidationPage />} />
       </Route>
 
       {/* Presensi publik — standalone full-page tanpa PublicLayout */}

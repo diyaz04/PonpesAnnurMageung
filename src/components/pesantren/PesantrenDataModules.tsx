@@ -163,6 +163,7 @@ type PerizinanRow = {
   tanggal_selesai: string | null;
   jam_keluar: string | null;
   jam_kembali: string | null;
+  waktu_kembali_aktual: string | null;
   penjemput: string | null;
   no_hp_penjemput: string | null;
   penanggung_jawab: string | null;
@@ -231,6 +232,23 @@ function formatDate(value?: string | null) {
     month: "long",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function izinStatusLabel(status?: string | null) {
+  if (status === "selesai") return "Sudah kembali";
+  if (!status) return "-";
+  return status.replace(/_/g, " ");
 }
 
 function randomCode(length = 8) {
@@ -2258,49 +2276,101 @@ function PerizinanModule({ role }: { role: string }) {
     return `IZIN/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}/${randomCode(4)}`;
   }
 
-  function buildPermissionText(nomorSurat: string) {
-    return [
-      `SURAT IZIN ${form.jenis_izin.toUpperCase()}`,
-      `Nomor: ${nomorSurat}`,
-      "",
-      "Yang bertanda tangan di bawah ini menerangkan bahwa santri berikut:",
-      `Nama: ${selectedSantri?.nama_lengkap || "-"}`,
-      `NIS: ${selectedSantri?.nis || "-"}`,
-      `Kelas Pengajian: ${selectedSantri ? kelasPengajianLabel(selectedSantri) : "-"}`,
-      `Wali: ${selectedSantri?.nama_wali || "-"}`,
-      "",
-      `Diberikan izin untuk: ${form.jenis_izin}`,
-      `Tujuan: ${form.tujuan || "-"}`,
-      `Alasan: ${form.alasan || "-"}`,
-      `Tanggal: ${formatDate(form.tanggal_mulai)} s.d. ${formatDate(form.tanggal_selesai)}`,
-      `Jam keluar: ${form.jam_keluar || "-"}`,
-      `Perkiraan kembali: ${form.jam_kembali || "-"}`,
-      `Penjemput/Pendamping: ${form.penjemput || "-"}`,
-      `No. HP Penjemput: ${form.no_hp_penjemput || "-"}`,
-      "",
-      "Surat ini dibuat sebagai bukti bahwa santri yang bersangkutan telah mendapatkan izin dari pihak pesantren.",
-      form.catatan ? `Catatan: ${form.catatan}` : "",
-    ].filter(Boolean).join("\n");
-  }
-
-  async function generatePdfBlob(nomorSurat: string) {
+  async function generatePdfBlob(nomorSurat: string, validationUrl: string) {
     const { jsPDF } = await import("jspdf");
+    const QRCode = await import("qrcode");
     const doc = new jsPDF();
-    const text = buildPermissionText(nomorSurat);
+    const qrDataUrl = await QRCode.toDataURL(validationUrl, {
+      margin: 1,
+      width: 220,
+      color: { dark: "#064e3b", light: "#ffffff" },
+    });
+    const line = (label: string, value?: string | null) => `${label}: ${value || "-"}`;
+
+    doc.setDrawColor(6, 78, 59);
+    doc.setLineWidth(1.2);
+    doc.rect(10, 10, 190, 277);
+
     doc.setFillColor(6, 78, 59);
-    doc.rect(0, 0, 210, 30, "F");
+    doc.rect(10, 10, 190, 28, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text("PONDOK PESANTREN AN-NUR MAGEUNG", 105, 13, { align: "center" });
+    doc.setFontSize(15);
+    doc.text("PONDOK PESANTREN AN-NUR MAGEUNG", 105, 21, { align: "center" });
     doc.setFontSize(9);
-    doc.text("Mageung, Sariwangi, Tasikmalaya", 105, 21, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.text("Mageung, Sariwangi, Tasikmalaya", 105, 29, { align: "center" });
+
     doc.setTextColor(17, 24, 39);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text(`SURAT IZIN ${form.jenis_izin.toUpperCase()}`, 105, 51, { align: "center" });
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Nomor: ${nomorSurat}`, 105, 58, { align: "center" });
+
+    doc.setDrawColor(209, 213, 219);
+    doc.line(20, 66, 190, 66);
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(doc.splitTextToSize(text, 170), 20, 45);
-    doc.text("Petugas Pesantren", 140, 240);
-    doc.text(form.penanggung_jawab || "(________________)", 136, 270);
+    doc.text(
+      doc.splitTextToSize(
+        "Yang bertanda tangan di bawah ini menerangkan bahwa santri berikut telah mendapatkan izin resmi dari pihak pesantren.",
+        170,
+      ),
+      20,
+      76,
+    );
+
+    doc.setFillColor(240, 253, 244);
+    doc.roundedRect(20, 92, 170, 42, 2, 2, "F");
+    doc.setFont("helvetica", "bold");
+    doc.text("DATA SANTRI", 25, 101);
+    doc.setFont("helvetica", "normal");
+    doc.text(line("Nama", selectedSantri?.nama_lengkap), 25, 111);
+    doc.text(line("NIS", selectedSantri?.nis), 25, 119);
+    doc.text(line("Kelas Pengajian", selectedSantri ? kelasPengajianLabel(selectedSantri) : "-"), 105, 111);
+    doc.text(line("Wali", selectedSantri?.nama_wali), 105, 119);
+
+    doc.setFillColor(249, 250, 251);
+    doc.roundedRect(20, 142, 170, 66, 2, 2, "F");
+    doc.setFont("helvetica", "bold");
+    doc.text("DETAIL IZIN", 25, 151);
+    doc.setFont("helvetica", "normal");
+    doc.text(line("Jenis izin", form.jenis_izin), 25, 161);
+    doc.text(line("Tujuan", form.tujuan), 25, 169);
+    doc.text(line("Alasan", form.alasan), 25, 177);
+    doc.text(`Tanggal: ${formatDate(form.tanggal_mulai)} s.d. ${formatDate(form.tanggal_selesai)}`, 25, 185);
+    doc.text(line("Jam keluar", form.jam_keluar), 25, 193);
+    doc.text(line("Perkiraan kembali", form.jam_kembali), 105, 193);
+    doc.text(line("Penjemput/Pendamping", form.penjemput), 25, 201);
+    doc.text(line("No. HP", form.no_hp_penjemput), 105, 201);
+
+    const noteLines = doc.splitTextToSize(
+      `Surat ini dibuat sebagai bukti bahwa santri yang bersangkutan telah mendapatkan izin. ${
+        form.catatan ? `Catatan: ${form.catatan}` : ""
+      }`,
+      112,
+    );
+    doc.text(noteLines, 20, 220);
+
+    doc.addImage(qrDataUrl, "PNG", 153, 216, 31, 31);
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "bold");
+    doc.text("VALIDASI QR", 168.5, 252, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.text(doc.splitTextToSize(validationUrl, 42), 147, 257);
+
+    doc.setFontSize(10);
+    doc.text("Petugas Pesantren", 135, 265);
+    doc.setFont("helvetica", "bold");
+    doc.text(form.penanggung_jawab || "(________________)", 130, 282);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(75, 85, 99);
+    doc.text("Scan QR untuk memastikan surat ini cocok dengan arsip digital pesantren.", 20, 281);
     return { doc, blob: doc.output("blob") };
   }
 
@@ -2312,8 +2382,10 @@ function PerizinanModule({ role }: { role: string }) {
       setMessage("Pilih santri, isi alasan, dan tanggal izin.");
       return;
     }
+    const izinId = crypto.randomUUID();
     const nomorSurat = buildNomorSurat();
-    const { doc, blob } = await generatePdfBlob(nomorSurat);
+    const validationUrl = `${window.location.origin}/validasi-izin/${izinId}`;
+    const { doc, blob } = await generatePdfBlob(nomorSurat, validationUrl);
     const path = `pesantren/${form.santri_id}/${Date.now()}-${randomCode(6)}.pdf`;
     const upload = await supabase.storage.from("pp-perizinan-pdf").upload(path, blob, {
       contentType: "application/pdf",
@@ -2323,6 +2395,7 @@ function PerizinanModule({ role }: { role: string }) {
       return;
     }
     const { error } = await supabase.from("pp_perizinan").insert({
+      id: izinId,
       santri_id: form.santri_id,
       jenis_izin: form.jenis_izin,
       tujuan: form.tujuan || null,
@@ -2365,8 +2438,12 @@ function PerizinanModule({ role }: { role: string }) {
   }
 
   async function updateStatus(row: PerizinanRow, status: PerizinanRow["status"]) {
-    const { error } = await supabase.from("pp_perizinan").update({ status }).eq("id", row.id);
-    setMessage(error ? error.message : "Status perizinan diperbarui.");
+    const payload =
+      status === "selesai"
+        ? { status, waktu_kembali_aktual: new Date().toISOString() }
+        : { status, waktu_kembali_aktual: row.waktu_kembali_aktual };
+    const { error } = await supabase.from("pp_perizinan").update(payload).eq("id", row.id);
+    setMessage(error ? error.message : status === "selesai" ? "Santri ditandai sudah kembali." : "Status perizinan diperbarui.");
     loadData();
   }
 
@@ -2419,7 +2496,7 @@ function PerizinanModule({ role }: { role: string }) {
             <option value="">Semua status</option>
             <option value="diajukan">Diajukan</option>
             <option value="disetujui">Disetujui</option>
-            <option value="selesai">Selesai</option>
+            <option value="selesai">Sudah Kembali</option>
             <option value="ditolak">Ditolak</option>
             <option value="dibatalkan">Dibatalkan</option>
           </select>
@@ -2427,19 +2504,23 @@ function PerizinanModule({ role }: { role: string }) {
       </div>
 
       <DataTable
-        headers={["Tanggal", "Santri", "Jenis", "Tujuan", "Status", "Surat", "Aksi"]}
+        headers={["Tanggal", "Santri", "Jenis", "Tujuan", "Status", "Kembali", "Surat", "Aksi"]}
         rows={filteredRecords.map((row) => [
           `${formatDate(row.tanggal_mulai)} - ${formatDate(row.tanggal_selesai)}`,
           row.santri?.nama_lengkap || "-",
           row.jenis_izin,
           row.tujuan || "-",
-          row.status,
+          <span key="status" className={row.status === "selesai" ? "font-semibold text-emerald-800" : ""}>{izinStatusLabel(row.status)}</span>,
+          row.waktu_kembali_aktual ? formatDateTime(row.waktu_kembali_aktual) : "-",
           row.file_url ? <a key="pdf" href={publicPdfUrl(row.file_url)} target="_blank" rel="noreferrer" className="font-semibold text-emerald-800">Buka Surat</a> : "-",
           <div key="actions" className="flex flex-wrap gap-2">
             <button onClick={() => setSelected(row)} className="rounded border px-3 py-2 text-xs font-semibold">Detail</button>
-            {(["selesai", "dibatalkan"] as const).map((status) => (
-              <button key={status} onClick={() => updateStatus(row, status)} className="rounded border px-3 py-2 text-xs font-semibold capitalize">{status}</button>
-            ))}
+            {row.status !== "selesai" ? (
+              <button onClick={() => updateStatus(row, "selesai")} className="rounded border border-emerald-700 px-3 py-2 text-xs font-semibold text-emerald-800">Tandai Sudah Kembali</button>
+            ) : null}
+            {row.status !== "dibatalkan" ? (
+              <button onClick={() => updateStatus(row, "dibatalkan")} className="rounded border px-3 py-2 text-xs font-semibold text-red-700">Batalkan</button>
+            ) : null}
           </div>,
         ])}
       />
@@ -2451,7 +2532,8 @@ function PerizinanModule({ role }: { role: string }) {
             <p>Nomor surat: {selected.nomor_surat || "-"}</p>
             <p>Kelas pengajian: {selected.santri ? kelasPengajianLabel(selected.santri) : "-"}</p>
             <p>Jenis: {selected.jenis_izin}</p>
-            <p>Status: {selected.status}</p>
+            <p>Status: {izinStatusLabel(selected.status)}</p>
+            <p>Waktu kembali aktual: {formatDateTime(selected.waktu_kembali_aktual)}</p>
             <p>Tujuan: {selected.tujuan || "-"}</p>
             <p>Alasan: {selected.alasan}</p>
             <p>Penjemput: {selected.penjemput || "-"}</p>
