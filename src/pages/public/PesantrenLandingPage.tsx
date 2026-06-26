@@ -7,7 +7,11 @@ import {
   Download,
   ExternalLink,
   FileText,
+  Globe,
   ImageIcon,
+  LogIn,
+  Mail,
+  MapPin,
   Menu,
   MessageSquare,
   Phone,
@@ -1239,44 +1243,164 @@ export default function PesantrenLandingPage() {
       </section>
 
       <footer className="border-t border-white/10 bg-green-950 text-white">
-        <div className="section-shell grid gap-8 py-12 md:grid-cols-[1.2fr_0.8fr]">
+        {/* Main footer grid */}
+        <div className="section-shell grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.1fr]">
+
+          {/* Col 1 — Brand */}
           <div>
-            <h2 className="font-display text-2xl font-bold text-white">
-              Pondok Pesantren An-Nur Mageung
-            </h2>
-            <p className="mt-3 max-w-2xl leading-7 text-white/55">
+            <div className="flex items-center gap-3">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="Logo PP An-Nur Mageung"
+                  className="h-12 w-12 rounded-2xl border border-white/15 bg-white object-contain p-1 shadow-lg"
+                />
+              ) : (
+                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-green-500 text-sm font-black text-green-950">
+                  AN
+                </span>
+              )}
+              <div className="leading-tight">
+                <span className="block text-[10px] font-semibold uppercase tracking-widest text-green-300">
+                  Pondok Pesantren
+                </span>
+                <span className="block text-sm font-bold text-white">
+                  An-Nur Mageung
+                </span>
+              </div>
+            </div>
+            <p className="mt-5 text-sm leading-7 text-white/55">
               {getContent(
-                "footer",
-                "alamat",
-                "Mageung, Sariwangi, Tasikmalaya, Jawa Barat",
+                "profil",
+                "deskripsi_singkat",
+                "Pondok Pesantren An-Nur Mageung menyelenggarakan pendidikan integratif antara ilmu agama, pembinaan akhlak, dan pendidikan formal modern.",
               )}
             </p>
-            <div className="mt-4 flex flex-wrap gap-3 text-sm text-white/65">
-              <span className="inline-flex items-center gap-2">
-                <Phone size={16} />
-                {getContent("footer", "telepon", getContent("footer", "wa", "-"))}
-              </span>
-              <span>{getContent("footer", "email", "info@annurmageung.sch.id")}</span>
-            </div>
-          </div>
-          <div>
-            <p className="font-semibold text-white">Media Sosial</p>
-            <div className="mt-3 grid gap-2 text-sm">
-              {["facebook", "instagram", "youtube"].map((item) => {
-                const url = content.footer?.[item];
-                return url ? (
+            <div className="mt-5 flex gap-3">
+              {[
+                { key: "wa", icon: <Phone size={16} />, label: "WhatsApp" },
+                { key: "email", icon: <Mail size={16} />, label: "Email" },
+                { key: "website", icon: <Globe size={16} />, label: "Website" },
+              ].map(({ key, icon }) => {
+                const url = content.footer?.[key];
+                return (
                   <a
-                    key={item}
-                    href={url}
-                    target="_blank"
+                    key={key}
+                    href={url || "#"}
+                    target={key !== "wa" ? "_blank" : undefined}
                     rel="noreferrer"
-                    className="capitalize text-green-300 hover:text-white"
+                    className="grid h-9 w-9 place-items-center rounded-xl border border-white/15 bg-white/10 text-white/70 transition hover:bg-white/20 hover:text-white"
+                    aria-label={key}
                   >
-                    {item}
+                    {icon}
                   </a>
-                ) : null;
+                );
               })}
             </div>
+          </div>
+
+          {/* Col 2 — Navigasi Cepat */}
+          <div>
+            <p className="border-l-2 border-green-400 pl-3 text-xs font-bold uppercase tracking-widest text-white">
+              Navigasi Cepat
+            </p>
+            <ul className="mt-5 grid gap-3 text-sm text-white/65">
+              {[
+                { href: "#beranda", label: "Beranda Pesantren" },
+                { href: "#profil", label: "Profil & Visi Misi" },
+                { href: "#profil", label: "Program Unggulan" },
+                { href: "#profil", label: "Fasilitas Pesantren" },
+                { href: "#saran", label: "Saran & Kritik" },
+              ].map((item) => (
+                <li key={item.label}>
+                  <a
+                    href={item.href}
+                    className="transition hover:text-white"
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Col 3 — Sistem Informasi */}
+          <div>
+            <p className="border-l-2 border-green-400 pl-3 text-xs font-bold uppercase tracking-widest text-white">
+              Sistem Informasi
+            </p>
+            <ul className="mt-5 grid gap-3 text-sm text-white/65">
+              <li>
+                <Link to="/admin/pesantren" className="transition hover:text-white">
+                  Login Dashboard Pesantren
+                </Link>
+              </li>
+              <li>
+                <Link to="/admin/smp" className="transition hover:text-white">
+                  Login Dashboard SMP
+                </Link>
+              </li>
+              <li>
+                <a href="#cek-santri" className="transition hover:text-white">
+                  Cek Pembayaran Santri
+                </a>
+              </li>
+              <li>
+                <a href="#cek-santri" className="transition hover:text-white">
+                  Record & Raport Santri
+                </a>
+              </li>
+            </ul>
+            <Link
+              to="/admin/pesantren"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl border border-green-400/30 bg-green-500/15 px-4 py-2.5 text-xs font-bold text-green-300 transition hover:bg-green-500/25 hover:text-green-200"
+            >
+              <LogIn size={14} />
+              Login Portal Admin
+            </Link>
+          </div>
+
+          {/* Col 4 — Kontak & Lokasi */}
+          <div>
+            <p className="border-l-2 border-green-400 pl-3 text-xs font-bold uppercase tracking-widest text-white">
+              Kontak &amp; Lokasi
+            </p>
+            <ul className="mt-5 grid gap-4 text-sm text-white/65">
+              <li className="flex items-start gap-3">
+                <MapPin size={16} className="mt-0.5 shrink-0 text-green-400" />
+                <span className="leading-6">
+                  {getContent(
+                    "footer",
+                    "alamat",
+                    "Mageung, Sariwangi, Tasikmalaya, Jawa Barat, Indonesia",
+                  )}
+                </span>
+              </li>
+              <li className="flex items-center gap-3">
+                <Phone size={16} className="shrink-0 text-green-400" />
+                <span>
+                  {getContent("footer", "telepon", getContent("footer", "wa", "-"))}
+                </span>
+              </li>
+              <li className="flex items-center gap-3">
+                <Mail size={16} className="shrink-0 text-green-400" />
+                <span>{getContent("footer", "email", "info@annurmageung.sch.id")}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Bottom bar */}
+        <div className="border-t border-white/10">
+          <div className="section-shell flex flex-col gap-3 py-5 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              © {new Date().getFullYear()} Pondok Pesantren An-Nur Mageung. Hak Cipta Dilindungi.
+            </span>
+            <span>
+              Made with{" "}
+              <span className="text-green-400" aria-label="cinta">♥</span>{" "}
+              for a better pesantren
+            </span>
           </div>
         </div>
       </footer>
