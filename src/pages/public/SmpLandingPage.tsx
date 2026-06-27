@@ -2,6 +2,8 @@ import {
   ArrowUpRight,
   BookOpenCheck,
   ChevronRight,
+  ExternalLink,
+  FileText,
   FileUp,
   Globe,
   GraduationCap,
@@ -12,6 +14,7 @@ import {
   Phone,
   ScanFace,
   Send,
+  ShieldCheck,
   Sparkles,
   Trophy,
   X,
@@ -116,6 +119,73 @@ function getBackgroundOpacity(value?: string) {
   return Math.min(100, Math.max(0, parsed)) / 100;
 }
 
+function formatDate(value?: string | null) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function makeRegistrationNumber(tahunAjaran: string) {
+  const cleanYear = tahunAjaran.replace(/[^\d]/g, "").slice(0, 8) || String(new Date().getFullYear());
+  const randomPart = Math.random().toString(36).slice(2, 7).toUpperCase();
+  return `SPMB/${cleanYear}/${randomPart}`;
+}
+
+function makeUuid() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+    const value = (Math.random() * 16) | 0;
+    const next = char === "x" ? value : (value & 0x3) | 0x8;
+    return next.toString(16);
+  });
+}
+
+function loadImage(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Foto tidak bisa dibaca."));
+    };
+    image.src = url;
+  });
+}
+
+async function compressImage(file: File) {
+  const image = await loadImage(file);
+  const maxSize = 900;
+  const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Foto tidak bisa dikompres.");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(image, 0, 0, width, height);
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Foto tidak bisa dikompres."));
+      },
+      "image/jpeg",
+      0.78,
+    );
+  });
+}
+
 export default function SmpLandingPage() {
   const [contentRows, setContentRows] = useState<ContentRow[]>([]);
   const [activeProfile, setActiveProfile] = useState("visi");
@@ -131,7 +201,11 @@ export default function SmpLandingPage() {
     asal_sekolah: "",
   });
   const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [documentInputKey, setDocumentInputKey] = useState(0);
+  const [photoInputKey, setPhotoInputKey] = useState(0);
   const [spmbStatus, setSpmbStatus] = useState("");
+  const [spmbProofUrl, setSpmbProofUrl] = useState("");
   const [spmbLoading, setSpmbLoading] = useState(false);
 
   useEffect(() => {
@@ -159,6 +233,13 @@ export default function SmpLandingPage() {
     content[section]?.[key] || fallback;
 
   const spmbActive = isEnabled(content.spmb?.active);
+  const currentAcademicYear = `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`;
+  const spmbYear = getContent("spmb", "tahun_ajaran", currentAcademicYear) || currentAcademicYear;
+  const spmbDescription = getContent(
+    "spmb",
+    "deskripsi",
+    "Lengkapi formulir SPMB. Bukti pendaftaran resmi akan otomatis dibuat setelah data terkirim.",
+  );
 
   const navItems = [
     { href: "#beranda", label: "Beranda" },
@@ -204,9 +285,116 @@ export default function SmpLandingPage() {
     return parsed.length ? parsed : defaultFacilities;
   }, [contentRows]);
 
+  async function generateSpmbProofPdf(
+    id: string,
+    nomorPendaftaran: string,
+    tahunAjaran: string,
+    form: SpmbForm,
+  ) {
+    const [{ jsPDF }, QRCode] = await Promise.all([import("jspdf"), import("qrcode")]);
+    const validationUrl = `${window.location.origin}/validasi-spmb/${id}`;
+    const qrDataUrl = await QRCode.toDataURL(validationUrl, {
+      width: 260,
+      margin: 1,
+      errorCorrectionLevel: "M",
+    });
+
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 18;
+    const labelX = 28;
+    const valueX = 76;
+
+    doc.setFillColor(16, 82, 53);
+    doc.rect(0, 0, pageWidth, 34, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("SMP MA'ARIF NU SARIWANGI", pageWidth / 2, 14, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("Bukti Seleksi Penerimaan Murid Baru", pageWidth / 2, 22, { align: "center" });
+    doc.text(`Tahun Ajaran ${tahunAjaran}`, pageWidth / 2, 28, { align: "center" });
+
+    doc.setDrawColor(16, 82, 53);
+    doc.setLineWidth(0.8);
+    doc.line(margin, 41, pageWidth - margin, 41);
+
+    doc.setTextColor(20, 26, 20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.text("BUKTI PENDAFTARAN SPMB", pageWidth / 2, 53, { align: "center" });
+    doc.setFontSize(10);
+    doc.text(nomorPendaftaran, pageWidth / 2, 60, { align: "center" });
+
+    doc.setFillColor(244, 248, 244);
+    doc.roundedRect(margin, 70, pageWidth - margin * 2, 92, 3, 3, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Data Calon Siswa", labelX, 82);
+
+    const rows = [
+      ["Nama Lengkap", form.nama_lengkap],
+      ["Jenis Kelamin", form.jenis_kelamin === "L" ? "Laki-laki" : "Perempuan"],
+      ["Tanggal Lahir", formatDate(form.tanggal_lahir)],
+      ["Asal Sekolah", form.asal_sekolah],
+      ["Nama Orang Tua/Wali", form.nama_orang_tua],
+      ["No. HP", form.no_hp],
+      ["Alamat", form.alamat],
+    ];
+
+    let y = 94;
+    doc.setFontSize(10);
+    rows.forEach(([label, value]) => {
+      doc.setFont("helvetica", "bold");
+      doc.text(label, labelX, y);
+      doc.text(":", valueX - 4, y);
+      doc.setFont("helvetica", "normal");
+      const wrapped = doc.splitTextToSize(value || "-", pageWidth - valueX - margin);
+      doc.text(wrapped, valueX, y);
+      y += Math.max(8, wrapped.length * 5);
+    });
+
+    doc.setFillColor(232, 245, 236);
+    doc.roundedRect(margin, 170, pageWidth - margin * 2, 28, 3, 3, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Status Awal: Belum Terverifikasi", labelX, 182);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Panitia akan memperbarui status setelah verifikasi administrasi.", labelX, 190);
+
+    doc.addImage(qrDataUrl, "PNG", pageWidth - margin - 34, 210, 34, 34);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Validasi QR", margin, 219);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Scan QR untuk membuka data pendaftaran dan status verifikasi resmi.", margin, 227);
+    doc.setTextColor(16, 82, 53);
+    doc.text(validationUrl, margin, 235, { maxWidth: pageWidth - margin * 2 - 40 });
+
+    doc.setTextColor(120, 120, 120);
+    doc.setFontSize(8);
+    doc.text(
+      `Dicetak otomatis pada ${new Intl.DateTimeFormat("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date())}`,
+      margin,
+      276,
+    );
+
+    return doc.output("blob");
+  }
+
   async function handleSpmbSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSpmbStatus("");
+    setSpmbProofUrl("");
 
     if (
       !spmbForm.nama_lengkap.trim() ||
@@ -217,16 +405,51 @@ export default function SmpLandingPage() {
       setSpmbStatus("Lengkapi nama calon siswa, jenis kelamin, orang tua/wali, dan nomor HP.");
       return;
     }
+    if (photoFile && !photoFile.type.startsWith("image/")) {
+      setSpmbStatus("File foto harus berupa gambar.");
+      return;
+    }
 
     setSpmbLoading(true);
+    const id = makeUuid();
+    const nomorPendaftaran = makeRegistrationNumber(spmbYear);
+    const proofBlob = await generateSpmbProofPdf(id, nomorPendaftaran, spmbYear, spmbForm);
+    const yearPath = spmbYear.replace(/[^\w-]+/g, "-");
+    const proofPath = `${yearPath}/${id}.pdf`;
     let dokumenUrl: string | null = null;
+    let fotoUrl: string | null = null;
+
+    if (photoFile) {
+      let compressedPhoto: Blob;
+      try {
+        compressedPhoto = await compressImage(photoFile);
+      } catch {
+        setSpmbLoading(false);
+        setSpmbStatus("Foto belum bisa dikompres. Silakan pilih file gambar lain.");
+        return;
+      }
+
+      fotoUrl = `${yearPath}/${id}.jpg`;
+      const photoUpload = await supabase.storage
+        .from("smp-spmb-foto")
+        .upload(fotoUrl, compressedPhoto, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+
+      if (photoUpload.error) {
+        setSpmbLoading(false);
+        setSpmbStatus("Foto belum berhasil diunggah. Silakan coba lagi.");
+        return;
+      }
+    }
 
     if (documentFile) {
       const extension = documentFile.name.split(".").pop() || "file";
-      const filePath = `smp/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+      const filePath = `smp/${yearPath}/${id}.${extension}`;
       const upload = await supabase.storage
         .from("spmb-dokumen")
-        .upload(filePath, documentFile, { upsert: false });
+        .upload(filePath, documentFile, { upsert: true });
 
       if (upload.error) {
         setSpmbLoading(false);
@@ -236,7 +459,23 @@ export default function SmpLandingPage() {
       dokumenUrl = upload.data.path;
     }
 
+    const proofUpload = await supabase.storage
+      .from("smp-spmb-bukti")
+      .upload(proofPath, proofBlob, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+
+    if (proofUpload.error) {
+      setSpmbLoading(false);
+      setSpmbStatus("Bukti pendaftaran belum bisa dibuat. Silakan coba lagi.");
+      return;
+    }
+
     const { error } = await supabase.from("smp_spmb_pendaftar").insert({
+      id,
+      tahun_ajaran: spmbYear,
+      nomor_pendaftaran: nomorPendaftaran,
       nama_lengkap: spmbForm.nama_lengkap.trim(),
       jenis_kelamin: spmbForm.jenis_kelamin || null,
       tanggal_lahir: spmbForm.tanggal_lahir || null,
@@ -245,6 +484,8 @@ export default function SmpLandingPage() {
       no_hp: spmbForm.no_hp.trim() || null,
       asal_sekolah: spmbForm.asal_sekolah.trim() || null,
       dokumen_url: dokumenUrl,
+      foto_url: fotoUrl,
+      bukti_url: proofPath,
     });
     setSpmbLoading(false);
 
@@ -252,6 +493,13 @@ export default function SmpLandingPage() {
       setSpmbStatus("Pendaftaran belum terkirim. Silakan coba lagi.");
       return;
     }
+
+    const publicUrl = supabase.storage.from("smp-spmb-bukti").getPublicUrl(proofPath).data.publicUrl;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(proofBlob);
+    link.download = `bukti-spmb-${nomorPendaftaran.replace(/\//g, "-")}.pdf`;
+    link.click();
+    URL.revokeObjectURL(link.href);
 
     setSpmbForm({
       nama_lengkap: "",
@@ -263,7 +511,11 @@ export default function SmpLandingPage() {
       asal_sekolah: "",
     });
     setDocumentFile(null);
-    setSpmbStatus("Pendaftaran SPMB berhasil dikirim.");
+    setPhotoFile(null);
+    setDocumentInputKey((value) => value + 1);
+    setPhotoInputKey((value) => value + 1);
+    setSpmbProofUrl(publicUrl);
+    setSpmbStatus("Pendaftaran SPMB berhasil. Bukti PDF sudah dibuat.");
   }
 
   const heroTitle = getContent("hero", "headline", "SMP Ma'arif NU Sariwangi");
@@ -388,7 +640,11 @@ export default function SmpLandingPage() {
           <div className="relative z-10 min-w-0">
             <p className="inline-flex max-w-full items-center gap-2 rounded-2xl border border-green-400/30 bg-green-400/10 px-3 py-2 text-[10px] font-bold uppercase leading-4 tracking-[0.12em] text-green-300 sm:rounded-full sm:px-4 sm:text-xs sm:tracking-[0.18em]">
               <Sparkles className="shrink-0" size={15} />
-              <span>Sekolah Islam Berbasis Karakter</span>
+              <span>
+                {spmbActive
+                  ? `Seleksi Penerimaan Murid Baru Tahun Ajaran ${spmbYear} telah dibuka!`
+                  : "Sekolah Islam Berbasis Karakter"}
+              </span>
             </p>
             <h1 className="mt-7 max-w-3xl break-words font-display text-4xl font-bold leading-[1.04] tracking-[-0.04em] text-white sm:text-6xl lg:text-7xl">
               {heroTitle}
@@ -399,10 +655,10 @@ export default function SmpLandingPage() {
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               {spmbActive ? (
                 <a
-                  href={getContent("hero", "cta_primary_url", "#spmb")}
+                  href="#spmb"
                   className="inline-flex items-center justify-center rounded-full bg-green-500 px-6 py-3.5 text-sm font-bold text-green-950 shadow-glow transition hover:-translate-y-0.5 hover:bg-green-200"
                 >
-                  {getContent("hero", "cta_primary_text", "Daftar SPMB")}
+                  {getContent("hero", "cta_primary_text", "Daftar SPMB Sekarang")}
                   <ArrowUpRight className="ml-2" size={18} />
                 </a>
               ) : null}
@@ -603,15 +859,24 @@ export default function SmpLandingPage() {
                 SPMB
               </p>
               <h2 className="mt-4 font-display text-3xl font-bold sm:text-5xl">
-                Seleksi Penerimaan Murid Baru
+                Seleksi Penerimaan Murid Baru Tahun Ajaran {spmbYear}
               </h2>
               <p className="mt-4 leading-7 text-cream-50">
-                {getContent(
-                  "spmb",
-                  "deskripsi",
-                  "Pendaftaran calon siswa baru SMP Ma'arif NU Sariwangi dibuka sesuai jadwal resmi sekolah.",
-                )}
+                {spmbDescription}
               </p>
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-green-500 text-green-950">
+                    <ShieldCheck size={22} />
+                  </span>
+                  <div>
+                    <p className="font-semibold text-white">Bukti otomatis dengan QR validator</p>
+                    <p className="mt-1 text-sm leading-6 text-cream-50">
+                      Setelah submit, sistem membuat PDF bukti pendaftaran. QR di dalamnya membuka data input dan status verifikasi.
+                    </p>
+                  </div>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setSpmbOpen(true)}
@@ -983,10 +1248,27 @@ export default function SmpLandingPage() {
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                Upload foto calon siswa
+                <span className="flex min-h-12 items-center gap-3 rounded border border-dashed border-gray-300 px-3 text-sm font-normal text-gray-600">
+                  <FileUp size={18} />
+                  <input
+                    key={photoInputKey}
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) =>
+                      setPhotoFile(event.target.files?.[0] || null)
+                    }
+                    className="w-full text-sm"
+                  />
+                </span>
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-gray-700">
                 Upload dokumen
                 <span className="flex min-h-12 items-center gap-3 rounded border border-dashed border-gray-300 px-3 text-sm font-normal text-gray-600">
                   <FileUp size={18} />
                   <input
+                    key={documentInputKey}
                     type="file"
                     accept=".pdf,.jpg,.jpeg,.png"
                     onChange={(event) =>
@@ -1003,9 +1285,20 @@ export default function SmpLandingPage() {
                   disabled={spmbLoading}
                   className="inline-flex items-center justify-center rounded bg-green-950 px-5 py-3 text-sm font-semibold text-white hover:bg-green-950 disabled:opacity-70"
                 >
-                  <GraduationCap className="mr-2" size={18} />
-                  {spmbLoading ? "Mengirim..." : "Kirim Pendaftaran"}
+                  <FileText className="mr-2" size={18} />
+                  {spmbLoading ? "Memproses..." : "Submit dan Buat Bukti"}
                 </button>
+                {spmbProofUrl ? (
+                  <a
+                    href={spmbProofUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center rounded border border-green-900/15 px-4 py-3 text-sm font-semibold text-green-950 hover:bg-green-50"
+                  >
+                    Buka Bukti PDF
+                    <ExternalLink className="ml-2" size={16} />
+                  </a>
+                ) : null}
                 {spmbStatus ? (
                   <p className="text-sm font-medium text-green-700">{spmbStatus}</p>
                 ) : null}
