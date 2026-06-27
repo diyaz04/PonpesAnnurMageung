@@ -15,6 +15,7 @@ type ValidationPayload = {
     alamat: string | null;
     nama_orang_tua: string | null;
     no_hp: string | null;
+    foto_url: string | null;
     status: "baru" | "diverifikasi" | "diterima" | "ditolak";
     bukti_url: string | null;
     created_at: string;
@@ -86,6 +87,9 @@ export default function PsbValidationPage() {
 
   const proofUrl = payload?.pendaftar?.bukti_url
     ? supabase.storage.from("pp-psb-bukti").getPublicUrl(payload.pendaftar.bukti_url).data.publicUrl
+    : "";
+  const photoUrl = payload?.pendaftar?.foto_url
+    ? supabase.storage.from("pp-psb-foto").getPublicUrl(payload.pendaftar.foto_url).data.publicUrl
     : "";
 
   return (
@@ -168,13 +172,26 @@ export default function PsbValidationPage() {
 
               <div className="rounded bg-white p-6 shadow-soft">
                 <h3 className="font-semibold text-gray-950">Data Input Pendaftaran</h3>
-                <div className="mt-4 grid gap-3 text-sm">
-                  <p><span className="text-gray-500">Nama:</span> {payload.pendaftar?.nama_lengkap}</p>
-                  <p><span className="text-gray-500">Jenis Kelamin:</span> {payload.pendaftar?.jenis_kelamin === "L" ? "Laki-laki" : "Perempuan"}</p>
-                  <p><span className="text-gray-500">Tanggal Lahir:</span> {formatDate(payload.pendaftar?.tanggal_lahir)}</p>
-                  <p><span className="text-gray-500">Orang Tua/Wali:</span> {payload.pendaftar?.nama_orang_tua || "-"}</p>
-                  <p><span className="text-gray-500">No HP:</span> {payload.pendaftar?.no_hp || "-"}</p>
-                  <p><span className="text-gray-500">Alamat:</span> {payload.pendaftar?.alamat || "-"}</p>
+                <div className="mt-4 grid gap-4 sm:grid-cols-[112px_1fr]">
+                  {photoUrl ? (
+                    <img
+                      src={photoUrl}
+                      alt={payload.pendaftar?.nama_lengkap || "Foto pendaftar"}
+                      className="h-36 w-28 rounded border border-gray-200 object-cover"
+                    />
+                  ) : (
+                    <div className="grid h-36 w-28 place-items-center rounded border border-dashed border-gray-300 text-center text-xs text-gray-500">
+                      Foto belum ada
+                    </div>
+                  )}
+                  <div className="grid gap-3 text-sm">
+                    <p><span className="text-gray-500">Nama:</span> {payload.pendaftar?.nama_lengkap}</p>
+                    <p><span className="text-gray-500">Jenis Kelamin:</span> {payload.pendaftar?.jenis_kelamin === "L" ? "Laki-laki" : "Perempuan"}</p>
+                    <p><span className="text-gray-500">Tanggal Lahir:</span> {formatDate(payload.pendaftar?.tanggal_lahir)}</p>
+                    <p><span className="text-gray-500">Orang Tua/Wali:</span> {payload.pendaftar?.nama_orang_tua || "-"}</p>
+                    <p><span className="text-gray-500">No HP:</span> {payload.pendaftar?.no_hp || "-"}</p>
+                    <p><span className="text-gray-500">Alamat:</span> {payload.pendaftar?.alamat || "-"}</p>
+                  </div>
                 </div>
               </div>
             </div>

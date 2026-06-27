@@ -237,6 +237,49 @@ function makeUuid() {
   });
 }
 
+function loadImage(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Foto tidak bisa dibaca."));
+    };
+    image.src = url;
+  });
+}
+
+async function compressImage(file: File) {
+  const image = await loadImage(file);
+  const maxSize = 900;
+  const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Foto tidak bisa dikompres.");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(image, 0, 0, width, height);
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Foto tidak bisa dikompres."));
+      },
+      "image/jpeg",
+      0.78,
+    );
+  });
+}
+
 function makeExcerpt(row: NewsRow) {
   if (row.excerpt) return row.excerpt;
   if (!row.konten) return "Baca informasi terbaru dari Pondok Pesantren An-Nur Mageung.";
@@ -300,6 +343,8 @@ export default function PesantrenLandingPage() {
   const [psbLoading, setPsbLoading] = useState(false);
   const [psbStatus, setPsbStatus] = useState("");
   const [psbProofUrl, setPsbProofUrl] = useState("");
+  const [psbPhoto, setPsbPhoto] = useState<File | null>(null);
+  const [psbPhotoInputKey, setPsbPhotoInputKey] = useState(0);
 
   useEffect(() => {
     async function loadLandingData() {
@@ -644,12 +689,41 @@ export default function PesantrenLandingPage() {
       setPsbStatus("Nama pendaftar, nama orang tua/wali, dan no HP wajib diisi.");
       return;
     }
+    if (psbPhoto && !psbPhoto.type.startsWith("image/")) {
+      setPsbStatus("File foto harus berupa gambar.");
+      return;
+    }
 
     setPsbLoading(true);
     const id = makeUuid();
     const nomorPendaftaran = makeRegistrationNumber(psbYear);
     const proofBlob = await generatePsbProofPdf(id, nomorPendaftaran, psbYear, psbForm);
     const storagePath = `${psbYear.replace(/[^\w-]+/g, "-")}/${id}.pdf`;
+    let photoPath: string | null = null;
+
+    if (psbPhoto) {
+      let compressedPhoto: Blob;
+      try {
+        compressedPhoto = await compressImage(psbPhoto);
+      } catch {
+        setPsbLoading(false);
+        setPsbStatus("Foto belum bisa dikompres. Silakan pilih file gambar lain.");
+        return;
+      }
+      photoPath = `${psbYear.replace(/[^\w-]+/g, "-")}/${id}.jpg`;
+      const photoUpload = await supabase.storage
+        .from("pp-psb-foto")
+        .upload(photoPath, compressedPhoto, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+
+      if (photoUpload.error) {
+        setPsbLoading(false);
+        setPsbStatus("Foto belum bisa diupload. Silakan coba lagi.");
+        return;
+      }
+    }
 
     const uploadResult = await supabase.storage
       .from("pp-psb-bukti")
@@ -676,6 +750,7 @@ export default function PesantrenLandingPage() {
       no_hp: psbForm.no_hp.trim(),
       status: "baru",
       bukti_url: storagePath,
+      foto_url: photoPath,
     });
 
     setPsbLoading(false);
@@ -693,6 +768,8 @@ export default function PesantrenLandingPage() {
 
     setPsbProofUrl(publicUrl);
     setPsbStatus("Pendaftaran berhasil. Bukti pendaftaran PDF sudah dibuat.");
+    setPsbPhoto(null);
+    setPsbPhotoInputKey((value) => value + 1);
     setPsbForm({
       nama_lengkap: "",
       jenis_kelamin: "L",
@@ -1175,6 +1252,16 @@ export default function PesantrenLandingPage() {
                       setPsbForm((form) => ({ ...form, no_hp: event.target.value }))
                     }
                     className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700 sm:col-span-2">
+                  Upload foto calon santri
+                  <input
+                    key={psbPhotoInputKey}
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => setPsbPhoto(event.target.files?.[0] || null)}
+                    className="rounded border border-gray-200 px-3 py-3 font-normal outline-none file:mr-3 file:rounded file:border-0 file:bg-green-950 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
                   />
                 </label>
                 <label className="grid gap-2 text-sm font-semibold text-gray-700 sm:col-span-2">

@@ -140,6 +140,7 @@ type PsbRow = {
   nama_orang_tua: string | null;
   no_hp: string | null;
   dokumen_url: string | null;
+  foto_url: string | null;
   bukti_url: string | null;
   status: "baru" | "diverifikasi" | "diterima" | "ditolak";
   created_at: string;
@@ -2752,6 +2753,32 @@ function PsbModule() {
     loadRows();
   }
 
+  async function deletePendaftar(row: PsbRow) {
+    const confirmed = window.confirm(`Hapus data PSB atas nama ${row.nama_lengkap}?`);
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from("pp_psb_pendaftar")
+      .delete()
+      .eq("id", row.id);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    if (row.bukti_url) {
+      await supabase.storage.from("pp-psb-bukti").remove([row.bukti_url]);
+    }
+    if (row.foto_url) {
+      await supabase.storage.from("pp-psb-foto").remove([row.foto_url]);
+    }
+
+    if (selected?.id === row.id) setSelected(null);
+    setMessage("Data pendaftar dihapus.");
+    loadRows();
+  }
+
   async function saveSettings() {
     setMessage("");
     const rowsToSave = [
@@ -2798,6 +2825,9 @@ function PsbModule() {
         "Nama Orang Tua/Wali": row.nama_orang_tua || "",
         "No HP": row.no_hp || "",
         Alamat: row.alamat || "",
+        "URL Foto": row.foto_url
+          ? supabase.storage.from("pp-psb-foto").getPublicUrl(row.foto_url).data.publicUrl
+          : "",
         Status: row.status,
       })),
     );
@@ -2826,6 +2856,11 @@ function PsbModule() {
   function proofUrl(row: PsbRow) {
     if (!row.bukti_url) return "";
     return supabase.storage.from("pp-psb-bukti").getPublicUrl(row.bukti_url).data.publicUrl;
+  }
+
+  function photoUrl(row: PsbRow) {
+    if (!row.foto_url) return "";
+    return supabase.storage.from("pp-psb-foto").getPublicUrl(row.foto_url).data.publicUrl;
   }
 
   return (
@@ -2990,6 +3025,14 @@ function PsbModule() {
                     {status}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => deletePendaftar(row)}
+                  className="inline-flex items-center rounded border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="mr-1" size={14} />
+                  Hapus
+                </button>
               </div>,
             ])}
           />
@@ -2999,16 +3042,29 @@ function PsbModule() {
       {selected ? (
         <div className="rounded bg-white p-5 shadow-soft">
           <h2 className="text-lg font-semibold">Detail Pendaftar</h2>
-          <div className="mt-4 grid gap-2 text-sm md:grid-cols-2">
-            <p>Nomor: {selected.nomor_pendaftaran || "-"}</p>
-            <p>Tahun ajaran: {selected.tahun_ajaran || "-"}</p>
-            <p>Nama: {selected.nama_lengkap}</p>
-            <p>JK: {selected.jenis_kelamin || "-"}</p>
-            <p>Tanggal lahir: {formatDate(selected.tanggal_lahir)}</p>
-            <p>Orang tua: {selected.nama_orang_tua || "-"}</p>
-            <p>No HP: {selected.no_hp || "-"}</p>
-            <p>Status: {selected.status}</p>
-            <p className="md:col-span-2">Alamat: {selected.alamat || "-"}</p>
+          <div className="mt-4 grid gap-4 md:grid-cols-[140px_1fr]">
+            {photoUrl(selected) ? (
+              <img
+                src={photoUrl(selected)}
+                alt={selected.nama_lengkap}
+                className="h-36 w-28 rounded border border-gray-200 object-cover"
+              />
+            ) : (
+              <div className="grid h-36 w-28 place-items-center rounded border border-dashed border-gray-300 text-xs text-gray-500">
+                Foto belum ada
+              </div>
+            )}
+            <div className="grid gap-2 text-sm md:grid-cols-2">
+              <p>Nomor: {selected.nomor_pendaftaran || "-"}</p>
+              <p>Tahun ajaran: {selected.tahun_ajaran || "-"}</p>
+              <p>Nama: {selected.nama_lengkap}</p>
+              <p>JK: {selected.jenis_kelamin || "-"}</p>
+              <p>Tanggal lahir: {formatDate(selected.tanggal_lahir)}</p>
+              <p>Orang tua: {selected.nama_orang_tua || "-"}</p>
+              <p>No HP: {selected.no_hp || "-"}</p>
+              <p>Status: {selected.status}</p>
+              <p className="md:col-span-2">Alamat: {selected.alamat || "-"}</p>
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {proofUrl(selected) ? (
@@ -3016,6 +3072,14 @@ function PsbModule() {
                 Buka Bukti PDF
               </a>
             ) : null}
+            {photoUrl(selected) ? (
+              <a href={photoUrl(selected)} target="_blank" rel="noreferrer" className="rounded border px-4 py-2 text-sm font-semibold">
+                Buka Foto
+              </a>
+            ) : null}
+            <button onClick={() => deletePendaftar(selected)} className="rounded border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">
+              Hapus Data
+            </button>
             <button onClick={() => setSelected(null)} className="rounded border px-4 py-2 text-sm font-semibold">
               Tutup Detail
             </button>
