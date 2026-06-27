@@ -131,6 +131,8 @@ type PelanggaranJenis = {
 
 type PsbRow = {
   id: string;
+  tahun_ajaran: string | null;
+  nomor_pendaftaran: string | null;
   nama_lengkap: string;
   jenis_kelamin: string | null;
   tanggal_lahir: string | null;
@@ -138,8 +140,10 @@ type PsbRow = {
   nama_orang_tua: string | null;
   no_hp: string | null;
   dokumen_url: string | null;
+  bukti_url: string | null;
   status: "baru" | "diverifikasi" | "diterima" | "ditolak";
   created_at: string;
+  updated_at: string | null;
 };
 
 type SuratArchive = {
@@ -2691,8 +2695,16 @@ function SuratModule() {
 function PsbModule() {
   const [rows, setRows] = useState<PsbRow[]>([]);
   const [selected, setSelected] = useState<PsbRow | null>(null);
+  const [activeTab, setActiveTab] = useState<"dashboard" | "pendaftar" | "pengaturan">("dashboard");
   const [statusFilter, setStatusFilter] = useState("");
+  const [yearFilter, setYearFilter] = useState("");
   const [message, setMessage] = useState("");
+  const [settings, setSettings] = useState({
+    active: false,
+    tahun_ajaran: "",
+    deskripsi:
+      "Lengkapi formulir pendaftaran santri baru. Bukti pendaftaran resmi akan otomatis dibuat setelah data terkirim.",
+  });
 
   async function loadRows() {
     const { data } = await supabase
@@ -2702,8 +2714,33 @@ function PsbModule() {
     setRows((data || []) as PsbRow[]);
   }
 
+  async function loadSettings() {
+    const { data } = await supabase
+      .from("lp_konten")
+      .select("section, key, value")
+      .eq("entitas", "pesantren")
+      .eq("section", "psb");
+
+    const mapped = (data || []).reduce<Record<string, string>>((acc, row) => {
+      acc[String(row.key)] = String(row.value || "");
+      return acc;
+    }, {});
+
+    setSettings({
+      active: ["true", "1", "aktif", "active", "yes", "ya"].includes(
+        String(mapped.active || "false").toLowerCase(),
+      ),
+      tahun_ajaran: mapped.tahun_ajaran || "",
+      deskripsi:
+        mapped.deskripsi ||
+        "Lengkapi formulir pendaftaran santri baru. Bukti pendaftaran resmi akan otomatis dibuat setelah data terkirim.",
+    });
+    if (mapped.tahun_ajaran) setYearFilter(mapped.tahun_ajaran);
+  }
+
   useEffect(() => {
     loadRows();
+    loadSettings();
   }, []);
 
   async function updateStatus(row: PsbRow, status: PsbRow["status"]) {
@@ -2715,78 +2752,256 @@ function PsbModule() {
     loadRows();
   }
 
-  function exportAccepted() {
-    const accepted = rows.filter((row) => row.status === "diterima");
-    const csv = [
-      ["Nama", "Jenis Kelamin", "Tanggal Lahir", "Orang Tua", "No HP", "Alamat"].join(","),
-      ...accepted.map((row) =>
-        [
-          row.nama_lengkap,
-          row.jenis_kelamin || "",
-          row.tanggal_lahir || "",
-          row.nama_orang_tua || "",
-          row.no_hp || "",
-          row.alamat || "",
-        ]
-          .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
-          .join(","),
-      ),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "psb-diterima.csv";
-    link.click();
-    URL.revokeObjectURL(link.href);
+  async function saveSettings() {
+    setMessage("");
+    const rowsToSave = [
+      {
+        entitas: "pesantren",
+        section: "psb",
+        key: "active",
+        value: settings.active ? "true" : "false",
+      },
+      {
+        entitas: "pesantren",
+        section: "psb",
+        key: "tahun_ajaran",
+        value: settings.tahun_ajaran.trim(),
+      },
+      {
+        entitas: "pesantren",
+        section: "psb",
+        key: "deskripsi",
+        value: settings.deskripsi.trim(),
+      },
+    ];
+    const { error } = await supabase
+      .from("lp_konten")
+      .upsert(rowsToSave, { onConflict: "entitas,section,key" });
+
+    setMessage(error ? error.message : "Pengaturan PSB tersimpan.");
+    if (!error) {
+      setYearFilter(settings.tahun_ajaran.trim());
+      loadSettings();
+    }
   }
 
-  const filteredRows = rows.filter((row) =>
-    statusFilter ? row.status === statusFilter : true,
+  async function exportExcel() {
+    const XLSX = await import("xlsx");
+    const worksheet = XLSX.utils.json_to_sheet(
+      filteredRows.map((row) => ({
+        "Nomor Pendaftaran": row.nomor_pendaftaran || "",
+        "Tahun Ajaran": row.tahun_ajaran || "",
+        "Tanggal Daftar": formatDate(row.created_at),
+        "Nama Lengkap": row.nama_lengkap,
+        "Jenis Kelamin": row.jenis_kelamin === "L" ? "Laki-laki" : row.jenis_kelamin === "P" ? "Perempuan" : "",
+        "Tanggal Lahir": row.tanggal_lahir || "",
+        "Nama Orang Tua/Wali": row.nama_orang_tua || "",
+        "No HP": row.no_hp || "",
+        Alamat: row.alamat || "",
+        Status: row.status,
+      })),
+    );
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Pendaftar PSB");
+    XLSX.writeFile(workbook, `data-psb-${yearFilter || "semua"}.xlsx`);
+  }
+
+  const years = Array.from(
+    new Set(rows.map((row) => row.tahun_ajaran).filter(Boolean) as string[]),
   );
+  const summaryRows = settings.tahun_ajaran
+    ? rows.filter((row) => row.tahun_ajaran === settings.tahun_ajaran)
+    : rows;
+  const filteredRows = rows.filter((row) => {
+    const statusMatches = statusFilter ? row.status === statusFilter : true;
+    const yearMatches = yearFilter ? row.tahun_ajaran === yearFilter : true;
+    return statusMatches && yearMatches;
+  });
+  const total = summaryRows.length;
+  const unverified = summaryRows.filter((row) => row.status === "baru").length;
+  const verified = summaryRows.filter((row) =>
+    ["diverifikasi", "diterima"].includes(row.status),
+  ).length;
+
+  function proofUrl(row: PsbRow) {
+    if (!row.bukti_url) return "";
+    return supabase.storage.from("pp-psb-bukti").getPublicUrl(row.bukti_url).data.publicUrl;
+  }
 
   return (
     <ModuleShell
       title="PSB"
-      description="Kelola pendaftar santri baru, update status, detail, dan export data diterima."
+      description="Atur tahun ajaran, buka/tutup PSB di landing page, kelola pendaftar, verifikasi status, dan export data Excel."
     >
       <div className="rounded bg-white p-5 shadow-soft">
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={inputClass}>
-            <option value="">Semua status</option>
-            <option value="baru">Baru</option>
-            <option value="diverifikasi">Diverifikasi</option>
-            <option value="diterima">Diterima</option>
-            <option value="ditolak">Ditolak</option>
-          </select>
-          <button onClick={exportAccepted} className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
-            <Download className="mr-2" size={17} />
-            Export CSV Diterima
-          </button>
+        <div className="flex flex-wrap gap-2">
+          {[
+            ["dashboard", "Dashboard"],
+            ["pendaftar", "Pendaftar"],
+            ["pengaturan", "Pengaturan"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveTab(key as typeof activeTab)}
+              className={[
+                "rounded border px-4 py-2 text-sm font-semibold",
+                activeTab === key
+                  ? "border-emerald-800 bg-emerald-800 text-white"
+                  : "border-gray-200 bg-white text-gray-700",
+              ].join(" ")}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
       </div>
-      <DataTable
-        headers={["Tanggal", "Nama", "Kontak", "Status", "Aksi"]}
-        rows={filteredRows.map((row) => [
-          formatDate(row.created_at),
-          row.nama_lengkap,
-          row.no_hp || "-",
-          row.status,
-          <div key="actions" className="flex flex-wrap gap-2">
-            <button onClick={() => setSelected(row)} className="rounded border px-3 py-2 text-sm font-semibold">Detail</button>
-            {(["diverifikasi", "diterima", "ditolak"] as const).map((status) => (
-              <button key={status} onClick={() => updateStatus(row, status)} className="rounded border px-3 py-2 text-xs font-semibold capitalize">
-                {status}
+
+      {activeTab === "dashboard" ? (
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            ["Jumlah Pendaftar", total],
+            ["Belum Terverifikasi", unverified],
+            ["Terverifikasi", verified],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded bg-white p-5 shadow-soft">
+              <p className="text-sm font-semibold text-gray-500">{label}</p>
+              <p className="mt-3 text-3xl font-bold text-emerald-900">{value}</p>
+              <p className="mt-2 text-xs text-gray-500">
+                Tahun ajaran {settings.tahun_ajaran || "semua"}
+              </p>
+            </div>
+          ))}
+          <div className="rounded bg-white p-5 shadow-soft md:col-span-3">
+            <p className="text-sm font-semibold text-gray-500">Status PSB Landing Page</p>
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xl font-semibold text-gray-950">
+                  {settings.active ? "PSB sedang dibuka" : "PSB sedang ditutup"}
+                </p>
+                <p className="mt-1 text-sm text-gray-600">
+                  {settings.active
+                    ? "Section pendaftaran dan tombol cepat di hero landing page aktif."
+                    : "Section pendaftaran tidak tampil di landing page."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab("pengaturan")}
+                className="inline-flex items-center rounded border px-4 py-2 text-sm font-semibold"
+              >
+                <Pencil className="mr-2" size={16} />
+                Atur PSB
               </button>
-            ))}
-          </div>,
-        ])}
-      />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {activeTab === "pengaturan" ? (
+        <div className="rounded bg-white p-5 shadow-soft">
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="grid gap-2 text-sm font-semibold text-gray-700">
+              Tahun ajaran PSB
+              <input
+                value={settings.tahun_ajaran}
+                onChange={(event) =>
+                  setSettings((current) => ({ ...current, tahun_ajaran: event.target.value }))
+                }
+                placeholder="Contoh: 2026/2027"
+                className={inputClass}
+              />
+            </label>
+            <label className="flex min-h-11 items-center gap-3 rounded border border-gray-200 px-3 text-sm font-semibold text-gray-700">
+              <input
+                type="checkbox"
+                checked={settings.active}
+                onChange={(event) =>
+                  setSettings((current) => ({ ...current, active: event.target.checked }))
+                }
+              />
+              Aktifkan PSB di landing page
+            </label>
+            <label className="grid gap-2 text-sm font-semibold text-gray-700 md:col-span-2">
+              Deskripsi singkat PSB
+              <textarea
+                value={settings.deskripsi}
+                onChange={(event) =>
+                  setSettings((current) => ({ ...current, deskripsi: event.target.value }))
+                }
+                rows={4}
+                className="rounded border border-gray-200 px-3 py-3 font-normal outline-none focus:ring-2 focus:ring-emerald-700"
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={saveSettings}
+            className="mt-4 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white"
+          >
+            <Save className="mr-2" size={17} />
+            Simpan Pengaturan
+          </button>
+        </div>
+      ) : null}
+
+      {activeTab === "pendaftar" ? (
+        <>
+          <div className="rounded bg-white p-5 shadow-soft">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <select value={yearFilter} onChange={(event) => setYearFilter(event.target.value)} className={inputClass}>
+                <option value="">Semua tahun ajaran</option>
+                {years.map((year) => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={inputClass}>
+                <option value="">Semua status</option>
+                <option value="baru">Baru</option>
+                <option value="diverifikasi">Diverifikasi</option>
+                <option value="diterima">Diterima</option>
+                <option value="ditolak">Ditolak</option>
+              </select>
+              <button onClick={exportExcel} className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+                <Download className="mr-2" size={17} />
+                Export Excel
+              </button>
+            </div>
+          </div>
+          <DataTable
+            headers={["Tanggal", "Nomor", "Nama", "Tahun", "Kontak", "Status", "Aksi"]}
+            rows={filteredRows.map((row) => [
+              formatDate(row.created_at),
+              row.nomor_pendaftaran || "-",
+              row.nama_lengkap,
+              row.tahun_ajaran || "-",
+              row.no_hp || "-",
+              row.status,
+              <div key="actions" className="flex flex-wrap gap-2">
+                <button onClick={() => setSelected(row)} className="rounded border px-3 py-2 text-sm font-semibold">Detail</button>
+                {proofUrl(row) ? (
+                  <a href={proofUrl(row)} target="_blank" rel="noreferrer" className="rounded border px-3 py-2 text-sm font-semibold">
+                    Bukti
+                  </a>
+                ) : null}
+                {(["baru", "diverifikasi", "diterima", "ditolak"] as const).map((status) => (
+                  <button key={status} onClick={() => updateStatus(row, status)} className="rounded border px-3 py-2 text-xs font-semibold capitalize">
+                    {status}
+                  </button>
+                ))}
+              </div>,
+            ])}
+          />
+        </>
+      ) : null}
 
       {selected ? (
         <div className="rounded bg-white p-5 shadow-soft">
           <h2 className="text-lg font-semibold">Detail Pendaftar</h2>
           <div className="mt-4 grid gap-2 text-sm md:grid-cols-2">
+            <p>Nomor: {selected.nomor_pendaftaran || "-"}</p>
+            <p>Tahun ajaran: {selected.tahun_ajaran || "-"}</p>
             <p>Nama: {selected.nama_lengkap}</p>
             <p>JK: {selected.jenis_kelamin || "-"}</p>
             <p>Tanggal lahir: {formatDate(selected.tanggal_lahir)}</p>
@@ -2795,9 +3010,16 @@ function PsbModule() {
             <p>Status: {selected.status}</p>
             <p className="md:col-span-2">Alamat: {selected.alamat || "-"}</p>
           </div>
-          <button onClick={() => setSelected(null)} className="mt-4 rounded border px-4 py-2 text-sm font-semibold">
-            Tutup Detail
-          </button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {proofUrl(selected) ? (
+              <a href={proofUrl(selected)} target="_blank" rel="noreferrer" className="rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+                Buka Bukti PDF
+              </a>
+            ) : null}
+            <button onClick={() => setSelected(null)} className="rounded border px-4 py-2 text-sm font-semibold">
+              Tutup Detail
+            </button>
+          </div>
         </div>
       ) : null}
     </ModuleShell>

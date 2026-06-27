@@ -112,7 +112,7 @@ const fallbackLeader =
 const fallbackFacility =
   "https://images.unsplash.com/photo-1517164850305-99a3e65bb47e?auto=format&fit=crop&w=900&q=80";
 
-const navItems = [
+const baseNavItems = [
   { href: "#beranda", label: "Beranda" },
   { href: "#profil", label: "Profil" },
   { href: "#berita", label: "Berita" },
@@ -175,6 +175,15 @@ const fallbackGallery: GalleryRow[] = [
   },
 ];
 
+type PsbFormState = {
+  nama_lengkap: string;
+  jenis_kelamin: "L" | "P";
+  tanggal_lahir: string;
+  alamat: string;
+  nama_orang_tua: string;
+  no_hp: string;
+};
+
 function formatDate(value?: string | null) {
   if (!value) return "Tanggal menyusul";
   return new Intl.DateTimeFormat("id-ID", {
@@ -205,6 +214,27 @@ function getBackgroundOpacity(value?: string) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 0.35;
   return Math.min(100, Math.max(0, parsed)) / 100;
+}
+
+function isActiveFlag(value?: string | null) {
+  return ["true", "1", "aktif", "active", "yes", "ya"].includes(
+    String(value || "").toLowerCase(),
+  );
+}
+
+function makeRegistrationNumber(tahunAjaran: string) {
+  const cleanYear = tahunAjaran.replace(/[^\d]/g, "").slice(0, 8) || String(new Date().getFullYear());
+  const randomPart = Math.random().toString(36).slice(2, 7).toUpperCase();
+  return `PSB/${cleanYear}/${randomPart}`;
+}
+
+function makeUuid() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+    const value = (Math.random() * 16) | 0;
+    const next = char === "x" ? value : (value & 0x3) | 0x8;
+    return next.toString(16);
+  });
 }
 
 function makeExcerpt(row: NewsRow) {
@@ -259,6 +289,17 @@ export default function PesantrenLandingPage() {
   });
   const [suggestionStatus, setSuggestionStatus] = useState("");
   const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [psbForm, setPsbForm] = useState<PsbFormState>({
+    nama_lengkap: "",
+    jenis_kelamin: "L",
+    tanggal_lahir: "",
+    alamat: "",
+    nama_orang_tua: "",
+    no_hp: "",
+  });
+  const [psbLoading, setPsbLoading] = useState(false);
+  const [psbStatus, setPsbStatus] = useState("");
+  const [psbProofUrl, setPsbProofUrl] = useState("");
 
   useEffect(() => {
     async function loadLandingData() {
@@ -368,6 +409,21 @@ export default function PesantrenLandingPage() {
     getContent("hero", "background_opacity", "35"),
   );
   const logoUrl = getContent("hero", "logo_url", pesantrenLogoUrl);
+  const currentAcademicYear = `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`;
+  const psbActive = isActiveFlag(getContent("psb", "active", "false"));
+  const psbYear = getContent("psb", "tahun_ajaran", currentAcademicYear) || currentAcademicYear;
+  const psbDescription = getContent(
+    "psb",
+    "deskripsi",
+    "Lengkapi formulir pendaftaran santri baru. Bukti pendaftaran resmi akan otomatis dibuat setelah data terkirim.",
+  );
+  const navItems = useMemo(() => {
+    const items = [...baseNavItems];
+    if (psbActive) {
+      items.splice(1, 0, { href: "#psb", label: "PSB" });
+    }
+    return items;
+  }, [psbActive]);
 
   async function handleLookup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -464,6 +520,187 @@ export default function PesantrenLandingPage() {
 
     setSuggestionForm({ nama: "", kontak: "", pesan: "" });
     setSuggestionStatus("Terima kasih. Saran dan kritik sudah tersimpan.");
+  }
+
+  async function generatePsbProofPdf(
+    id: string,
+    nomorPendaftaran: string,
+    tahunAjaran: string,
+    form: PsbFormState,
+  ) {
+    const [{ jsPDF }, QRCode] = await Promise.all([import("jspdf"), import("qrcode")]);
+    const validationUrl = `${window.location.origin}/validasi-psb/${id}`;
+    const qrDataUrl = await QRCode.toDataURL(validationUrl, {
+      width: 260,
+      margin: 1,
+      errorCorrectionLevel: "M",
+    });
+
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 18;
+    const labelX = 28;
+    const valueX = 76;
+
+    doc.setFillColor(16, 82, 53);
+    doc.rect(0, 0, pageWidth, 34, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("PONDOK PESANTREN AN-NUR MAGEUNG", pageWidth / 2, 14, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("Bukti Pendaftaran Santri Baru", pageWidth / 2, 22, { align: "center" });
+    doc.text(`Tahun Ajaran ${tahunAjaran}`, pageWidth / 2, 28, { align: "center" });
+
+    doc.setDrawColor(16, 82, 53);
+    doc.setLineWidth(0.8);
+    doc.line(margin, 41, pageWidth - margin, 41);
+
+    doc.setTextColor(20, 26, 20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.text("BUKTI PENDAFTARAN", pageWidth / 2, 53, { align: "center" });
+    doc.setFontSize(10);
+    doc.text(nomorPendaftaran, pageWidth / 2, 60, { align: "center" });
+
+    doc.setFillColor(244, 248, 244);
+    doc.roundedRect(margin, 70, pageWidth - margin * 2, 86, 3, 3, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Data Pendaftar", labelX, 82);
+
+    const rows = [
+      ["Nama Lengkap", form.nama_lengkap],
+      ["Jenis Kelamin", form.jenis_kelamin === "L" ? "Laki-laki" : "Perempuan"],
+      ["Tanggal Lahir", formatDate(form.tanggal_lahir)],
+      ["Nama Orang Tua/Wali", form.nama_orang_tua],
+      ["No. HP", form.no_hp],
+      ["Alamat", form.alamat],
+    ];
+
+    let y = 94;
+    doc.setFontSize(10);
+    rows.forEach(([label, value]) => {
+      doc.setFont("helvetica", "bold");
+      doc.text(label, labelX, y);
+      doc.text(":", valueX - 4, y);
+      doc.setFont("helvetica", "normal");
+      const wrapped = doc.splitTextToSize(value || "-", pageWidth - valueX - margin);
+      doc.text(wrapped, valueX, y);
+      y += Math.max(8, wrapped.length * 5);
+    });
+
+    doc.setFillColor(232, 245, 236);
+    doc.roundedRect(margin, 164, pageWidth - margin * 2, 28, 3, 3, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Status Awal: Belum Terverifikasi", labelX, 176);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(
+      "Simpan bukti ini. Panitia akan memperbarui status setelah proses verifikasi administrasi.",
+      labelX,
+      184,
+    );
+
+    doc.addImage(qrDataUrl, "PNG", pageWidth - margin - 34, 204, 34, 34);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Validasi QR", margin, 213);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Scan QR untuk membuka data pendaftaran dan status verifikasi resmi.", margin, 221);
+    doc.setTextColor(16, 82, 53);
+    doc.text(validationUrl, margin, 229, { maxWidth: pageWidth - margin * 2 - 40 });
+
+    doc.setTextColor(120, 120, 120);
+    doc.setFontSize(8);
+    doc.text(
+      `Dicetak otomatis pada ${new Intl.DateTimeFormat("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date())}`,
+      margin,
+      276,
+    );
+
+    return doc.output("blob");
+  }
+
+  async function handlePsbSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPsbStatus("");
+    setPsbProofUrl("");
+
+    if (!psbActive) {
+      setPsbStatus("PSB belum dibuka.");
+      return;
+    }
+    if (!psbForm.nama_lengkap.trim() || !psbForm.nama_orang_tua.trim() || !psbForm.no_hp.trim()) {
+      setPsbStatus("Nama pendaftar, nama orang tua/wali, dan no HP wajib diisi.");
+      return;
+    }
+
+    setPsbLoading(true);
+    const id = makeUuid();
+    const nomorPendaftaran = makeRegistrationNumber(psbYear);
+    const proofBlob = await generatePsbProofPdf(id, nomorPendaftaran, psbYear, psbForm);
+    const storagePath = `${psbYear.replace(/[^\w-]+/g, "-")}/${id}.pdf`;
+
+    const uploadResult = await supabase.storage
+      .from("pp-psb-bukti")
+      .upload(storagePath, proofBlob, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+
+    if (uploadResult.error) {
+      setPsbLoading(false);
+      setPsbStatus("Bukti pendaftaran belum bisa dibuat. Silakan coba lagi.");
+      return;
+    }
+
+    const { error } = await supabase.from("pp_psb_pendaftar").insert({
+      id,
+      tahun_ajaran: psbYear,
+      nomor_pendaftaran: nomorPendaftaran,
+      nama_lengkap: psbForm.nama_lengkap.trim(),
+      jenis_kelamin: psbForm.jenis_kelamin,
+      tanggal_lahir: psbForm.tanggal_lahir || null,
+      alamat: psbForm.alamat.trim() || null,
+      nama_orang_tua: psbForm.nama_orang_tua.trim(),
+      no_hp: psbForm.no_hp.trim(),
+      status: "baru",
+      bukti_url: storagePath,
+    });
+
+    setPsbLoading(false);
+    if (error) {
+      setPsbStatus("Pendaftaran belum tersimpan. Silakan coba lagi.");
+      return;
+    }
+
+    const publicUrl = supabase.storage.from("pp-psb-bukti").getPublicUrl(storagePath).data.publicUrl;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(proofBlob);
+    link.download = `bukti-psb-${nomorPendaftaran.replace(/\//g, "-")}.pdf`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+
+    setPsbProofUrl(publicUrl);
+    setPsbStatus("Pendaftaran berhasil. Bukti pendaftaran PDF sudah dibuat.");
+    setPsbForm({
+      nama_lengkap: "",
+      jenis_kelamin: "L",
+      tanggal_lahir: "",
+      alamat: "",
+      nama_orang_tua: "",
+      no_hp: "",
+    });
   }
 
   async function downloadStudentSummary() {
@@ -617,7 +854,11 @@ export default function PesantrenLandingPage() {
           <div className="relative z-10 min-w-0">
             <p className="inline-flex max-w-full items-center gap-2 rounded-2xl border border-green-400/30 bg-green-400/10 px-3 py-2 text-[10px] font-bold uppercase leading-4 tracking-[0.12em] text-green-300 sm:rounded-full sm:px-4 sm:text-xs sm:tracking-[0.18em]">
               <Sparkles className="shrink-0" size={15} />
-              <span>Pendidikan Islam & Pembinaan Karakter</span>
+              <span>
+                {psbActive
+                  ? `Penerimaan Santri Baru Tahun Ajaran ${psbYear} telah dibuka!`
+                  : "Pendidikan Islam & Pembinaan Karakter"}
+              </span>
             </p>
             <h1 className="mt-7 max-w-3xl break-words font-display text-4xl font-bold leading-[1.04] tracking-[-0.04em] text-white sm:text-6xl lg:text-7xl">
               {heroTitle}
@@ -627,10 +868,10 @@ export default function PesantrenLandingPage() {
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <a
-                href={getContent("hero", "cta_primary_url", "#saran")}
+                href={psbActive ? "#psb" : getContent("hero", "cta_primary_url", "#saran")}
                 className="inline-flex items-center justify-center rounded-full bg-green-500 px-6 py-3.5 text-sm font-bold text-green-950 shadow-glow transition hover:-translate-y-0.5 hover:bg-green-200"
               >
-                {getContent("hero", "cta_primary_text", "Daftar Santri Baru")}
+                {psbActive ? "Daftar PSB Sekarang" : getContent("hero", "cta_primary_text", "Daftar Santri Baru")}
                 <ArrowUpRight className="ml-2" size={18} />
               </a>
               <a
@@ -852,6 +1093,129 @@ export default function PesantrenLandingPage() {
           </div>
         </div>
       </section>
+
+      {psbActive ? (
+        <section id="psb" className="border-b border-green-900/5 bg-[#f8fbf7] py-20 sm:py-24">
+          <div className="section-shell grid gap-10 lg:grid-cols-[0.82fr_1.18fr]">
+            <div>
+              <p className="section-kicker">Penerimaan Santri Baru</p>
+              <h2 className="section-title">
+                Pendaftaran santri baru Tahun Ajaran {psbYear}.
+              </h2>
+              <p className="mt-4 leading-7 text-gray-600">{psbDescription}</p>
+              <div className="mt-6 rounded-2xl border border-green-900/10 bg-white p-5 shadow-soft">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-green-100 text-green-800">
+                    <ShieldCheck size={22} />
+                  </span>
+                  <div>
+                    <p className="font-semibold text-green-950">Bukti otomatis dengan QR validator</p>
+                    <p className="mt-1 text-sm leading-6 text-gray-600">
+                      Setelah submit, sistem membuat PDF bukti pendaftaran. QR di dalamnya membuka data input dan status verifikasi.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handlePsbSubmit} className="premium-card p-6 sm:p-8">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-semibold text-gray-700 sm:col-span-2">
+                  Nama lengkap calon santri
+                  <input
+                    value={psbForm.nama_lengkap}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, nama_lengkap: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  Jenis kelamin
+                  <select
+                    value={psbForm.jenis_kelamin}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({
+                        ...form,
+                        jenis_kelamin: event.target.value as "L" | "P",
+                      }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="L">Laki-laki</option>
+                    <option value="P">Perempuan</option>
+                  </select>
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  Tanggal lahir
+                  <input
+                    type="date"
+                    value={psbForm.tanggal_lahir}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, tanggal_lahir: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  Nama orang tua/wali
+                  <input
+                    value={psbForm.nama_orang_tua}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, nama_orang_tua: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  No HP aktif
+                  <input
+                    value={psbForm.no_hp}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, no_hp: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700 sm:col-span-2">
+                  Alamat
+                  <textarea
+                    value={psbForm.alamat}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, alamat: event.target.value }))
+                    }
+                    rows={4}
+                    className="rounded border border-gray-200 px-3 py-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <button
+                  type="submit"
+                  disabled={psbLoading}
+                  className="inline-flex items-center justify-center rounded bg-green-950 px-5 py-3 text-sm font-semibold text-white hover:bg-green-900 disabled:opacity-70"
+                >
+                  <FileText className="mr-2" size={18} />
+                  {psbLoading ? "Memproses..." : "Submit dan Buat Bukti"}
+                </button>
+                {psbProofUrl ? (
+                  <a
+                    href={psbProofUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center rounded border border-green-900/15 px-4 py-3 text-sm font-semibold text-green-950 hover:bg-green-50"
+                  >
+                    Buka Bukti PDF
+                    <ExternalLink className="ml-2" size={16} />
+                  </a>
+                ) : null}
+              </div>
+              {psbStatus ? <p className="mt-3 text-sm font-medium text-green-700">{psbStatus}</p> : null}
+            </form>
+          </div>
+        </section>
+      ) : null}
 
       <section id="berita" className="section-shell py-20 sm:py-24">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
