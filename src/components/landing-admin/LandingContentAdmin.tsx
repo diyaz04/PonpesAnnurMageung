@@ -7,6 +7,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useNotifiedMessage } from "../../lib/notify";
 import { supabase } from "../../lib/supabase";
 
 type Entity = "pesantren" | "smp";
@@ -204,7 +205,7 @@ export default function LandingContentAdmin({
   const [gallery, setGallery] = useState<GalleryRow[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionRow[]>([]);
   const [spmbRows, setSpmbRows] = useState<SpmbRow[]>([]);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useNotifiedMessage();
   const [newsForm, setNewsForm] = useState<Partial<NewsRow>>({});
   const [agendaForm, setAgendaForm] = useState<Partial<AgendaRow>>({});
   const [galleryForm, setGalleryForm] = useState<Partial<GalleryRow>>({ tipe: "foto" });

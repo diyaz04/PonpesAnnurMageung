@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { Toaster } from "sonner";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
 import PublicLayout from "./layouts/PublicLayout";
@@ -18,7 +19,9 @@ const adminRoles = ["superadmin", "admin", "bendahara", "guru"];
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <Toaster richColors position="top-right" />
+      <Routes>
       <Route element={<PublicLayout />}>
         <Route index element={<PesantrenLandingPage />} />
         <Route path="berita/:id" element={<PesantrenArticlePage />} />
@@ -56,6 +59,7 @@ export default function App() {
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }

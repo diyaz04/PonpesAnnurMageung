@@ -1,6 +1,7 @@
 import { RefreshCcw, Save, ShieldCheck, UserCog } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { AdminEntity } from "../../contexts/AuthContext";
+import { useNotifiedMessage } from "../../lib/notify";
 import { supabase } from "../../lib/supabase";
 
 type ManagedRole = "admin" | "bendahara" | "guru";
@@ -59,7 +60,7 @@ export default function AccountManagementModule({
   const [profiles, setProfiles] = useState<AccountProfile[]>([]);
   const [form, setForm] = useState<AccountForm>(emptyForm);
   const [targetEntity, setTargetEntity] = useState<AdminEntity>(entity);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useNotifiedMessage();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 

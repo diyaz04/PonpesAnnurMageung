@@ -10,9 +10,21 @@ import {
   Search,
   Trash2,
   UserCheck,
+  Briefcase,
+  BookOpen,
+  ClipboardCheck,
+  Mail,
+  Users,
+  Megaphone,
+  ArrowLeftRight,
+  FileSignature,
+  ShieldCheck,
+  ArrowLeft,
+  FileCheck,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useNotifiedMessage, notifyWarning } from "../../lib/notify";
 import {
   downloadExcelTemplate,
   excelCellToText,
@@ -304,7 +316,7 @@ function DataTable({
   headers,
   rows,
 }: {
-  headers: string[];
+  headers: React.ReactNode[];
   rows: React.ReactNode[][];
 }) {
   return (
@@ -1511,63 +1523,1373 @@ function CapaianModule() {
   );
 }
 
+const SURAT_CARDS = [
+  { id: 'sppd', title: 'SPPD', desc: 'Surat Perintah Perjalanan Dinas', icon: Briefcase, color: 'text-blue-500', bg: 'bg-blue-50' },
+  { id: 'aktif', title: 'Surat Keterangan Aktif', desc: 'Keterangan siswa masih aktif belajar', icon: ClipboardCheck, color: 'text-teal-500', bg: 'bg-teal-50' },
+  { id: 'wali', title: 'Surat Keterangan Wali Siswa', desc: 'Keterangan wali/orang tua siswa', icon: UserCheck, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  { id: 'rekomendasi', title: 'Surat Rekomendasi', desc: 'Rekomendasi siswa untuk lomba/kegiatan', icon: FileCheck, color: 'text-purple-500', bg: 'bg-purple-50' },
+  { id: 'permohonan', title: 'Surat Permohonan', desc: 'Permohonan umum untuk berbagai keperluan', icon: Mail, color: 'text-orange-500', bg: 'bg-orange-50' },
+  { id: 'tugas', title: 'Surat Tugas', desc: 'Penugasan guru/pegawai ke kegiatan', icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+  { id: 'undangan', title: 'Surat Undangan Rapat', desc: 'Undangan rapat atau kegiatan internal', icon: Megaphone, color: 'text-pink-500', bg: 'bg-pink-50' },
+  { id: 'pindah', title: 'Surat Keterangan Pindah', desc: 'Keterangan pindah sekolah siswa', icon: ArrowLeftRight, color: 'text-amber-500', bg: 'bg-amber-50' },
+  { id: 'pernyataan', title: 'Surat Pernyataan', desc: 'Pernyataan orang tua/wali murid', icon: FileSignature, color: 'text-slate-500', bg: 'bg-slate-50' },
+  { id: 'kelakuan_baik', title: 'Surat Kelakuan Baik', desc: 'Keterangan berkelakuan baik siswa', icon: ShieldCheck, color: 'text-green-500', bg: 'bg-green-50' },
+];
+
+
 function SuratModule() {
   const { user } = useAuth();
-  const [siswa, setSiswa] = useState<Siswa[]>([]);
+  const [activeTab, setActiveTab] = useState<'buat' | 'log'>('buat');
+  const [activeForm, setActiveForm] = useState<string | null>(null);
   const [archive, setArchive] = useState<any[]>([]);
-  const [form, setForm] = useState({ jenis_surat: suratTemplates[0], nomor_surat: "", perihal: "", tanggal_surat: new Date().toISOString().slice(0, 10), ditujukan: "", siswa_id: "", isi_tambahan: "" });
-  const [message, setMessage] = useState("");
+  const [teachers, setTeachers] = useState<Guru[]>([]);
+  const [siswa, setSiswa] = useState<Siswa[]>([]);
+  const [message, setMessage] = useNotifiedMessage();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }
+  
+  function toggleSelectAll() {
+    if (selectedIds.length === archive.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(archive.map(a => a.id));
+    }
+  }
+
+  async function deleteSelected() {
+    if (!selectedIds.length) return;
+    if (!confirm(`Yakin hapus ${selectedIds.length} surat terpilih?`)) return;
+    
+    const files = archive.filter(a => selectedIds.includes(a.id)).map(a => a.file_url).filter(Boolean);
+    if (files.length) {
+      await supabase.storage.from('smp-surat-keluar').remove(files);
+    }
+    
+    const { error } = await supabase.from('smp_surat_keluar').delete().in('id', selectedIds);
+    if (error) {
+      setMessage("Gagal menghapus: " + error.message);
+    } else {
+      setMessage(`${selectedIds.length} log surat dihapus.`);
+      setSelectedIds([]);
+      loadData();
+    }
+  }
+
+  const [formTugas, setFormTugas] = useState({
+    nomor_surat: '',
+    nama_pegawai: '',
+    unit_kerja: 'SMP Ma\'arif NU Sariwangi',
+    tugas: '',
+    hari_tanggal: new Date().toISOString().slice(0, 10),
+    tempat: '',
+    jabatan: '',
+    lama_hari: '1 hari',
+    biaya: 'Transport (PP) Rp. ',
+    tanggal_dikeluarkan: new Date().toISOString().slice(0, 10),
+    pejabat: 'Adrian Fauzi Rahman, M.Pd',
+  });
+  
+  const [formAktif, setFormAktif] = useState({
+    nomor_surat: 'P/041/PD.02.02/smpmns.srw/2026',
+    pejabat: 'ADRIAN FAUZI RAHMAN, M.Pd',
+    jabatan: 'Kepala Sekolah',
+    unit_kerja: 'SMP MAARIF NU SARIWANGI',
+    alamat: 'Kp. Mageung Desa Sirnasari Kec. Sariwangi Tasikmalaya',
+    tahun_pelajaran: '2025 -2026',
+    tujuan: 'Gala Siswa Indonesia',
+    tanggal_dikeluarkan: new Date().toISOString().slice(0, 10),
+    tempat_tanggal: 'Sariwangi, 13 Juni 2026',
+  });
+  const [aktifSiswaIds, setAktifSiswaIds] = useState<string[]>([]);
+  
+  const [formWali, setFormWali] = useState({
+    nomor_surat: 'P/010/PD.02.02/smpmns.srw/2025',
+    pejabat: 'ADRIAN FAUZI RAHMAN, M.Pd',
+    jabatan_pejabat: 'Kepala Sekolah SMP Maarif NU Sariwangi',
+    wali_nama: '',
+    wali_ttl: '',
+    wali_jk: '',
+    wali_pekerjaan: 'Mengurus Rumah Tangga',
+    wali_alamat: '',
+    siswa_nama: '',
+    siswa_nisn: '',
+    siswa_ttl: '',
+    siswa_jk: '',
+    siswa_pelajar_dari: 'SMP Maarif NU Sariwangi',
+    siswa_no_rek: '',
+    keperluan: 'persyaratan pengambilan dana bantuan Program Indonesia Pintar (PIP) Sekolah Menengah Pertama Tahun 2025',
+    tempat_tanggal: 'Sariwangi, 22 Desember 2025',
+  });
+  const [waliSiswaId, setWaliSiswaId] = useState<string>('');
+  
+  const [formRekomendasi, setFormRekomendasi] = useState({
+    nomor_surat: 'P/016/PD.01.01/smpmns.srw/2025',
+    pejabat: 'Adrian Fauzi Rahman, M.Pd',
+    ttl_pejabat: 'Tasikmalaya, 28 Januari 1999',
+    jabatan_pejabat: 'Kepala Sekolah SMP Ma\'arif NU Sariwangi',
+    alamat_pejabat: 'Kp. Mageung Desa Sirnasari Kec. Sariwangi Kab. Tasikmalaya',
+    direkomendasikan_kepada: 'Perwakilan Tim Futsal SMP Maarif NU Sariwangi',
+    kegiatan: 'Futsal Competition Pendidikan Indonesia Kab. Tasikmalaya 2025 untuk tingkat SMP/MTs se Kabupaten Tasikmalaya yang dilaksanakan pada tanggal 18 - 19 Oktober 2025 di Lapang Firman Futsal Stadium Singaparna Kab. Tasikmalaya.',
+    tempat_tanggal: 'Tasikmalaya, 17 Oktober 2025',
+    format_cetak: '2_lembar',
+    judul_lampiran: 'DAFTAR PESERTA DIDIK FUTSAL COMPETITION PENDIDIKAN INDONESIA\nSMP MAARIF NU SARIWANGI',
+  });
+  const [rekomendasiSiswaIds, setRekomendasiSiswaIds] = useState<string[]>([]);
+  
+  const [isManualPegawai, setIsManualPegawai] = useState(false);
+
   async function loadData() {
-    const [siswaResult, archiveResult] = await Promise.all([supabase.from("smp_siswa").select("*").order("nama_lengkap"), supabase.from("smp_surat_keluar").select("*").order("created_at", { ascending: false })]);
+    const [suratResult, guruResult, siswaResult] = await Promise.all([
+      supabase.from('smp_surat_keluar').select('*').order('created_at', { ascending: false }),
+      supabase.from("smp_guru").select("*").order("nama_lengkap"),
+      supabase.from("smp_siswa").select("*").eq("status", "aktif").order("nama_lengkap"),
+    ]);
+    setArchive(suratResult.data || []);
+    setTeachers((guruResult.data || []) as Guru[]);
     setSiswa((siswaResult.data || []) as Siswa[]);
-    setArchive(archiveResult.data || []);
   }
+
   useEffect(() => { loadData(); }, []);
-  const selected = siswa.find((item) => item.id === form.siswa_id);
-  const preview = `${form.jenis_surat}\nNomor: ${form.nomor_surat || "-"}\nPerihal: ${form.perihal || "-"}\nTanggal: ${formatDate(form.tanggal_surat)}\nDitujukan: ${form.ditujukan || "-"}\nSiswa: ${selected?.nama_lengkap || "-"}\n\nSMP Ma'arif NU Sariwangi menerangkan surat ini berdasarkan data administrasi sekolah.\n${form.isi_tambahan}`;
-  async function generatePdf() {
-    const { jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
-    doc.setFontSize(14); doc.text("SMP MA'ARIF NU SARIWANGI", 105, 16, { align: "center" });
-    doc.setFontSize(10); doc.text("Sariwangi, Tasikmalaya", 105, 22, { align: "center" }); doc.line(14, 28, 196, 28);
-    doc.setFontSize(12); doc.text(form.jenis_surat, 105, 40, { align: "center" });
-    doc.setFontSize(10); doc.text(doc.splitTextToSize(preview, 170), 20, 52);
-    const blob = doc.output("blob");
-    const path = `smp/${Date.now()}-${randomCode(6)}.pdf`;
-    const upload = await supabase.storage.from("smp-surat-keluar").upload(path, blob, { contentType: "application/pdf" });
-    const { error } = await supabase.from("smp_surat_keluar").insert({ nomor_surat: form.nomor_surat || null, jenis_surat: form.jenis_surat, perihal: form.perihal || null, ditujukan: form.ditujukan || null, tanggal_surat: form.tanggal_surat, siswa_id: form.siswa_id || null, dibuat_oleh: user?.id || null, file_url: upload.data?.path || null });
-    if (upload.error || error) return setMessage(upload.error?.message || error?.message || "Surat belum tersimpan.");
-    doc.save(`${form.nomor_surat || "surat-smp"}.pdf`); setMessage("Surat berhasil digenerate."); loadData();
+
+  function drawKop(doc: any, logoKiri?: string | null, logoKanan?: string | null) {
+    if (logoKiri) doc.addImage(logoKiri, 'PNG', 12, 6, 38, 38);
+    if (logoKanan) doc.addImage(logoKanan, 'PNG', 160, 6, 38, 38);
+
+    doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+    doc.text('YAYASAN AN-NUR MAGEUNG', 105, 18, { align: 'center' });
+    doc.setTextColor(0, 128, 0); // Darker Green
+    doc.setFontSize(21);
+    doc.text('SMP MAARIF NU SARIWANGI', 105, 27, { align: 'center' });
+    doc.setTextColor(0, 0, 0); // Black
+    doc.setFontSize(11); doc.setFont('times', 'normal');
+    doc.text('SK.No. 421.9/KEP.2492/DISDIK/2013', 105, 33, { align: 'center' });
+    doc.text('NSS : 202 021 229 220  NPSN : 69788587', 105, 38, { align: 'center' });
+    doc.setFontSize(12); doc.setFont('times', 'bold');
+    doc.text('TERAKREDITASI "B"', 105, 43, { align: 'center' });
+    doc.setFontSize(11); doc.setFont('times', 'normal');
+    doc.text('Kp. Mageung Desa Sirnasari Kec. Sariwangi Kab. Tasikmalaya 46465', 105, 48, { align: 'center' });
+    doc.text('Email: ', 58, 53); 
+    doc.setTextColor(0, 102, 204); doc.text('smpmaarifsariwangi@gmail.com', 69, 53); 
+    doc.setTextColor(0, 0, 0); doc.text('Tlp. 0821-1927-9300', 126, 53);
+    doc.setLineWidth(1.0); doc.line(12, 56, 198, 56);
+    doc.setLineWidth(0.3); doc.line(12, 57.5, 198, 57.5);
   }
+
+  const [generating, setGenerating] = useState(false);
+
+  async function generateTugasAndSPPD() {
+    setGenerating(true);
+    setMessage('');
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+
+      const loadImage = (url: string) => {
+        return new Promise<string | null>((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width; canvas.height = img.height;
+            canvas.getContext('2d')?.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          };
+          img.onerror = () => resolve(null);
+          img.src = url;
+        });
+      };
+
+      const logoYayasan = await loadImage('/logo-yayasan.png');
+      const logoSmp = await loadImage('/logo-smp.png');
+
+      // PAGE 1: SURAT TUGAS
+      drawKop(doc, logoYayasan, logoSmp);
+      doc.setFontSize(14); doc.setFont('times', 'bold');
+      doc.text('SURAT TUGAS', 105, 65, { align: 'center' });
+      const tw = doc.getTextWidth('SURAT TUGAS');
+      doc.line(105 - tw/2, 66, 105 + tw/2, 66);
+      doc.setFontSize(12); doc.setFont('times', 'normal');
+      doc.text(`Nomor : ${formTugas.nomor_surat}`, 105, 72, { align: 'center' });
+
+      doc.text(`Kepala Sekolah Menengah Pertama Ma'arif NU Sariwangi, dengan ini menugaskan kepada`, 20, 85);
+      doc.text('Saudara :', 20, 93);
+      doc.text('Nama', 40, 105); doc.text(`: ${formTugas.nama_pegawai}`, 80, 105);
+      doc.text('Unit Kerja', 40, 115); doc.text(`: ${formTugas.unit_kerja}`, 80, 115);
+      doc.text('Tugas', 40, 125); doc.text(`: ${formTugas.tugas}`, 80, 125);
+      doc.text('Hari / Tanggal', 40, 135); doc.text(`: ${formatDate(formTugas.hari_tanggal)}`, 80, 135);
+      doc.text('Tempat', 40, 145); doc.text(`: ${formTugas.tempat}`, 80, 145);
+
+      doc.text('Setelah melaksanakan tugas ini agar segera membuat laporan dan atas perhatiannya', 30, 165);
+      doc.text('disampaikan terima kasih.', 20, 173);
+
+      doc.text(`Sariwangi, ${formatDate(formTugas.tanggal_dikeluarkan)}`, 120, 195);
+      doc.text(`Kepala SMP Ma'arif NU Sariwangi`, 120, 203);
+      doc.setFont('times', 'bold');
+      doc.text(formTugas.pejabat, 120, 230);
+      const nw = doc.getTextWidth(formTugas.pejabat);
+      doc.line(120, 231, 120 + nw, 231);
+      doc.setFont('times', 'normal');
+
+      // PAGE 2: SPPD Table
+      doc.addPage();
+      drawKop(doc, logoYayasan, logoSmp);
+      doc.setFontSize(14); doc.setFont('times', 'bold');
+      doc.text('SURAT PERINTAH PERJALANAN DINAS (SPPD)', 105, 65, { align: 'center' });
+    const sw = doc.getTextWidth('SURAT PERINTAH PERJALANAN DINAS (SPPD)');
+    doc.line(105 - sw/2, 66, 105 + sw/2, 66);
+    doc.setFontSize(12); doc.setFont('times', 'normal');
+    doc.text(`Nomor : ${formTugas.nomor_surat}`, 105, 72, { align: 'center' });
+
+    // Table drawing
+    let startY = 85;
+    const rowHeight = 10;
+    const col1 = 15;
+    const col2 = 25;
+    const col3 = 90;
+    const col4 = 195;
+    doc.setLineWidth(0.1);
+    
+    const rows = [
+      ['1', 'Pejabat yang memerintah', `Kepala SMP Ma'arif NU Sariwangi`],
+      ['2', 'Nama Pegawai yang diperintah', formTugas.nama_pegawai],
+      ['3', 'Jabatan/Pangkat dari pegawai yang diberi perintah', formTugas.jabatan],
+      ['4', 'Maksud perjalanan dinas', formTugas.tugas],
+      ['5', 'Alat angkutan yang dipergunakan', 'Darat'],
+      ['6', 'Tempat berangkat', `SMP Ma'arif NU Sariwangi`],
+      ['7', 'Tempat Tujuan', formTugas.tempat],
+      ['8', 'Perjalanan Dinas yang diperintahkan', `Selama: ${formTugas.lama_hari}\nDari tanggal: ${formatDate(formTugas.hari_tanggal)}\ns.d. tanggal: ${formatDate(formTugas.hari_tanggal)}`],
+      ['9', 'Biaya perjalanan Dinas', formTugas.biaya],
+      ['10', 'Keterangan', '']
+    ];
+
+    let currentY = startY;
+    doc.line(col1, currentY, col4, currentY);
+    for (let i = 0; i < rows.length; i++) {
+      const isMultiLine = i === 7;
+      const h = isMultiLine ? 25 : rowHeight;
+      doc.text(rows[i][0], col1 + 3, currentY + 7);
+      doc.text(rows[i][1], col2 + 2, currentY + 7, { maxWidth: col3 - col2 - 4 });
+      if (isMultiLine) {
+        doc.text(rows[i][2], col3 + 2, currentY + 7);
+      } else {
+        doc.text(rows[i][2], col3 + 2, currentY + 7, { maxWidth: col4 - col3 - 4 });
+      }
+      currentY += h;
+      doc.line(col1, currentY, col4, currentY);
+    }
+    
+    // Vertical lines
+    doc.line(col1, startY, col1, currentY);
+    doc.line(col2, startY, col2, currentY);
+    doc.line(col3, startY, col3, currentY);
+    doc.line(col4, startY, col4, currentY);
+
+    currentY += 15;
+    doc.text(`Dikeluarkan di : Sariwangi`, 120, currentY);
+    doc.text(`Pada tanggal : ${formatDate(formTugas.tanggal_dikeluarkan)}`, 120, currentY + 6);
+    doc.text(`Kepala SMP Ma'arif NU Sariwangi`, 120, currentY + 12);
+    doc.setFont('times', 'bold');
+    doc.text(formTugas.pejabat, 120, currentY + 35);
+    const nw2 = doc.getTextWidth(formTugas.pejabat);
+    doc.line(120, currentY + 36, 120 + nw2, currentY + 36);
+    doc.setFont('times', 'normal');
+
+    // PAGE 3: SPPD Page 2
+    doc.addPage();
+    drawKop(doc, logoYayasan, logoSmp);
+
+    doc.text('Berangkat dari', 80, 65); doc.text(`: SMP Ma'arif NU Sariwangi`, 110, 65);
+    doc.text('Tujuan', 80, 72); doc.text(`: ${formTugas.tempat}`, 110, 72);
+    doc.text('Pada Tanggal', 80, 79); doc.text(`: ${formatDate(formTugas.hari_tanggal)}`, 110, 79);
+    
+    doc.text(`Kepala SMP Ma'arif NU Sariwangi`, 110, 92);
+    doc.setFont('times', 'bold');
+    doc.text(formTugas.pejabat, 110, 115);
+    const nw3 = doc.getTextWidth(formTugas.pejabat);
+    doc.line(110, 116, 110 + nw3, 116);
+    doc.setFont('times', 'normal');
+
+    // Box configurations
+    const bx = 15, by = 125, bw = 85, bh = 45;
+    const bx2 = bx + bw;
+    
+    for (let row = 0; row < 2; row++) {
+      const cy = by + (row * bh);
+      // Box 1 (Left)
+      doc.rect(bx, cy, bw, bh);
+      if (row === 0) {
+        doc.text('I. Tiba di', bx + 3, cy + 7); doc.text(':', bx + 30, cy + 7);
+      } else {
+        doc.text('II. Tiba di', bx + 3, cy + 7); doc.text(':', bx + 30, cy + 7);
+      }
+      doc.text('Pada tanggal', bx + 6, cy + 13); doc.text(':', bx + 30, cy + 13);
+      doc.text('Mengetahui Pihak Lembaga (Instansi) :', bx + 6, cy + 19);
+      doc.text('............................................', bx + 6, cy + 40);
+
+      // Box 2 (Right)
+      doc.rect(bx2, cy, bw, bh);
+      doc.text('Berangkat dari', bx2 + 3, cy + 7); doc.text(':', bx2 + 30, cy + 7);
+      doc.text('Pada tanggal', bx2 + 6, cy + 13); doc.text(':', bx2 + 30, cy + 13);
+      doc.text('Mengetahui Pihak Lembaga (Instansi) :', bx2 + 6, cy + 19);
+      doc.text('............................................', bx2 + 6, cy + 40);
+    }
+    
+    // Bottom Box row
+    const cy3 = by + (2 * bh);
+    doc.rect(bx, cy3, bw, bh);
+    doc.text('III. Tiba Kembali di', bx + 3, cy3 + 7); doc.text(':', bx + 33, cy3 + 7);
+    doc.text('Pada Tanggal', bx + 6, cy3 + 13); doc.text(':', bx + 33, cy3 + 13);
+    
+    doc.rect(bx2, cy3, bw, bh);
+    doc.text('Telah diperiksa dengan keterangan bahwa', bx2 + 3, cy3 + 7);
+    doc.text('perjalanan tersebut atas benar dilakukan perintahnya', bx2 + 3, cy3 + 13);
+    doc.text('dan semata-mata untuk kepentingan jabatan dalam', bx2 + 3, cy3 + 19);
+    doc.text('waktu yang sesingkat-singkatnya.', bx2 + 3, cy3 + 25);
+    
+    doc.setFont('times', 'bold');
+    doc.text('Pejabat Pembuat Komitmen', bx2 + 20, cy3 + 35);
+    doc.text(formTugas.pejabat, bx2 + 20, cy3 + 55);
+    const nw4 = doc.getTextWidth(formTugas.pejabat);
+    doc.line(bx2 + 20, cy3 + 56, bx2 + 20 + nw4, cy3 + 56);
+    doc.setFont('times', 'normal');
+    
+    const blob = doc.output('blob');
+    setPreviewBlob(blob);
+    setPreviewPdfUrl(URL.createObjectURL(blob));
+    } catch (err: any) {
+      setMessage(err.message || 'Terjadi kesalahan saat preview PDF.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function saveAndDownloadTugas() {
+    if (!previewBlob) return;
+    setGenerating(true);
+    setMessage('');
+    try {
+      const path = `smp/tugas-${Date.now()}-${Math.floor(Math.random() * 10000)}.pdf`;
+      const upload = await supabase.storage.from('smp-surat-keluar').upload(path, previewBlob, { contentType: 'application/pdf' });
+      const { error } = await supabase.from('smp_surat_keluar').insert({
+        nomor_surat: formTugas.nomor_surat || null,
+        jenis_surat: 'Surat Tugas & SPPD',
+        perihal: formTugas.tugas,
+        ditujukan: formTugas.tempat,
+        tanggal_surat: formTugas.tanggal_dikeluarkan,
+        dibuat_oleh: user?.id || null,
+        file_url: upload.data?.path || null
+      });
+      if (upload.error || error) {
+        setGenerating(false);
+        return setMessage(upload.error?.message || error?.message || 'Surat belum tersimpan.');
+      }
+      
+      const link = document.createElement('a');
+      link.href = previewPdfUrl!;
+      link.download = `${formTugas.nomor_surat || 'surat-tugas'}.pdf`;
+      link.click();
+      
+      setMessage('Surat Tugas & SPPD berhasil disimpan dan didownload.');
+      setPreviewPdfUrl(null);
+      setPreviewBlob(null);
+      loadData();
+      setActiveTab('log');
+      setActiveForm(null);
+    } catch (err: any) {
+      setMessage(err.message || 'Gagal menyimpan surat.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function generateSuratKeteranganAktif() {
+    setGenerating(true);
+    setMessage('');
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+
+      const loadImage = (url: string) => {
+        return new Promise<string | null>((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width; canvas.height = img.height;
+            canvas.getContext('2d')?.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          };
+          img.onerror = () => resolve(null);
+          img.src = url;
+        });
+      };
+
+      const logoYayasan = await loadImage('/logo-yayasan.png');
+      const logoSmp = await loadImage('/logo-smp.png');
+
+      drawKop(doc, logoYayasan, logoSmp);
+      doc.setFontSize(14); doc.setFont('times', 'bold');
+      doc.text('SURAT KETERANGAN', 105, 65, { align: 'center' });
+      const tw = doc.getTextWidth('SURAT KETERANGAN');
+      doc.line(105 - tw/2, 66, 105 + tw/2, 66);
+      doc.setFontSize(12); doc.setFont('times', 'normal');
+      doc.text(`Nomor : ${formAktif.nomor_surat || ''}`, 105, 72, { align: 'center' });
+
+      doc.text(`Yang bertanda tangan dibawah ini`, 20, 85);
+      doc.text('Nama', 20, 95); doc.text(`: ${formAktif.pejabat || ''}`, 60, 95);
+      doc.text('Jabatan', 20, 103); doc.text(`: ${formAktif.jabatan || ''}`, 60, 103);
+      doc.text('Unit Kerja', 20, 111); doc.text(`: ${formAktif.unit_kerja || ''}`, 60, 111);
+      doc.text('Alamat', 20, 119); doc.text(`: ${formAktif.alamat || ''}`, 60, 119);
+
+      doc.text(`Dengan ini menerangkan bahwa nama-nama berikut ini:`, 20, 131);
+
+      let currentY = 136;
+      doc.setLineWidth(0.1);
+      const colNo = 20, colNama = 35, colNisn = 105, colTtl = 135, colEnd = 195;
+      
+      doc.line(colNo, currentY, colEnd, currentY); 
+      doc.setFont('times', 'bold');
+      doc.text('No', colNo + 5, currentY + 6);
+      doc.text('Nama', colNama + 25, currentY + 6);
+      doc.text('NISN', colNisn + 10, currentY + 6);
+      doc.text('Tempat Tanggal Lahir', colTtl + 10, currentY + 6);
+      currentY += 10;
+      doc.line(colNo, currentY, colEnd, currentY); 
+      
+      doc.setFont('times', 'normal');
+      const selectedStudents = siswa.filter(s => aktifSiswaIds.includes(s.id));
+      for (let i = 0; i < selectedStudents.length; i++) {
+        const s = selectedStudents[i];
+        const ttl = `${s.alamat?.split(',')[0] || 'Tasikmalaya'}, ${formatDate(s.tanggal_lahir) || '-'}`;
+        doc.text((i + 1).toString(), colNo + 5, currentY + 6);
+        doc.text(s.nama_lengkap || '-', colNama + 2, currentY + 6);
+        doc.text(s.nisn || '-', colNisn + 2, currentY + 6);
+        doc.text(ttl, colTtl + 2, currentY + 6);
+        currentY += 10;
+        doc.line(colNo, currentY, colEnd, currentY);
+      }
+      
+      doc.line(colNo, 136, colNo, currentY);
+      doc.line(colNama, 136, colNama, currentY);
+      doc.line(colNisn, 136, colNisn, currentY);
+      doc.line(colTtl, 136, colTtl, currentY);
+      doc.line(colEnd, 136, colEnd, currentY);
+
+      currentY += 15;
+      doc.text(`adalah benar-benar tercatat sebagai Peserta Didik SMP MA'ARIF NU SARIWANGI Tahun Pelajaran`, 20, currentY);
+      doc.text(`${formAktif.tahun_pelajaran || ''} dan berhak mengikuti ${formAktif.tujuan || ''}.`, 20, currentY + 8);
+      doc.text(`Demikian surat keterangan ini dibuat untuk dipergunakan sebagaimana mestinya.`, 20, currentY + 16);
+
+      currentY += 35;
+      doc.text(formAktif.tempat_tanggal || '', 120, currentY);
+      doc.text(`Kepala Sekolah,`, 120, currentY + 8);
+      
+      currentY += 35;
+      doc.setFont('times', 'bold');
+      doc.text(formAktif.pejabat || '', 120, currentY);
+      const nw = doc.getTextWidth(formAktif.pejabat || '');
+      doc.line(120, currentY + 1, 120 + nw, currentY + 1);
+      doc.setFont('times', 'normal');
+
+      const blob = doc.output('blob');
+      setPreviewBlob(blob);
+      setPreviewPdfUrl(URL.createObjectURL(blob));
+    } catch (err: any) {
+      setMessage(err.message || 'Terjadi kesalahan saat preview PDF.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function saveAndDownloadAktif() {
+    if (!previewBlob) return;
+    setGenerating(true);
+    setMessage('');
+    try {
+      const path = `smp/aktif-${Date.now()}-${Math.floor(Math.random() * 10000)}.pdf`;
+      const upload = await supabase.storage.from('smp-surat-keluar').upload(path, previewBlob, { contentType: 'application/pdf' });
+      const { error } = await supabase.from('smp_surat_keluar').insert({
+        nomor_surat: formAktif.nomor_surat || null,
+        jenis_surat: 'Surat Keterangan Aktif',
+        perihal: formAktif.tujuan,
+        ditujukan: 'Siswa / Instansi Terkait',
+        tanggal_surat: formAktif.tanggal_dikeluarkan,
+        dibuat_oleh: user?.id || null,
+        file_url: upload.data?.path || null
+      });
+      if (upload.error || error) {
+        setGenerating(false);
+        return setMessage(upload.error?.message || error?.message || 'Surat belum tersimpan.');
+      }
+      
+      const link = document.createElement('a');
+      link.href = previewPdfUrl!;
+      link.download = `${formAktif.nomor_surat?.replace(/\//g, '-') || 'surat-aktif'}.pdf`;
+      link.click();
+      
+      setMessage('Surat Keterangan Aktif berhasil disimpan dan didownload.');
+      setPreviewPdfUrl(null);
+      setPreviewBlob(null);
+      loadData();
+      setActiveTab('log');
+      setActiveForm(null);
+    } catch (err: any) {
+      setMessage(err.message || 'Gagal menyimpan surat.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function generateSuratKeteranganWali() {
+    setGenerating(true);
+    setMessage('');
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+
+      const loadImage = (url: string) => {
+        return new Promise<string | null>((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width; canvas.height = img.height;
+            canvas.getContext('2d')?.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          };
+          img.onerror = () => resolve(null);
+          img.src = url;
+        });
+      };
+
+      const logoYayasan = await loadImage('/logo-yayasan.png');
+      const logoSmp = await loadImage('/logo-smp.png');
+
+      drawKop(doc, logoYayasan, logoSmp);
+      doc.setFontSize(14); doc.setFont('times', 'bold');
+      doc.text('SURAT KETERANGAN', 105, 65, { align: 'center' });
+      const tw = doc.getTextWidth('SURAT KETERANGAN');
+      doc.line(105 - tw/2, 66, 105 + tw/2, 66);
+      doc.setFontSize(12); doc.setFont('times', 'normal');
+      doc.text(`Nomor: ${formWali.nomor_surat || ''}`, 105, 72, { align: 'center' });
+
+      doc.text(`Yang bertandatangan di bawah ini adalah ${formWali.jabatan_pejabat || ''} menerangkan`, 20, 85);
+      doc.text(`bahwa:`, 20, 93);
+      
+      const lb = 65;
+      doc.text('Nama', 25, 103); doc.text(`: ${formWali.wali_nama || ''}`, lb, 103);
+      doc.text('Tempat Tanggal Lahir', 25, 111); doc.text(`: ${formWali.wali_ttl || ''}`, lb, 111);
+      doc.text('Jenis Kelamin', 25, 119); doc.text(`: ${formWali.wali_jk || ''}`, lb, 119);
+      doc.text('Pekerjaan', 25, 127); doc.text(`: ${formWali.wali_pekerjaan || ''}`, lb, 127);
+      doc.text('Alamat', 25, 135); doc.text(`: ${formWali.wali_alamat || ''}`, lb, 135);
+
+      doc.text(`Nama tersebut di atas adalah benar Wali dari :`, 20, 150);
+      doc.text('Nama', 25, 160); doc.text(`: ${formWali.siswa_nama || ''}`, lb, 160);
+      doc.text('NISN', 25, 168); doc.text(`: ${formWali.siswa_nisn || ''}`, lb, 168);
+      doc.text('Tempat Tanggal Lahir', 25, 176); doc.text(`: ${formWali.siswa_ttl || ''}`, lb, 176);
+      doc.text('Jenis Kelamin', 25, 184); doc.text(`: ${formWali.siswa_jk || ''}`, lb, 184);
+      doc.text('Pelajar dari', 25, 192); doc.text(`: ${formWali.siswa_pelajar_dari || ''}`, lb, 192);
+      doc.text('Nomor Rekening', 25, 200); doc.text(`: ${formWali.siswa_no_rek || ''}`, lb, 200);
+
+      const splitTujuan = doc.splitTextToSize(`Demikian surat keterangan wali ini dibuat dengan sebenarnya untuk dipergunakan sebagai ${formWali.keperluan || ''}.`, 170);
+      doc.text(splitTujuan, 20, 215);
+
+      let currentY = 215 + (splitTujuan.length * 7) + 15;
+      doc.text(formWali.tempat_tanggal || '', 120, currentY);
+      doc.text(`Kepala Sekolah`, 120, currentY + 8);
+      
+      currentY += 35;
+      doc.setFont('times', 'bold');
+      doc.text(formWali.pejabat || '', 120, currentY);
+      const nw = doc.getTextWidth(formWali.pejabat || '');
+      doc.line(120, currentY + 1, 120 + nw, currentY + 1);
+      doc.setFont('times', 'normal');
+
+      const blob = doc.output('blob');
+      setPreviewBlob(blob);
+      setPreviewPdfUrl(URL.createObjectURL(blob));
+    } catch (err: any) {
+      setMessage(err.message || 'Terjadi kesalahan saat preview PDF.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function saveAndDownloadWali() {
+    if (!previewBlob) return;
+    setGenerating(true);
+    setMessage('');
+    try {
+      const path = `smp/wali-${Date.now()}-${Math.floor(Math.random() * 10000)}.pdf`;
+      const upload = await supabase.storage.from('smp-surat-keluar').upload(path, previewBlob, { contentType: 'application/pdf' });
+      const { error } = await supabase.from('smp_surat_keluar').insert({
+        nomor_surat: formWali.nomor_surat || null,
+        jenis_surat: 'Surat Keterangan Wali Siswa',
+        perihal: 'Keterangan Wali Siswa',
+        ditujukan: 'Instansi Terkait',
+        tanggal_surat: new Date().toISOString().slice(0, 10),
+        dibuat_oleh: user?.id || null,
+        file_url: upload.data?.path || null
+      });
+      if (upload.error || error) {
+        setGenerating(false);
+        return setMessage(upload.error?.message || error?.message || 'Surat belum tersimpan.');
+      }
+      
+      const link = document.createElement('a');
+      link.href = previewPdfUrl!;
+      link.download = `${formWali.nomor_surat?.replace(/\//g, '-') || 'surat-wali'}.pdf`;
+      link.click();
+      
+      setMessage('Surat Keterangan Wali Siswa berhasil disimpan dan didownload.');
+      setPreviewPdfUrl(null);
+      setPreviewBlob(null);
+      loadData();
+      setActiveTab('log');
+      setActiveForm(null);
+    } catch (err: any) {
+      setMessage(err.message || 'Gagal menyimpan surat.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function generateSuratRekomendasi() {
+    setGenerating(true);
+    setMessage('');
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+
+      const loadImage = (url: string) => {
+        return new Promise<string | null>((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width; canvas.height = img.height;
+            canvas.getContext('2d')?.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          };
+          img.onerror = () => resolve(null);
+          img.src = url;
+        });
+      };
+
+      const logoYayasan = await loadImage('/logo-yayasan.png');
+      const logoSmp = await loadImage('/logo-smp.png');
+
+      drawKop(doc, logoYayasan, logoSmp);
+      doc.setFontSize(14); doc.setFont('times', 'bold');
+      doc.text('SURAT REKOMENDASI', 105, 65, { align: 'center' });
+      const tw = doc.getTextWidth('SURAT REKOMENDASI');
+      doc.line(105 - tw/2, 66, 105 + tw/2, 66);
+      doc.setFontSize(12); doc.setFont('times', 'normal');
+      doc.text(`Nomor : ${formRekomendasi.nomor_surat || ''}`, 105, 72, { align: 'center' });
+
+      doc.text(`Yang bertanda tangan dibawah ini :`, 20, 85);
+      
+      const lb = 65;
+      doc.text('Nama', 20, 95); doc.text(`: ${formRekomendasi.pejabat || ''}`, lb, 95);
+      doc.text('Tempat Tanggal Lahir', 20, 103); doc.text(`: ${formRekomendasi.ttl_pejabat || ''}`, lb, 103);
+      doc.text('Jabatan', 20, 111); doc.text(`: ${formRekomendasi.jabatan_pejabat || ''}`, lb, 111);
+      doc.text('Alamat sekolah', 20, 119); doc.text(`: ${formRekomendasi.alamat_pejabat || ''}`, lb, 119);
+
+      doc.setFont('times', 'normal');
+      doc.text('Memberikan rekomendasi kepada ', 20, 131);
+      doc.setFont('times', 'italic');
+      doc.text(`${formRekomendasi.direkomendasikan_kepada || ''}.`, 78, 131);
+      doc.setFont('times', 'normal');
+      
+      let currentY = 139;
+
+      const drawTable = (startY: number) => {
+        const colNo = 20, colNama = 35, colTtl = 105, colKelas = 170, colEnd = 195;
+        doc.setLineWidth(0.1);
+        doc.line(colNo, startY, colEnd, startY);
+        doc.text('NO', colNo + 5, startY + 6);
+        doc.text('NAMA', colNama + 25, startY + 6);
+        doc.text('TEMPAT TANGGAL LAHIR', colTtl + 10, startY + 6);
+        doc.text('KELAS', colKelas + 5, startY + 6);
+        
+        let cy = startY + 10;
+        doc.line(colNo, cy, colEnd, cy);
+        
+        const selectedStudents = siswa.filter(s => rekomendasiSiswaIds.includes(s.id));
+        for (let i = 0; i < selectedStudents.length; i++) {
+          const s = selectedStudents[i];
+          const ttl = `${s.alamat?.split(',')[0] || 'Tasikmalaya'}, ${formatDate(s.tanggal_lahir) || '-'}`;
+          doc.text((i + 1).toString(), colNo + 5, cy + 6);
+          doc.text(s.nama_lengkap || '-', colNama + 2, cy + 6);
+          doc.text(ttl, colTtl + 2, cy + 6);
+          doc.text(s.kelas || '-', colKelas + 2, cy + 6);
+          cy += 10;
+          doc.line(colNo, cy, colEnd, cy);
+        }
+        
+        doc.line(colNo, startY, colNo, cy);
+        doc.line(colNama, startY, colNama, cy);
+        doc.line(colTtl, startY, colTtl, cy);
+        doc.line(colKelas, startY, colKelas, cy);
+        doc.line(colEnd, startY, colEnd, cy);
+        
+        return cy;
+      };
+
+      if (formRekomendasi.format_cetak === '1_lembar') {
+        currentY = drawTable(currentY) + 10;
+      }
+      
+      const splitKegiatan = doc.splitTextToSize(`Untuk mengikuti kegiatan ${formRekomendasi.kegiatan || ''}`, 170);
+      doc.text(splitKegiatan, 20, currentY);
+      
+      currentY += (splitKegiatan.length * 7) + 5;
+      
+      doc.text(`Demikian surat rekomendasi ini dibuat untuk dapat dipergunakan sebagaimana mestinya.`, 20, currentY);
+
+      currentY += 20;
+      doc.text(formRekomendasi.tempat_tanggal || '', 120, currentY);
+      doc.text(`Kepala Sekolah`, 120, currentY + 8);
+      
+      currentY += 35;
+      doc.setFont('times', 'bold');
+      doc.text(formRekomendasi.pejabat || '', 120, currentY);
+      const nw2 = doc.getTextWidth(formRekomendasi.pejabat || '');
+      doc.line(120, currentY + 1, 120 + nw2, currentY + 1);
+      doc.setFont('times', 'normal');
+
+      if (formRekomendasi.format_cetak === '2_lembar') {
+        doc.addPage();
+        drawKop(doc, logoYayasan, logoSmp);
+        doc.setFont('times', 'bold');
+        
+        const lampiranLines = (formRekomendasi.judul_lampiran || '').split('\n');
+        let lY = 65;
+        lampiranLines.forEach(l => {
+          doc.text(l, 105, lY, { align: 'center' });
+          lY += 7;
+        });
+        
+        doc.setFont('times', 'normal');
+        drawTable(lY + 5);
+      }
+
+      const blob = doc.output('blob');
+      setPreviewBlob(blob);
+      setPreviewPdfUrl(URL.createObjectURL(blob));
+    } catch (err: any) {
+      setMessage(err.message || 'Terjadi kesalahan saat preview PDF.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function saveAndDownloadRekomendasi() {
+    if (!previewBlob) return;
+    setGenerating(true);
+    setMessage('');
+    try {
+      const path = `smp/rekomendasi-${Date.now()}-${Math.floor(Math.random() * 10000)}.pdf`;
+      const upload = await supabase.storage.from('smp-surat-keluar').upload(path, previewBlob, { contentType: 'application/pdf' });
+      const { error } = await supabase.from('smp_surat_keluar').insert({
+        nomor_surat: formRekomendasi.nomor_surat || null,
+        jenis_surat: 'Surat Rekomendasi',
+        perihal: 'Rekomendasi Kegiatan',
+        ditujukan: 'Instansi / Panitia Terkait',
+        tanggal_surat: new Date().toISOString().slice(0, 10),
+        dibuat_oleh: user?.id || null,
+        file_url: upload.data?.path || null
+      });
+      if (upload.error || error) {
+        setGenerating(false);
+        return setMessage(upload.error?.message || error?.message || 'Surat belum tersimpan.');
+      }
+      
+      const link = document.createElement('a');
+      link.href = previewPdfUrl!;
+      link.download = `${formRekomendasi.nomor_surat?.replace(/\//g, '-') || 'surat-rekomendasi'}.pdf`;
+      link.click();
+      
+      setMessage('Surat Rekomendasi berhasil disimpan dan didownload.');
+      setPreviewPdfUrl(null);
+      setPreviewBlob(null);
+      loadData();
+      setActiveTab('log');
+      setActiveForm(null);
+    } catch (err: any) {
+      setMessage(err.message || 'Gagal menyimpan surat.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   async function downloadArchive(row: any) {
     if (!row.file_url) return;
-    const { data } = await supabase.storage.from("smp-surat-keluar").download(row.file_url);
+    const { data } = await supabase.storage.from('smp-surat-keluar').download(row.file_url);
     if (!data) return;
-    const link = document.createElement("a"); link.href = URL.createObjectURL(data); link.download = `${row.nomor_surat || row.jenis_surat}.pdf`; link.click(); URL.revokeObjectURL(link.href);
+    const link = document.createElement('a'); link.href = URL.createObjectURL(data);
+    link.download = `${row.nomor_surat || row.jenis_surat}.pdf`; link.click(); URL.revokeObjectURL(link.href);
   }
+
   return (
-    <ModuleShell title="Generate Surat Keluar" description="Template surat, form dinamis, preview, generate PDF, dan arsip surat SMP.">
-      <div className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
-        <div className="rounded bg-white p-5 shadow-soft">
-          <div className="grid gap-3 md:grid-cols-2">
-            <select value={form.jenis_surat} onChange={(e) => setForm((f) => ({ ...f, jenis_surat: e.target.value }))} className={inputClass}>{suratTemplates.map((t) => <option key={t}>{t}</option>)}</select>
-            <input value={form.nomor_surat} onChange={(e) => setForm((f) => ({ ...f, nomor_surat: e.target.value }))} placeholder="Nomor surat" className={inputClass} />
-            <input value={form.perihal} onChange={(e) => setForm((f) => ({ ...f, perihal: e.target.value }))} placeholder="Perihal" className={inputClass} />
-            <input type="date" value={form.tanggal_surat} onChange={(e) => setForm((f) => ({ ...f, tanggal_surat: e.target.value }))} className={inputClass} />
-            <input value={form.ditujukan} onChange={(e) => setForm((f) => ({ ...f, ditujukan: e.target.value }))} placeholder="Ditujukan" className={inputClass} />
-            <select value={form.siswa_id} onChange={(e) => setForm((f) => ({ ...f, siswa_id: e.target.value }))} className={inputClass}><option value="">Data siswa terkait</option>{siswa.map((s) => <option key={s.id} value={s.id}>{s.nama_lengkap}</option>)}</select>
+    <ModuleShell title="Surat Keluar" description="Generate dan cetak surat resmi madrasah.">
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => { setActiveTab('buat'); setActiveForm(null); }}
+          className={`px-4 py-2 text-sm font-semibold rounded flex items-center gap-2 border ${activeTab === 'buat' ? 'bg-white text-gray-900 border-gray-200 shadow-sm' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-white/50'}`}
+        >
+          <Plus size={16} /> Buat Surat
+        </button>
+        <button
+          onClick={() => setActiveTab('log')}
+          className={`px-4 py-2 text-sm font-semibold rounded flex items-center gap-2 border ${activeTab === 'log' ? 'bg-white text-gray-900 border-gray-200 shadow-sm' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-white/50'}`}
+        >
+          <FileText size={16} /> Log Surat Keluar
+        </button>
+      </div>
+
+      {activeTab === 'buat' && !activeForm && (
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+          {SURAT_CARDS.map((card) => {
+            const Icon = card.icon;
+            return (
+              <button
+                key={card.id}
+                onClick={() => {
+                  if (card.id === 'tugas' || card.id === 'sppd') {
+                    setActiveForm('tugas');
+                  } else if (card.id === 'aktif') {
+                    setActiveForm('aktif');
+                  } else if (card.id === 'wali') {
+                    setActiveForm('wali');
+                  } else if (card.id === 'rekomendasi') {
+                    setActiveForm('rekomendasi');
+                  } else {
+                    notifyWarning('Form surat ini belum tersedia.');
+                  }
+                }}
+                className="relative flex flex-col items-start p-5 bg-white border border-gray-100 rounded-xl shadow-soft hover:shadow-md hover:border-emerald-100 transition-all text-left overflow-hidden"
+              >
+                {['tugas', 'sppd', 'aktif', 'wali', 'rekomendasi'].includes(card.id) && (
+                  <div className="absolute top-0 right-0 bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-1 rounded-bl-lg border-b border-l border-emerald-100">
+                    Tersedia
+                  </div>
+                )}
+                <div className={`p-2 rounded-lg mb-4 ${card.bg}`}>
+                  <Icon className={card.color} size={20} />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-1">{card.title}</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">{card.desc}</p>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {activeTab === 'buat' && activeForm === 'tugas' && (
+        <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Surat Tugas & SPPD</h2>
+              <p className="text-sm text-gray-500">Isi formulir untuk men-generate 3 lembar surat.</p>
+            </div>
+            <button
+              onClick={() => setActiveForm(null)}
+              className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-900"
+            >
+              <ArrowLeft size={16} /> Kembali
+            </button>
           </div>
-          <textarea value={form.isi_tambahan} onChange={(e) => setForm((f) => ({ ...f, isi_tambahan: e.target.value }))} rows={4} placeholder="Isi tambahan" className="mt-3 w-full rounded border border-gray-200 px-3 py-3 text-sm" />
-          <button onClick={generatePdf} className="mt-4 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white"><FileText className="mr-2" size={17} />Generate PDF</button>
+          
+          <div className="grid gap-4 md:grid-cols-2 mb-6">
+            <Field label="Nomor Surat">
+              <input value={formTugas.nomor_surat} onChange={e => setFormTugas(f => ({ ...f, nomor_surat: e.target.value }))} className={inputClass} placeholder="P/025/KP.06.01/smpmns.srw/2025" />
+            </Field>
+            <Field label="Nama Pegawai">
+              {!isManualPegawai ? (
+                <select
+                  value={teachers.some(t => t.nama_lengkap === formTugas.nama_pegawai) ? formTugas.nama_pegawai : (formTugas.nama_pegawai ? 'Lainnya' : '')}
+                  onChange={e => {
+                    const teacherName = e.target.value;
+                    if (teacherName === 'Lainnya') {
+                      setIsManualPegawai(true);
+                      setFormTugas(f => ({ ...f, nama_pegawai: '', jabatan: '' }));
+                    } else {
+                      const teacher = teachers.find(t => t.nama_lengkap === teacherName);
+                      setFormTugas(f => ({
+                        ...f,
+                        nama_pegawai: teacherName,
+                        jabatan: teacher ? (teacher.mata_pelajaran ? `Guru ${teacher.mata_pelajaran}` : 'Guru / Pegawai') : f.jabatan
+                      }));
+                    }
+                  }}
+                  className={inputClass}
+                >
+                  <option value="">-- Pilih Pegawai/Guru --</option>
+                  <option value="Lainnya">Ketik Manual (Lainnya)</option>
+                  {teachers.map(t => (
+                    <option key={t.id} value={t.nama_lengkap}>{t.nama_lengkap}</option>
+                  ))}
+                </select>
+              ) : (
+                <div className="flex gap-2">
+                  <input 
+                    autoFocus
+                    value={formTugas.nama_pegawai}
+                    onChange={e => setFormTugas(f => ({ ...f, nama_pegawai: e.target.value }))}
+                    className={inputClass}
+                    placeholder="Ketik nama beserta gelar" 
+                  />
+                  <button 
+                    onClick={() => { setIsManualPegawai(false); setFormTugas(f => ({ ...f, nama_pegawai: '', jabatan: '' })); }}
+                    className="px-3 py-2 text-sm font-semibold text-gray-500 bg-gray-100 border border-gray-200 rounded hover:bg-gray-200"
+                  >
+                    Batal
+                  </button>
+                </div>
+              )}
+            </Field>
+            <Field label="Jabatan/Pangkat">
+              <input value={formTugas.jabatan} onChange={e => setFormTugas(f => ({ ...f, jabatan: e.target.value }))} className={inputClass} placeholder="Contoh: Kepala Sekolah / Guru" />
+            </Field>
+            <Field label="Tugas / Maksud Perjalanan">
+              <input value={formTugas.tugas} onChange={e => setFormTugas(f => ({ ...f, tugas: e.target.value }))} className={inputClass} placeholder="Contoh: Sosialisasi Anak Tidak Sekolah (ATS)" />
+            </Field>
+            <Field label="Tempat Tujuan">
+              <input value={formTugas.tempat} onChange={e => setFormTugas(f => ({ ...f, tempat: e.target.value }))} className={inputClass} placeholder="Contoh: SMPN 1 Sukaraja" />
+            </Field>
+            <Field label="Hari / Tanggal Berangkat">
+              <input type="date" value={formTugas.hari_tanggal} onChange={e => setFormTugas(f => ({ ...f, hari_tanggal: e.target.value }))} className={inputClass} />
+            </Field>
+            <Field label="Lama Perjalanan">
+              <input value={formTugas.lama_hari} onChange={e => setFormTugas(f => ({ ...f, lama_hari: e.target.value }))} className={inputClass} placeholder="1 hari" />
+            </Field>
+            <Field label="Biaya Transport">
+              <input value={formTugas.biaya} onChange={e => setFormTugas(f => ({ ...f, biaya: e.target.value }))} className={inputClass} placeholder="Transport (PP) Rp." />
+            </Field>
+            <Field label="Tanggal Dikeluarkan">
+              <input type="date" value={formTugas.tanggal_dikeluarkan} onChange={e => setFormTugas(f => ({ ...f, tanggal_dikeluarkan: e.target.value }))} className={inputClass} />
+            </Field>
+            <Field label="Pejabat Pembuat Komitmen">
+              <input value={formTugas.pejabat} onChange={e => setFormTugas(f => ({ ...f, pejabat: e.target.value }))} className={inputClass} />
+            </Field>
+          </div>
+          
+          {previewPdfUrl ? (
+            <div className="mt-6 flex flex-col gap-4">
+              <div className="flex gap-2 mb-2">
+                <button onClick={saveAndDownloadTugas} disabled={generating} className="flex-1 bg-emerald-800 text-white text-sm font-semibold py-2.5 rounded shadow-sm hover:bg-emerald-700 disabled:opacity-70">
+                  {generating ? 'Menyimpan...' : 'Simpan ke Log & Download'}
+                </button>
+                <button onClick={() => { setPreviewPdfUrl(null); setPreviewBlob(null); }} className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded border border-gray-200 hover:bg-gray-200 shadow-sm">
+                  Batal / Edit
+                </button>
+              </div>
+              <iframe src={previewPdfUrl} className="w-full h-[600px] border border-gray-200 rounded-lg shadow-sm" title="PDF Preview" />
+            </div>
+          ) : (
+            <button onClick={generateTugasAndSPPD} disabled={generating} className="inline-flex items-center rounded bg-emerald-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-70 disabled:cursor-not-allowed">
+              <FileText className="mr-2" size={18} /> {generating ? 'Menggenerate Preview...' : 'Preview PDF (3 Lembar)'}
+            </button>
+          )}
           {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
         </div>
-        <pre className="min-h-80 whitespace-pre-wrap rounded bg-white p-5 text-sm leading-7 shadow-soft">{preview}</pre>
-      </div>
-      <DataTable headers={["Tanggal", "Nomor", "Jenis", "Perihal", "Download"]} rows={archive.map((row) => [formatDate(row.tanggal_surat), row.nomor_surat || "-", row.jenis_surat, row.perihal || "-", <button key="download" onClick={() => downloadArchive(row)} className="rounded border px-3 py-2 text-sm font-semibold">Download</button>])} />
+      )}
+
+      {activeTab === 'buat' && activeForm === 'aktif' && (
+        <div className="bg-white rounded p-5 border">
+          <div className="flex items-center gap-3 mb-6">
+            <button onClick={() => setActiveForm(null)} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={18} /></button>
+            <h2 className="text-lg font-semibold">Buat Surat Keterangan Aktif</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <div className="grid gap-3 mb-4">
+                <label className="text-sm font-medium">Nomor Surat</label>
+                <input value={formAktif.nomor_surat} onChange={(e) => setFormAktif({...formAktif, nomor_surat: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Tempat, Tanggal Dikeluarkan</label>
+                <input value={formAktif.tempat_tanggal} onChange={(e) => setFormAktif({...formAktif, tempat_tanggal: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Tahun Pelajaran</label>
+                <input value={formAktif.tahun_pelajaran} onChange={(e) => setFormAktif({...formAktif, tahun_pelajaran: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Berhak Mengikuti / Tujuan</label>
+                <input value={formAktif.tujuan} onChange={(e) => setFormAktif({...formAktif, tujuan: e.target.value})} className={inputClass} />
+              </div>
+              
+              <div className="border-t pt-4 mt-4 grid gap-3">
+                <h3 className="font-semibold text-sm">Pejabat Penandatangan</h3>
+                <label className="text-sm font-medium">Nama Pejabat</label>
+                <input value={formAktif.pejabat} onChange={(e) => setFormAktif({...formAktif, pejabat: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Jabatan</label>
+                <input value={formAktif.jabatan} onChange={(e) => setFormAktif({...formAktif, jabatan: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Unit Kerja</label>
+                <input value={formAktif.unit_kerja} onChange={(e) => setFormAktif({...formAktif, unit_kerja: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Alamat</label>
+                <input value={formAktif.alamat} onChange={(e) => setFormAktif({...formAktif, alamat: e.target.value})} className={inputClass} />
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="font-semibold text-sm mb-3">Daftar Siswa</h3>
+              <div className="flex flex-col gap-2 mb-4">
+                <select 
+                  className={inputClass} 
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    if (id && !aktifSiswaIds.includes(id)) {
+                      setAktifSiswaIds([...aktifSiswaIds, id]);
+                    }
+                    e.target.value = '';
+                  }}
+                  defaultValue=""
+                >
+                  <option value="" disabled>-- Pilih Siswa dari Data --</option>
+                  {siswa.map(s => (
+                    <option key={s.id} value={s.id}>{s.nama_lengkap} ({s.nisn || s.nis})</option>
+                  ))}
+                </select>
+                
+                <div className="border rounded p-3 min-h-[200px] flex flex-col gap-2 max-h-[300px] overflow-y-auto">
+                  {aktifSiswaIds.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic text-center mt-10">Belum ada siswa terpilih.</p>
+                  ) : (
+                    aktifSiswaIds.map(id => {
+                      const student = siswa.find(s => s.id === id);
+                      if (!student) return null;
+                      return (
+                        <div key={id} className="flex justify-between items-center bg-gray-50 p-2 rounded border text-sm">
+                          <div>
+                            <p className="font-medium">{student.nama_lengkap}</p>
+                            <p className="text-xs text-gray-500">NISN: {student.nisn || '-'}</p>
+                          </div>
+                          <button onClick={() => setAktifSiswaIds(aktifSiswaIds.filter(i => i !== id))} className="text-red-500 hover:bg-red-50 p-1 rounded">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+              
+              <div className="border-t pt-4">
+                <div className="flex gap-2">
+                  <button onClick={generateSuratKeteranganAktif} disabled={generating || aktifSiswaIds.length === 0} className="bg-white border flex-1 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                    {generating ? 'Memproses...' : 'Preview PDF'}
+                  </button>
+                  {previewBlob && (
+                    <button onClick={saveAndDownloadAktif} disabled={generating} className="bg-emerald-800 text-white flex-1 py-2 rounded font-semibold hover:bg-emerald-700 disabled:opacity-50 flex justify-center items-center gap-2">
+                      <Save size={16} /> Simpan & Print
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {previewPdfUrl && (
+            <div className="mt-8 border-t pt-6">
+              <h3 className="font-semibold mb-4">Preview PDF</h3>
+              <iframe src={previewPdfUrl} className="w-full h-[600px] rounded border" title="Preview PDF" />
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'buat' && activeForm === 'wali' && (
+        <div className="bg-white rounded p-5 border">
+          <div className="flex items-center gap-3 mb-6">
+            <button onClick={() => setActiveForm(null)} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={18} /></button>
+            <h2 className="text-lg font-semibold">Buat Surat Keterangan Wali Siswa</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <div className="grid gap-3 mb-4">
+                <label className="text-sm font-medium">Nomor Surat</label>
+                <input value={formWali.nomor_surat} onChange={(e) => setFormWali({...formWali, nomor_surat: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Tempat, Tanggal Dikeluarkan</label>
+                <input value={formWali.tempat_tanggal} onChange={(e) => setFormWali({...formWali, tempat_tanggal: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Keperluan (untuk dipergunakan sebagai ...)</label>
+                <textarea value={formWali.keperluan} rows={3} onChange={(e) => setFormWali({...formWali, keperluan: e.target.value})} className="rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-700" />
+              </div>
+
+              <div className="border-t pt-4 mt-4 grid gap-3">
+                <h3 className="font-semibold text-sm">Data Wali</h3>
+                <label className="text-sm font-medium">Nama Wali</label>
+                <input value={formWali.wali_nama} onChange={(e) => setFormWali({...formWali, wali_nama: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Tempat Tanggal Lahir</label>
+                <input value={formWali.wali_ttl} onChange={(e) => setFormWali({...formWali, wali_ttl: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Jenis Kelamin</label>
+                <input value={formWali.wali_jk} onChange={(e) => setFormWali({...formWali, wali_jk: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Pekerjaan</label>
+                <input value={formWali.wali_pekerjaan} onChange={(e) => setFormWali({...formWali, wali_pekerjaan: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Alamat</label>
+                <input value={formWali.wali_alamat} onChange={(e) => setFormWali({...formWali, wali_alamat: e.target.value})} className={inputClass} />
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="font-semibold text-sm mb-3">Isi Otomatis dari Data Siswa</h3>
+              <div className="flex flex-col gap-2 mb-4">
+                <select 
+                  className={inputClass} 
+                  value={waliSiswaId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setWaliSiswaId(id);
+                    if (id) {
+                      const student = siswa.find(s => s.id === id);
+                      if (student) {
+                        const s_ttl = `${student.alamat?.split(',')[0] || 'Tasikmalaya'}, ${formatDate(student.tanggal_lahir) || ''}`;
+                        const jkStr = student.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan';
+                        setFormWali({
+                          ...formWali,
+                          siswa_nama: student.nama_lengkap || '',
+                          siswa_nisn: student.nisn || student.nis || '',
+                          siswa_ttl: s_ttl,
+                          siswa_jk: jkStr,
+                          wali_nama: student.nama_wali || '',
+                          wali_alamat: student.alamat || '',
+                        });
+                      }
+                    }
+                  }}
+                >
+                  <option value="" disabled>-- Pilih Siswa --</option>
+                  {siswa.map(s => (
+                    <option key={s.id} value={s.id}>{s.nama_lengkap} ({s.nisn || s.nis})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="border-t pt-4 mt-4 grid gap-3">
+                <h3 className="font-semibold text-sm">Data Siswa</h3>
+                <label className="text-sm font-medium">Nama Siswa</label>
+                <input value={formWali.siswa_nama} onChange={(e) => setFormWali({...formWali, siswa_nama: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">NISN</label>
+                <input value={formWali.siswa_nisn} onChange={(e) => setFormWali({...formWali, siswa_nisn: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Tempat Tanggal Lahir</label>
+                <input value={formWali.siswa_ttl} onChange={(e) => setFormWali({...formWali, siswa_ttl: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Jenis Kelamin</label>
+                <input value={formWali.siswa_jk} onChange={(e) => setFormWali({...formWali, siswa_jk: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Pelajar dari</label>
+                <input value={formWali.siswa_pelajar_dari} onChange={(e) => setFormWali({...formWali, siswa_pelajar_dari: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Nomor Rekening</label>
+                <input value={formWali.siswa_no_rek} onChange={(e) => setFormWali({...formWali, siswa_no_rek: e.target.value})} className={inputClass} />
+              </div>
+
+              <div className="border-t pt-4 mt-4 grid gap-3">
+                <h3 className="font-semibold text-sm">Pejabat Penandatangan</h3>
+                <label className="text-sm font-medium">Nama Pejabat</label>
+                <input value={formWali.pejabat} onChange={(e) => setFormWali({...formWali, pejabat: e.target.value})} className={inputClass} />
+                <label className="text-sm font-medium">Jabatan & Instansi (dalam teks)</label>
+                <input value={formWali.jabatan_pejabat} onChange={(e) => setFormWali({...formWali, jabatan_pejabat: e.target.value})} className={inputClass} />
+              </div>
+              
+              <div className="border-t pt-4 mt-6">
+                <div className="flex gap-2">
+                  <button onClick={generateSuratKeteranganWali} disabled={generating} className="bg-white border flex-1 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                    {generating ? 'Memproses...' : 'Preview PDF'}
+                  </button>
+                  {previewBlob && (
+                    <button onClick={saveAndDownloadWali} disabled={generating} className="bg-emerald-800 text-white flex-1 py-2 rounded font-semibold hover:bg-emerald-700 disabled:opacity-50 flex justify-center items-center gap-2">
+                      <Save size={16} /> Simpan & Print
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {previewPdfUrl && (
+            <div className="mt-8 border-t pt-6">
+              <h3 className="font-semibold mb-4">Preview PDF</h3>
+              <iframe src={previewPdfUrl} className="w-full h-[600px] rounded border" title="Preview PDF" />
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'buat' && activeForm === 'rekomendasi' && (
+        <div className="bg-white rounded p-5 border">
+          <div className="flex items-center gap-3 mb-6">
+            <button onClick={() => setActiveForm(null)} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={18} /></button>
+            <h2 className="text-lg font-semibold">Buat Surat Rekomendasi</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <div className="grid gap-3 mb-4">
+                <label className="text-sm font-medium">Nomor Surat</label>
+                <input value={formRekomendasi.nomor_surat} onChange={(e) => setFormRekomendasi({...formRekomendasi, nomor_surat: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Tempat, Tanggal Dikeluarkan</label>
+                <input value={formRekomendasi.tempat_tanggal} onChange={(e) => setFormRekomendasi({...formRekomendasi, tempat_tanggal: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Memberikan rekomendasi kepada (Tercetak Italic)</label>
+                <input value={formRekomendasi.direkomendasikan_kepada} onChange={(e) => setFormRekomendasi({...formRekomendasi, direkomendasikan_kepada: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Tujuan Rekomendasi / Kegiatan</label>
+                <textarea value={formRekomendasi.kegiatan} rows={3} onChange={(e) => setFormRekomendasi({...formRekomendasi, kegiatan: e.target.value})} className="rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-700" />
+              </div>
+
+              <div className="border-t pt-4 mt-4 grid gap-3">
+                <h3 className="font-semibold text-sm">Pejabat Penandatangan</h3>
+                <label className="text-sm font-medium">Nama Pejabat</label>
+                <input value={formRekomendasi.pejabat} onChange={(e) => setFormRekomendasi({...formRekomendasi, pejabat: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Tempat Tanggal Lahir Pejabat</label>
+                <input value={formRekomendasi.ttl_pejabat} onChange={(e) => setFormRekomendasi({...formRekomendasi, ttl_pejabat: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Jabatan Pejabat</label>
+                <input value={formRekomendasi.jabatan_pejabat} onChange={(e) => setFormRekomendasi({...formRekomendasi, jabatan_pejabat: e.target.value})} className={inputClass} />
+                
+                <label className="text-sm font-medium">Alamat Sekolah</label>
+                <input value={formRekomendasi.alamat_pejabat} onChange={(e) => setFormRekomendasi({...formRekomendasi, alamat_pejabat: e.target.value})} className={inputClass} />
+              </div>
+            </div>
+            
+            <div>
+              <div className="bg-gray-50 p-4 rounded mb-6 border border-gray-100">
+                <h3 className="font-semibold text-sm mb-3">Format Cetak</h3>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" checked={formRekomendasi.format_cetak === '1_lembar'} onChange={() => setFormRekomendasi({...formRekomendasi, format_cetak: '1_lembar'})} className="text-emerald-600 focus:ring-emerald-600" />
+                    1 Lembar (Tabel digabung)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" checked={formRekomendasi.format_cetak === '2_lembar'} onChange={() => setFormRekomendasi({...formRekomendasi, format_cetak: '2_lembar'})} className="text-emerald-600 focus:ring-emerald-600" />
+                    2 Lembar (Tabel di lampiran terpisah)
+                  </label>
+                </div>
+                
+                {formRekomendasi.format_cetak === '2_lembar' && (
+                  <div className="mt-3">
+                    <label className="text-sm font-medium text-gray-700">Judul Tabel Lampiran</label>
+                    <textarea value={formRekomendasi.judul_lampiran} rows={2} onChange={(e) => setFormRekomendasi({...formRekomendasi, judul_lampiran: e.target.value})} className="mt-1 w-full rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-700" />
+                  </div>
+                )}
+              </div>
+
+              <div className="grid gap-3">
+                <h3 className="font-semibold text-sm">Daftar Siswa (Tampil di Tabel)</h3>
+                
+                <div className="flex gap-2">
+                  <select id="rekomendasiSiswaSelect" className={inputClass} defaultValue="">
+                    <option value="" disabled>-- Pilih Siswa Tambahan --</option>
+                    {siswa.filter(s => !rekomendasiSiswaIds.includes(s.id)).map(s => (
+                      <option key={s.id} value={s.id}>{s.nama_lengkap} ({s.nisn || s.nis})</option>
+                    ))}
+                  </select>
+                  <button 
+                    onClick={() => {
+                      const sel = document.getElementById('rekomendasiSiswaSelect') as HTMLSelectElement;
+                      if (sel.value) {
+                        setRekomendasiSiswaIds([...rekomendasiSiswaIds, sel.value]);
+                        sel.value = "";
+                      }
+                    }}
+                    className="bg-emerald-100 text-emerald-800 px-4 py-2 rounded text-sm font-semibold hover:bg-emerald-200"
+                  >
+                    Tambah
+                  </button>
+                </div>
+                
+                <div className="mt-2 border rounded p-3 min-h-[150px] bg-gray-50 flex flex-col gap-2">
+                  {rekomendasiSiswaIds.length === 0 ? (
+                    <p className="text-sm text-gray-400 italic text-center py-4">Belum ada siswa terpilih.</p>
+                  ) : (
+                    rekomendasiSiswaIds.map((id, index) => {
+                      const student = siswa.find(s => s.id === id);
+                      return (
+                        <div key={id} className="flex justify-between items-center bg-white p-2 rounded border border-gray-200 shadow-sm">
+                          <span className="text-sm font-medium">{index + 1}. {student?.nama_lengkap}</span>
+                          <button onClick={() => setRekomendasiSiswaIds(rekomendasiSiswaIds.filter(x => x !== id))} className="text-red-500 hover:text-red-700">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+
+              
+              <div className="border-t pt-4 mt-6">
+                <div className="flex gap-2">
+                  <button onClick={generateSuratRekomendasi} disabled={generating} className="bg-white border flex-1 py-2 rounded font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                    {generating ? 'Memproses...' : 'Preview PDF'}
+                  </button>
+                  {previewBlob && (
+                    <button onClick={saveAndDownloadRekomendasi} disabled={generating} className="bg-emerald-800 text-white flex-1 py-2 rounded font-semibold hover:bg-emerald-700 disabled:opacity-50 flex justify-center items-center gap-2">
+                      <Save size={16} /> Simpan & Print
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {previewPdfUrl && (
+            <div className="mt-8 border-t pt-6">
+              <h3 className="font-semibold mb-4">Preview PDF</h3>
+              <iframe src={previewPdfUrl} className="w-full h-[600px] rounded border" title="Preview PDF" />
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'log' && (
+        <div className="space-y-4">
+          {selectedIds.length > 0 && (
+            <div className="flex items-center justify-between p-3 bg-red-50 border border-red-100 rounded-lg">
+              <span className="text-sm font-medium text-red-800">{selectedIds.length} item terpilih</span>
+              <button onClick={deleteSelected} className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-white bg-red-600 rounded shadow-sm hover:bg-red-700">
+                <Trash2 size={16} /> Hapus Terpilih
+              </button>
+            </div>
+          )}
+          <DataTable 
+            headers={[
+              <input key="chk-all" type="checkbox" checked={selectedIds.length > 0 && selectedIds.length === archive.length} onChange={toggleSelectAll} className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />,
+              'Tanggal', 'Nomor', 'Jenis', 'Perihal', 'Aksi'
+            ]} 
+            rows={archive.map((row) => [
+              <input key={`chk-${row.id}`} type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleSelect(row.id)} className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />,
+              formatDate(row.tanggal_surat), row.nomor_surat || '-', row.jenis_surat, row.perihal || '-', 
+              <div key="actions" className="flex gap-2">
+                <button onClick={() => downloadArchive(row)} className="rounded border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold hover:bg-gray-50 flex items-center gap-1"><Download size={14}/> Unduh</button>
+              </div>
+            ])} 
+          />
+        </div>
+      )}
     </ModuleShell>
   );
 }
-
 function SpmbModule() {
   const [rows, setRows] = useState<SpmbRow[]>([]);
   const [selected, setSelected] = useState<SpmbRow | null>(null);

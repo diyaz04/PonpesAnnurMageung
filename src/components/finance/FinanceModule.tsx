@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { notifyError, notifySuccess, useNotifiedMessage } from "../../lib/notify";
 import { supabase } from "../../lib/supabase";
 
 type Entity = "pesantren" | "smp";
@@ -542,7 +543,8 @@ export default function FinanceModule({
   const [settings, setSettings] = useState<PaymentSetting[]>([]);
   const [settingItems, setSettingItems] = useState<SettingItem[]>([]);
   const [savingsEntries, setSavingsEntries] = useState<SavingsEntry[]>([]);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useNotifiedMessage();
+  const [savingPayment, setSavingPayment] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedConfigMember, setSelectedConfigMember] = useState("");
   const [configPreset, setConfigPreset] = useState<PaymentPreset>("santri_siswa_400");
@@ -754,8 +756,7 @@ export default function FinanceModule({
     (invoice) =>
       memberIdsFor(selectedMember).includes(invoice.anggota_id) &&
       !invoice.ditarik_at &&
-      isPaymentSelectableInvoice(invoice) &&
-      remainingForInvoice(invoice) > 0,
+      isPaymentSelectableInvoice(invoice),
   );
   const selectedMemberHistoryInvoices = invoices.filter(
     (invoice) =>
@@ -1318,7 +1319,9 @@ export default function FinanceModule({
       return;
     }
     const member = memberByAnyId(invoice.anggota_id);
-    const invoicePayments = payments.filter((item) => item.tagihan_id === invoice.id);
+    const invoicePayments = payments.some((item) => item.id === payment.id)
+      ? payments.filter((item) => item.tagihan_id === invoice.id)
+      : [...payments.filter((item) => item.tagihan_id === invoice.id), payment];
     const paidUntilThisReceipt = invoicePayments
       .filter((item) => item.tanggal_bayar <= payment.tanggal_bayar)
       .reduce((sum, item) => sum + Number(item.jumlah_bayar || 0), 0);
@@ -1410,6 +1413,7 @@ export default function FinanceModule({
 
   async function savePayment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (savingPayment) return;
     if (!selectedInvoiceRow) {
       setMessage("Pilih tagihan terlebih dahulu.");
       return;
@@ -1438,27 +1442,34 @@ export default function FinanceModule({
       return;
     }
 
+    setSavingPayment(true);
+    setMessage("");
     const catatanParts = [
       paymentForm.catatan,
       savingsAmount > 0 ? `Dari tabungan: ${formatCurrency(savingsAmount)}` : "",
       cashAmount > 0 ? `Tunai/transfer: ${formatCurrency(cashAmount)}` : "",
     ].filter(Boolean);
 
-    const paymentResult = await supabase
-      .from("keu_pembayaran")
-      .insert({
-        tagihan_id: selectedInvoiceRow.id,
-        jumlah_bayar: totalAmount,
-        tanggal_bayar: paymentForm.tanggal_bayar,
-        bendahara_id: user?.id || null,
-        catatan: catatanParts.join(" | ") || null,
-        kuitansi_url: null,
-      })
-      .select()
-      .single();
+    try {
+      const paymentResult = await supabase
+        .from("keu_pembayaran")
+        .insert({
+          tagihan_id: selectedInvoiceRow.id,
+          jumlah_bayar: totalAmount,
+          tanggal_bayar: paymentForm.tanggal_bayar,
+          bendahara_id: user?.id || null,
+          catatan: catatanParts.join(" | ") || null,
+          kuitansi_url: null,
+        })
+        .select()
+        .single();
 
-    if (!paymentResult.error) {
-      const paymentId = (paymentResult.data as Payment).id;
+      if (paymentResult.error) {
+        notifyError(paymentResult.error.message);
+        return;
+      }
+
+      const payment = paymentResult.data as Payment;
       const ledgerRows = [];
       const savingsTarget = Number(selectedInvoiceRow.tabungan_target || 0);
       const savingsRemaining = Math.max(
@@ -1478,7 +1489,7 @@ export default function FinanceModule({
           entitas: activeEntity,
           anggota_id: selectedInvoiceRow.anggota_id,
           tagihan_id: selectedInvoiceRow.id,
-          pembayaran_id: paymentId,
+          pembayaran_id: payment.id,
           tipe: "setoran_otomatis",
           nominal: savingsCredit,
           tanggal: paymentForm.tanggal_bayar,
@@ -1491,7 +1502,7 @@ export default function FinanceModule({
           entitas: activeEntity,
           anggota_id: selectedInvoiceRow.anggota_id,
           tagihan_id: selectedInvoiceRow.id,
-          pembayaran_id: paymentId,
+          pembayaran_id: payment.id,
           tipe: "pemakaian_insidentil",
           nominal: -savingsAmount,
           tanggal: paymentForm.tanggal_bayar,
@@ -1500,26 +1511,46 @@ export default function FinanceModule({
         });
       }
       if (ledgerRows.length) {
-        await supabase.from("keu_tabungan_kegiatan").insert(ledgerRows);
+        const { error: ledgerError } = await supabase
+          .from("keu_tabungan_kegiatan")
+          .insert(ledgerRows);
+        if (ledgerError) {
+          notifyError(ledgerError.message);
+          return;
+        }
       }
-      await supabase.rpc("sync_keu_tagihan_status", {
+      const syncResult = await supabase.rpc("sync_keu_tagihan_status", {
         p_tagihan_id: selectedInvoiceRow.id,
       });
-    }
+      if (syncResult.error) {
+        notifyError(syncResult.error.message);
+        return;
+      }
 
-    setMessage(
-      paymentResult.error
-        ? paymentResult.error.message
-        : "Pembayaran tercatat. Kwitansi bisa dicetak dari Riwayat Pembayaran.",
-    );
-    setPaymentForm({
-      mode: "cicil",
-      tunai: "",
-      dari_tabungan: "",
-      tanggal_bayar: new Date().toISOString().slice(0, 10),
-      catatan: "",
-    });
-    loadData();
+      notifySuccess(
+        `Pembayaran ${formatCurrency(totalAmount)} untuk ${invoiceLabel(selectedInvoiceRow)} berhasil dicatat.`,
+        {
+          action: {
+            label: "Cetak Kuitansi",
+            onClick: () => {
+              void printReceipt(payment);
+            },
+          },
+        },
+      );
+      setPaymentForm({
+        mode: "cicil",
+        tunai: "",
+        dari_tabungan: "",
+        tanggal_bayar: new Date().toISOString().slice(0, 10),
+        catatan: "",
+      });
+      await loadData();
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : "Pembayaran belum berhasil disimpan.");
+    } finally {
+      setSavingPayment(false);
+    }
   }
 
   async function saveSavingsAdjustment(event: FormEvent<HTMLFormElement>) {
@@ -2340,12 +2371,22 @@ export default function FinanceModule({
               className={`${inputClass} mt-3 w-full`}
             >
               <option value="">Pilih tagihan</option>
-              {selectedMemberInvoices.map((invoice) => (
-                <option key={invoice.id} value={invoice.id}>
-                  {invoiceLabel(invoice)} - Sisa {formatCurrency(remainingForInvoice(invoice))} -{" "}
-                  {invoice.status.replace("_", " ")}
-                </option>
-              ))}
+              {selectedMemberInvoices.map((invoice) => {
+                const remaining = remainingForInvoice(invoice);
+                const isPaidOff = invoice.status === "lunas" || remaining <= 0;
+                return (
+                  <option
+                    key={invoice.id}
+                    value={invoice.id}
+                    disabled={isPaidOff}
+                    className={isPaidOff ? "text-gray-400 line-through" : undefined}
+                  >
+                    {isPaidOff
+                      ? `${invoiceLabel(invoice)} - LUNAS (tidak bisa dibayar lagi)`
+                      : `${invoiceLabel(invoice)} - Sisa ${formatCurrency(remaining)} - ${invoice.status.replace("_", " ")}`}
+                  </option>
+                );
+              })}
             </select>
             {selectedInvoiceRow ? (
               <div className="mt-4 rounded bg-gray-50 p-4 text-sm">
@@ -2432,9 +2473,17 @@ export default function FinanceModule({
                 placeholder="Catatan"
                 className={inputClass}
               />
-              <button className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+              <button
+                disabled={
+                  savingPayment ||
+                  !selectedInvoiceRow ||
+                  selectedInvoiceRow.status === "lunas" ||
+                  selectedRemaining <= 0
+                }
+                className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+              >
                 <FileText className="mr-2" size={17} />
-                Catat Pembayaran
+                {savingPayment ? "Menyimpan..." : "Catat Pembayaran"}
               </button>
             </form>
             </div>

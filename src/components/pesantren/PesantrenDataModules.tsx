@@ -11,8 +11,7 @@ import {
   Trash2,
   UserCheck,
 } from "lucide-react";
-import { QRCodeCanvas } from "qrcode.react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   downloadExcelTemplate,
@@ -24,6 +23,12 @@ import {
   parseExcelNumber,
   type ExcelColumn,
 } from "../../lib/excelImport";
+import {
+  notifyError,
+  notifySuccess,
+  notifyWarning,
+  useNotifiedMessage,
+} from "../../lib/notify";
 import AccountManagementModule from "../admin/AccountManagementModule";
 import FinanceModule from "../finance/FinanceModule";
 import LandingContentAdmin from "../landing-admin/LandingContentAdmin";
@@ -178,6 +183,25 @@ type PerizinanRow = {
   file_url: string | null;
   created_at: string;
   santri?: Pick<Santri, "nama_lengkap" | "nis" | "kelas_pengajian" | "tahun_masuk" | "nama_wali">;
+};
+
+type CapaianKategori = {
+  id: string;
+  nama_kategori: string;
+  deskripsi: string | null;
+  aktif: boolean;
+  urutan: number;
+};
+
+type CapaianField = {
+  id: string;
+  kategori_id: string;
+  field_key: string;
+  field_label: string;
+  field_type: "text" | "number" | "select" | "toggle" | "textarea";
+  field_options: string[] | null;
+  wajib: boolean;
+  urutan: number;
 };
 
 const emptySantri: Partial<Santri> = {
@@ -362,7 +386,9 @@ function DataSantriModule() {
   const [editing, setEditing] = useState<Partial<Santri> | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [selectedCard, setSelectedCard] = useState<Santri | null>(null);
-  const [message, setMessage] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const selectAllRef = useRef<HTMLInputElement | null>(null);
+  const [message, setMessage] = useNotifiedMessage();
   const [importing, setImporting] = useState(false);
   const [generatingDocs, setGeneratingDocs] = useState(false);
 
@@ -388,6 +414,24 @@ function DataSantriModule() {
       return bySearch && byStatus && byTahun;
     });
   }, [rows, search, statusFilter, tahunFilter]);
+  const filteredIds = useMemo(() => filteredRows.map((row) => row.id), [filteredRows]);
+  const selectedRows = useMemo(
+    () => filteredRows.filter((row) => selectedIds.includes(row.id)),
+    [filteredRows, selectedIds],
+  );
+  const allFilteredSelected =
+    filteredIds.length > 0 && filteredIds.every((id) => selectedIds.includes(id));
+  const partiallySelected = selectedRows.length > 0 && !allFilteredSelected;
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [search, statusFilter, tahunFilter]);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = partiallySelected;
+    }
+  }, [partiallySelected]);
 
   const years = Array.from(new Set(rows.map((row) => row.tahun_masuk))).sort(
     (a, b) => b - a,
@@ -614,56 +658,72 @@ function DataSantriModule() {
     }
   }
 
-  async function downloadCardImage(row: Santri) {
-    const canvas = document.createElement("canvas");
-    canvas.width = 860;
-    canvas.height = 540;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+  function toggleSelectAllRows() {
+    setSelectedIds(allFilteredSelected ? [] : filteredIds);
+  }
 
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#065f46";
-    ctx.fillRect(0, 0, canvas.width, 150);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 34px sans-serif";
-    ctx.fillText("KARTU SANTRI", 50, 62);
-    ctx.font = "22px sans-serif";
-    ctx.fillText("Pondok Pesantren An-Nur Mageung", 50, 105);
+  function toggleSelectedRow(id: string) {
+    setSelectedIds((current) =>
+      current.includes(id)
+        ? current.filter((selectedId) => selectedId !== id)
+        : [...current, id],
+    );
+  }
 
-    ctx.fillStyle = "#111827";
-    ctx.font = "bold 28px sans-serif";
-    ctx.fillText(row.nama_lengkap, 50, 230);
-    ctx.font = "22px sans-serif";
-    ctx.fillText(`NIS: ${row.nis}`, 50, 280);
-    ctx.fillText(`Kelas: ${row.kelas_pengajian || `Angkatan ${row.tahun_masuk}`}`, 50, 325);
+  async function bulkUpdateStatus(status: Santri["status"]) {
+    if (!selectedIds.length) return;
+    setMessage("");
+    const count = selectedIds.length;
+    const { error } = await supabase
+      .from("pp_santri")
+      .update({ status })
+      .in("id", selectedIds);
 
-    if (row.foto_url) {
-      try {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = row.foto_url;
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = reject;
-        });
-        ctx.drawImage(img, 620, 190, 160, 200);
-      } catch {
-        ctx.strokeRect(620, 190, 160, 200);
-      }
-    } else {
-      ctx.strokeRect(620, 190, 160, 200);
+    if (error) {
+      notifyError(error.message);
+      return;
     }
 
-    const qrCanvas = document.getElementById(`qr-${row.id}`) as HTMLCanvasElement | null;
-    if (qrCanvas) {
-      ctx.drawImage(qrCanvas, 650, 405, 100, 100);
+    notifySuccess(`${count} data santri diubah ke status ${status}.`);
+    setSelectedIds([]);
+    await loadRows();
+  }
+
+  async function bulkDeleteSantri() {
+    if (!selectedIds.length) return;
+    const count = selectedIds.length;
+    const confirmed = window.confirm(`Hapus ${count} data santri terpilih?`);
+    if (!confirmed) return;
+
+    setMessage("");
+    const { error } = await supabase.from("pp_santri").delete().in("id", selectedIds);
+    if (error) {
+      notifyError(error.message);
+      return;
     }
 
-    const link = document.createElement("a");
-    link.href = canvas.toDataURL("image/png");
-    link.download = `kartu-santri-${row.nis}.png`;
-    link.click();
+    notifySuccess(`${count} data santri dihapus.`);
+    setSelectedIds([]);
+    await loadRows();
+  }
+
+  async function downloadSelectedCards() {
+    if (!selectedRows.length) return;
+    setMessage("");
+    setGeneratingDocs(true);
+    try {
+      await downloadAllStudentCards(
+        "pesantren",
+        selectedRows.map(santriToDocumentData),
+      );
+      notifySuccess(`${selectedRows.length} kartu santri terpilih masuk ke file PDF.`);
+      setSelectedIds([]);
+      await loadRows();
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : "Gagal membuat kartu santri.");
+    } finally {
+      setGeneratingDocs(false);
+    }
   }
 
   return (
@@ -745,6 +805,51 @@ function DataSantriModule() {
             {generatingDocs ? "Membuat PDF..." : "Download Semua Kartu"}
           </button>
         </div>
+        {selectedIds.length ? (
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded border border-emerald-900/10 bg-emerald-50 p-3">
+            <span className="text-sm font-semibold text-emerald-950">
+              {selectedIds.length} data dipilih
+            </span>
+            <button
+              type="button"
+              onClick={() => bulkUpdateStatus("aktif")}
+              className="rounded bg-white px-3 py-2 text-xs font-semibold text-emerald-900 shadow-sm hover:bg-emerald-100"
+            >
+              Set Aktif
+            </button>
+            <button
+              type="button"
+              onClick={() => bulkUpdateStatus("keluar")}
+              className="rounded bg-white px-3 py-2 text-xs font-semibold text-amber-800 shadow-sm hover:bg-amber-50"
+            >
+              Set Keluar
+            </button>
+            <button
+              type="button"
+              onClick={() => bulkUpdateStatus("alumni")}
+              className="rounded bg-white px-3 py-2 text-xs font-semibold text-gray-800 shadow-sm hover:bg-gray-100"
+            >
+              Set Alumni
+            </button>
+            <button
+              type="button"
+              disabled={generatingDocs}
+              onClick={downloadSelectedCards}
+              className="inline-flex items-center rounded bg-emerald-800 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+            >
+              <Download className="mr-2" size={14} />
+              Kartu Terpilih
+            </button>
+            <button
+              type="button"
+              onClick={bulkDeleteSantri}
+              className="inline-flex items-center rounded bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
+            >
+              <Trash2 className="mr-2" size={14} />
+              Hapus Terpilih
+            </button>
+          </div>
+        ) : null}
         {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
       </div>
 
@@ -925,6 +1030,16 @@ function DataSantriModule() {
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50 text-left text-xs uppercase tracking-[0.12em] text-gray-500">
               <tr>
+                <th className="w-12 px-4 py-3">
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAllRows}
+                    aria-label="Pilih semua santri"
+                    className="h-4 w-4 rounded border-gray-300 text-emerald-700 focus:ring-emerald-600"
+                  />
+                </th>
                 <th className="px-4 py-3">NIS</th>
                 <th className="px-4 py-3">Nama</th>
                 <th className="px-4 py-3">JK</th>
@@ -937,6 +1052,15 @@ function DataSantriModule() {
             <tbody className="divide-y divide-gray-100">
               {filteredRows.map((row) => (
                 <tr key={row.id}>
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(row.id)}
+                      onChange={() => toggleSelectedRow(row.id)}
+                      aria-label={`Pilih ${row.nama_lengkap}`}
+                      className="h-4 w-4 rounded border-gray-300 text-emerald-700 focus:ring-emerald-600"
+                    />
+                  </td>
                   <td className="px-4 py-3 font-semibold">{row.nis}</td>
                   <td className="px-4 py-3">{row.nama_lengkap}</td>
                   <td className="px-4 py-3">{row.jenis_kelamin}</td>
@@ -945,12 +1069,6 @@ function DataSantriModule() {
                   <td className="px-4 py-3 capitalize">{row.status}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
-                      <QRCodeCanvas
-                        id={`qr-${row.id}`}
-                        value={row.kode_unik}
-                        size={96}
-                        className="hidden"
-                      />
                       <button
                         title="Edit"
                         type="button"
@@ -1040,7 +1158,12 @@ function DataSantriModule() {
                     Foto
                   </div>
                 )}
-                <QRCodeCanvas value={selectedCard.kode_unik} size={96} />
+                <div className="grid h-24 w-24 place-items-center rounded bg-emerald-50 text-center text-xs font-semibold text-emerald-800">
+                  Kode Akses
+                  <span className="mt-1 block text-[11px] text-emerald-950">
+                    {selectedCard.kode_unik}
+                  </span>
+                </div>
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-3">
@@ -1051,14 +1174,6 @@ function DataSantriModule() {
               >
                 <Download className="mr-2" size={17} />
                 Unduh PDF
-              </button>
-              <button
-                type="button"
-                onClick={() => downloadCardImage(selectedCard)}
-                className="inline-flex items-center rounded border border-emerald-900/20 px-4 py-2 text-sm font-semibold text-emerald-900"
-              >
-                <Download className="mr-2" size={17} />
-                Unduh PNG
               </button>
               <button
                 type="button"
@@ -1079,7 +1194,7 @@ function AlumniModule() {
   const [rows, setRows] = useState<Santri[]>([]);
   const [search, setSearch] = useState("");
   const [tahunFilter, setTahunFilter] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useNotifiedMessage();
 
   async function loadRows() {
     const { data } = await supabase
@@ -1214,7 +1329,8 @@ function AsatidzModule() {
   const [assignedIds, setAssignedIds] = useState<string[]>([]);
   const [yearAssign, setYearAssign] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useNotifiedMessage();
+  const [savingTeacher, setSavingTeacher] = useState(false);
 
   async function loadData() {
     const [teacherResult, santriResult] = await Promise.all([
@@ -1239,48 +1355,85 @@ function AsatidzModule() {
       setMessage("Nama ustadz/ustadzah wajib diisi.");
       return;
     }
-
-    let userId = editing.user_id || null;
-    if (!editing.id && editing.email && editing.password) {
-      const { data, error } = await supabase.functions.invoke("create-guru-account", {
-        body: {
-          email: editing.email,
-          password: editing.password,
-          nama: editing.nama_lengkap,
-        },
-      });
-
-      if (error || data?.error) {
-        setMessage(data?.error || error?.message || "Akun guru belum berhasil dibuat.");
-        return;
-      }
-      userId = data.user_id;
-    }
-
-    let fotoUrl = editing.foto_url || null;
-    if (photoFile) {
-      fotoUrl = await uploadFile("santri-foto", "asatidz", photoFile);
-    }
-
-    const payload = {
-      user_id: userId,
-      nama_lengkap: editing.nama_lengkap,
-      no_hp: editing.no_hp || null,
-      foto_url: fotoUrl,
-    };
-    const result = editing.id
-      ? await supabase.from("pp_asatidz").update(payload).eq("id", editing.id)
-      : await supabase.from("pp_asatidz").insert(payload);
-
-    if (result.error) {
-      setMessage(result.error.message);
+    if (!editing.id && (!editing.email || !editing.password)) {
+      setMessage("Email akun guru dan password awal wajib diisi.");
       return;
     }
 
-    setEditing(null);
-    setPhotoFile(null);
-    setMessage("Data asatidz tersimpan.");
-    loadData();
+    setSavingTeacher(true);
+    try {
+      let fotoUrl = editing.foto_url || null;
+      if (photoFile) {
+        try {
+          fotoUrl = await uploadFile("santri-foto", "asatidz", photoFile);
+        } catch (error) {
+          notifyWarning(
+            error instanceof Error
+              ? `Foto gagal diupload: ${error.message}. Data tetap disimpan tanpa foto baru.`
+              : "Foto gagal diupload. Data tetap disimpan tanpa foto baru.",
+          );
+        }
+      }
+
+      if (!editing.id && editing.email && editing.password) {
+        const { data, error } = await supabase.functions.invoke("create-managed-account", {
+          body: {
+            entitas: "pesantren",
+            role: "guru",
+            nama: editing.nama_lengkap,
+            email: editing.email,
+            password: editing.password,
+            no_hp: editing.no_hp || "",
+          },
+        });
+
+        if (error || data?.error) {
+          const message = data?.error || error?.message || "Akun guru belum berhasil dibuat.";
+          setMessage(message);
+          return;
+        }
+
+        if (fotoUrl && data?.user_id) {
+          const { error: photoUpdateError } = await supabase
+            .from("pp_asatidz")
+            .update({ foto_url: fotoUrl })
+            .eq("user_id", data.user_id);
+          if (photoUpdateError) notifyWarning(photoUpdateError.message);
+        }
+
+        setEditing(null);
+        setPhotoFile(null);
+        setMessage("Data asatidz dan akun guru tersimpan.");
+        loadData();
+        return;
+      }
+
+      const payload = {
+        user_id: editing.user_id || null,
+        nama_lengkap: editing.nama_lengkap,
+        no_hp: editing.no_hp || null,
+        foto_url: fotoUrl,
+      };
+      const result = editing.id
+        ? await supabase.from("pp_asatidz").update(payload).eq("id", editing.id)
+        : await supabase.from("pp_asatidz").insert(payload);
+
+      if (result.error) {
+        setMessage(result.error.message);
+        return;
+      }
+
+      setEditing(null);
+      setPhotoFile(null);
+      setMessage("Data asatidz tersimpan.");
+      loadData();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Data asatidz belum berhasil disimpan.";
+      setMessage(message);
+    } finally {
+      setSavingTeacher(false);
+    }
   }
 
   async function openAssign(teacher: Asatidz) {
@@ -1406,8 +1559,12 @@ function AsatidzModule() {
             </Field>
           </div>
           <div className="mt-5 flex gap-3">
-            <button type="submit" className="rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
-              Simpan
+            <button
+              type="submit"
+              disabled={savingTeacher}
+              className="rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+            >
+              {savingTeacher ? "Menyimpan..." : "Simpan"}
             </button>
             <button type="button" onClick={() => setEditing(null)} className="rounded border px-4 py-2 text-sm font-semibold">
               Batal
@@ -1519,7 +1676,7 @@ function RaportModule({ role }: { role: string }) {
   });
   const [assignmentForm, setAssignmentForm] = useState({ guru_id: "", kelompok: "", mapel_id: "" });
   const [assignedSantriIds, setAssignedSantriIds] = useState<string[]>([]);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useNotifiedMessage();
 
   async function loadData() {
     const [periodResult, teacherResult, santriResult] = await Promise.all([
@@ -1939,7 +2096,7 @@ function PelanggaranModule({ role }: { role: string }) {
     tanggal: new Date().toISOString().slice(0, 10),
     keterangan: "",
   });
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useNotifiedMessage();
 
   async function loadData() {
     const [santriResult, jenisResult, recordResult, tingkatResult] = await Promise.all([
@@ -2127,33 +2284,58 @@ function PelanggaranModule({ role }: { role: string }) {
   );
 }
 
-function CapaianModule() {
+function CapaianModule({ role }: { role: string }) {
   const { user } = useAuth();
+  const isAdmin = ["superadmin", "admin"].includes(role);
   const [santri, setSantri] = useState<Santri[]>([]);
+  const [categories, setCategories] = useState<CapaianKategori[]>([]);
+  const [fields, setFields] = useState<CapaianField[]>([]);
   const [records, setRecords] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [form, setForm] = useState({
     santri_id: "",
-    jenis: "hafalan Quran",
-    detail: "",
+    kategori_id: "",
+    data_dinamis: {} as Record<string, string | boolean>,
     progres: "",
   });
-  const [message, setMessage] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [activeConfigCategory, setActiveConfigCategory] = useState("");
+  const [categoryForm, setCategoryForm] = useState({
+    id: "",
+    nama_kategori: "",
+    deskripsi: "",
+    aktif: true,
+    urutan: 0,
+  });
+  const [fieldForm, setFieldForm] = useState({
+    id: "",
+    field_key: "",
+    field_label: "",
+    field_type: "text" as CapaianField["field_type"],
+    field_options: [] as string[],
+    wajib: false,
+    urutan: 0,
+  });
+  const [message, setMessage] = useNotifiedMessage();
 
   async function loadData() {
-    const [santriResult, recordResult, historyResult] = await Promise.all([
+    const [santriResult, categoryResult, fieldResult, recordResult, historyResult] = await Promise.all([
       supabase.from("pp_santri").select("*").eq("status", "aktif").order("nama_lengkap"),
+      supabase.from("pp_capaian_kategori").select("*").order("urutan").order("created_at"),
+      supabase.from("pp_capaian_field").select("*").order("urutan").order("field_label"),
       supabase
         .from("pp_capaian")
-        .select("*, santri:pp_santri(nama_lengkap,nis)")
+        .select("*, santri:pp_santri(nama_lengkap,nis), kategori:pp_capaian_kategori(nama_kategori)")
         .order("updated_at", { ascending: false }),
       supabase
         .from("pp_capaian_riwayat")
-        .select("*, santri:pp_santri(nama_lengkap)")
+        .select("*, santri:pp_santri(nama_lengkap), kategori:pp_capaian_kategori(nama_kategori)")
         .order("created_at", { ascending: false })
         .limit(50),
     ]);
     setSantri((santriResult.data || []) as Santri[]);
+    setCategories((categoryResult.data || []) as CapaianKategori[]);
+    setFields((fieldResult.data || []) as CapaianField[]);
     setRecords(recordResult.data || []);
     setHistory(historyResult.data || []);
   }
@@ -2162,41 +2344,600 @@ function CapaianModule() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (!categories.length) return;
+    const firstActive = categories.find((item) => item.aktif) || categories[0];
+    setForm((current) => (current.kategori_id ? current : { ...current, kategori_id: firstActive.id }));
+    setActiveConfigCategory((current) => current || firstActive.id);
+  }, [categories]);
+
+  const sortedCategories = useMemo(
+    () => [...categories].sort((a, b) => a.urutan - b.urutan || a.nama_kategori.localeCompare(b.nama_kategori)),
+    [categories],
+  );
+  const selectedCategory = categories.find((item) => item.id === form.kategori_id);
+  const selectedCategoryFields = useMemo(
+    () => fields.filter((field) => field.kategori_id === form.kategori_id).sort((a, b) => a.urutan - b.urutan),
+    [fields, form.kategori_id],
+  );
+  const activeConfigFields = useMemo(
+    () => fields.filter((field) => field.kategori_id === activeConfigCategory).sort((a, b) => a.urutan - b.urutan),
+    [fields, activeConfigCategory],
+  );
+  const filterFields = useMemo(
+    () => fields.filter((field) => field.kategori_id === categoryFilter).sort((a, b) => a.urutan - b.urutan),
+    [fields, categoryFilter],
+  );
+  const filteredRecords = records.filter((record) => (categoryFilter ? record.kategori_id === categoryFilter : true));
+
+  function resetCategoryForm() {
+    setCategoryForm({ id: "", nama_kategori: "", deskripsi: "", aktif: true, urutan: sortedCategories.length + 1 });
+  }
+
+  function resetFieldForm() {
+    setFieldForm({
+      id: "",
+      field_key: "",
+      field_label: "",
+      field_type: "text",
+      field_options: [],
+      wajib: false,
+      urutan: activeConfigFields.length + 1,
+    });
+  }
+
+  function normalizeFieldKey(value: string) {
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+  }
+
+  function optionList(field: CapaianField) {
+    return Array.isArray(field.field_options) ? field.field_options : [];
+  }
+
+  function dynamicValue(source: any, field: CapaianField) {
+    const value = source?.data_dinamis?.[field.field_key];
+    if (typeof value === "boolean") return value ? "Ya" : "Tidak";
+    return value === undefined || value === null || value === "" ? "-" : String(value);
+  }
+
+  function recordSummary(record: any) {
+    const recordFields = fields.filter((field) => field.kategori_id === record.kategori_id).sort((a, b) => a.urutan - b.urutan);
+    const summary = recordFields
+      .map((field) => {
+        const value = dynamicValue(record, field);
+        return value === "-" ? "" : `${field.field_label}: ${value}`;
+      })
+      .filter(Boolean)
+      .join(", ");
+    return summary || record.detail || "-";
+  }
+
+  function setDynamicValue(fieldKey: string, value: string | boolean) {
+    setForm((current) => ({
+      ...current,
+      data_dinamis: {
+        ...current.data_dinamis,
+        [fieldKey]: value,
+      },
+    }));
+  }
+
+  function renderDynamicField(field: CapaianField, disabled = false) {
+    const value = form.data_dinamis[field.field_key];
+    const label = `${field.field_label}${field.wajib ? " *" : ""}`;
+    if (field.field_type === "textarea") {
+      return (
+        <label key={field.id} className="grid gap-2 text-sm font-semibold text-gray-700 md:col-span-2">
+          {label}
+          <textarea
+            value={String(value || "")}
+            onChange={(event) => setDynamicValue(field.field_key, event.target.value)}
+            rows={3}
+            disabled={disabled}
+            className="rounded border border-gray-200 px-3 py-3 font-normal outline-none focus:ring-2 focus:ring-emerald-700 disabled:bg-gray-50"
+          />
+        </label>
+      );
+    }
+    if (field.field_type === "select") {
+      return (
+        <label key={field.id} className="grid gap-2 text-sm font-semibold text-gray-700">
+          {label}
+          <select
+            value={String(value || "")}
+            onChange={(event) => setDynamicValue(field.field_key, event.target.value)}
+            disabled={disabled}
+            className={inputClass}
+          >
+            <option value="">Pilih {field.field_label.toLowerCase()}</option>
+            {optionList(field).map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+      );
+    }
+    if (field.field_type === "toggle") {
+      return (
+        <label key={field.id} className="flex min-h-11 items-center gap-3 rounded border border-gray-200 px-3 text-sm font-semibold text-gray-700">
+          <input
+            type="checkbox"
+            checked={Boolean(value)}
+            onChange={(event) => setDynamicValue(field.field_key, event.target.checked)}
+            disabled={disabled}
+          />
+          {label}
+        </label>
+      );
+    }
+    return (
+      <label key={field.id} className="grid gap-2 text-sm font-semibold text-gray-700">
+        {label}
+        <input
+          type={field.field_type === "number" ? "number" : "text"}
+          value={String(value || "")}
+          onChange={(event) => setDynamicValue(field.field_key, event.target.value)}
+          disabled={disabled}
+          className={inputClass}
+        />
+      </label>
+    );
+  }
+
   async function saveCapaian(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!form.santri_id) {
+      setMessage("Pilih santri terlebih dahulu.");
+      return;
+    }
+    if (!form.kategori_id) {
+      setMessage("Pilih kategori capaian terlebih dahulu.");
+      return;
+    }
+    const missingField = selectedCategoryFields.find((field) => {
+      if (!field.wajib) return false;
+      const value = form.data_dinamis[field.field_key];
+      return value === undefined || value === null || value === "";
+    });
+    if (missingField) {
+      setMessage(`${missingField.field_label} wajib diisi.`);
+      return;
+    }
     const { data: guru } = await supabase
       .from("pp_asatidz")
       .select("id")
       .eq("user_id", user?.id)
       .maybeSingle();
+    const summary = selectedCategoryFields
+      .map((field) => {
+        const value = form.data_dinamis[field.field_key];
+        if (value === undefined || value === null || value === "") return "";
+        return `${field.field_label}: ${typeof value === "boolean" ? (value ? "Ya" : "Tidak") : value}`;
+      })
+      .filter(Boolean)
+      .join(", ");
     const { error } = await supabase.from("pp_capaian").insert({
-      ...form,
+      santri_id: form.santri_id,
+      kategori_id: form.kategori_id,
+      data_dinamis: form.data_dinamis,
+      jenis: selectedCategory?.nama_kategori || null,
+      detail: summary || null,
+      progres: form.progres || null,
       guru_id: guru?.id || null,
     });
-    setMessage(error ? error.message : "Capaian santri tersimpan.");
-    setForm({ santri_id: "", jenis: "hafalan Quran", detail: "", progres: "" });
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setMessage("Capaian santri tersimpan.");
+    setForm((current) => ({ santri_id: "", kategori_id: current.kategori_id, data_dinamis: {}, progres: "" }));
     loadData();
   }
+
+  async function saveCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isAdmin) return setMessage("Akses konfigurasi hanya untuk admin.");
+    if (!categoryForm.nama_kategori.trim()) return setMessage("Nama kategori wajib diisi.");
+    const payload = {
+      nama_kategori: categoryForm.nama_kategori.trim(),
+      deskripsi: categoryForm.deskripsi.trim() || null,
+      aktif: categoryForm.aktif,
+      urutan: Number(categoryForm.urutan) || 0,
+    };
+    const result = categoryForm.id
+      ? await supabase.from("pp_capaian_kategori").update(payload).eq("id", categoryForm.id)
+      : await supabase.from("pp_capaian_kategori").insert(payload);
+    if (result.error) {
+      setMessage(result.error.message);
+      return;
+    }
+    setMessage(categoryForm.id ? "Kategori capaian diperbarui." : "Kategori capaian ditambahkan.");
+    resetCategoryForm();
+    loadData();
+  }
+
+  async function deleteCategory(category: CapaianKategori) {
+    if (!isAdmin) return setMessage("Akses konfigurasi hanya untuk admin.");
+    const confirmed = window.confirm(`Hapus kategori "${category.nama_kategori}" beserta field-nya? Data capaian lama tetap tersimpan tanpa kategori.`);
+    if (!confirmed) return;
+    const { error } = await supabase.from("pp_capaian_kategori").delete().eq("id", category.id);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setMessage("Kategori capaian dihapus.");
+    if (activeConfigCategory === category.id) setActiveConfigCategory("");
+    if (form.kategori_id === category.id) setForm((current) => ({ ...current, kategori_id: "", data_dinamis: {} }));
+    loadData();
+  }
+
+  async function saveField(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isAdmin) return setMessage("Akses konfigurasi hanya untuk admin.");
+    if (!activeConfigCategory) return setMessage("Pilih kategori untuk field.");
+    const fieldKey = normalizeFieldKey(fieldForm.field_key || fieldForm.field_label);
+    if (!fieldKey || !fieldForm.field_label.trim()) return setMessage("Key dan label field wajib diisi.");
+    const options = fieldForm.field_type === "select"
+      ? fieldForm.field_options.map((option) => option.trim()).filter(Boolean)
+      : [];
+    if (fieldForm.field_type === "select" && !options.length) return setMessage("Field select wajib punya minimal satu opsi.");
+    const payload = {
+      kategori_id: activeConfigCategory,
+      field_key: fieldKey,
+      field_label: fieldForm.field_label.trim(),
+      field_type: fieldForm.field_type,
+      field_options: fieldForm.field_type === "select" ? options : null,
+      wajib: fieldForm.wajib,
+      urutan: Number(fieldForm.urutan) || 0,
+    };
+    const result = fieldForm.id
+      ? await supabase.from("pp_capaian_field").update(payload).eq("id", fieldForm.id)
+      : await supabase.from("pp_capaian_field").insert(payload);
+    if (result.error) {
+      setMessage(result.error.message);
+      return;
+    }
+    setMessage(fieldForm.id ? "Field capaian diperbarui." : "Field capaian ditambahkan.");
+    resetFieldForm();
+    loadData();
+  }
+
+  async function deleteField(field: CapaianField) {
+    if (!isAdmin) return setMessage("Akses konfigurasi hanya untuk admin.");
+    const confirmed = window.confirm(`Hapus field "${field.field_label}"? Data lama pada field ini tetap ada di arsip JSON.`);
+    if (!confirmed) return;
+    const { error } = await supabase.from("pp_capaian_field").delete().eq("id", field.id);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setMessage("Field capaian dihapus.");
+    loadData();
+  }
+
+  async function moveField(field: CapaianField, direction: -1 | 1) {
+    const currentIndex = activeConfigFields.findIndex((item) => item.id === field.id);
+    const target = activeConfigFields[currentIndex + direction];
+    if (!target) return;
+    const [currentResult, targetResult] = await Promise.all([
+      supabase.from("pp_capaian_field").update({ urutan: target.urutan }).eq("id", field.id),
+      supabase.from("pp_capaian_field").update({ urutan: field.urutan }).eq("id", target.id),
+    ]);
+    const error = currentResult.error || targetResult.error;
+    setMessage(error ? error.message : "Urutan field diperbarui.");
+    if (!error) loadData();
+  }
+
+  const categoryTableRows = sortedCategories.map((category) => [
+    category.nama_kategori,
+    category.aktif ? "Aktif" : "Nonaktif",
+    category.urutan,
+    category.deskripsi || "-",
+    <div key={category.id} className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        onClick={() => {
+          setCategoryForm({
+            id: category.id,
+            nama_kategori: category.nama_kategori,
+            deskripsi: category.deskripsi || "",
+            aktif: category.aktif,
+            urutan: category.urutan,
+          });
+          setActiveConfigCategory(category.id);
+        }}
+        className="inline-flex items-center rounded border px-3 py-2 text-xs font-semibold"
+      >
+        <Pencil className="mr-1" size={14} />
+        Edit
+      </button>
+      <button
+        type="button"
+        onClick={() => deleteCategory(category)}
+        className="inline-flex items-center rounded border border-red-200 px-3 py-2 text-xs font-semibold text-red-700"
+      >
+        <Trash2 className="mr-1" size={14} />
+        Hapus
+      </button>
+    </div>,
+  ]);
 
   return (
     <ModuleShell
       title="Capaian Santri"
-      description="Catat capaian hafalan Quran, kitab, dan progres santri binaan."
+      description="Catat capaian santri dengan kategori dan field yang bisa dikonfigurasi admin."
     >
+      {isAdmin ? (
+        <div className="grid gap-5 rounded bg-white p-5 shadow-soft">
+          <div>
+            <h2 className="text-lg font-semibold">Konfigurasi Kategori & Field</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Admin dapat membuat kategori capaian, menyusun field isian, mengatur opsi select, dan melihat preview form.
+            </p>
+          </div>
+
+          <form onSubmit={saveCategory} className="grid gap-3 rounded border border-gray-100 p-4 md:grid-cols-4">
+            <input
+              value={categoryForm.nama_kategori}
+              onChange={(event) => setCategoryForm((current) => ({ ...current, nama_kategori: event.target.value }))}
+              placeholder="Nama kategori"
+              className={inputClass}
+            />
+            <input
+              value={categoryForm.deskripsi}
+              onChange={(event) => setCategoryForm((current) => ({ ...current, deskripsi: event.target.value }))}
+              placeholder="Deskripsi singkat"
+              className={inputClass}
+            />
+            <input
+              type="number"
+              value={categoryForm.urutan}
+              onChange={(event) => setCategoryForm((current) => ({ ...current, urutan: Number(event.target.value) }))}
+              placeholder="Urutan"
+              className={inputClass}
+            />
+            <label className="flex min-h-11 items-center gap-3 rounded border border-gray-200 px-3 text-sm font-semibold text-gray-700">
+              <input
+                type="checkbox"
+                checked={categoryForm.aktif}
+                onChange={(event) => setCategoryForm((current) => ({ ...current, aktif: event.target.checked }))}
+              />
+              Aktif
+            </label>
+            <div className="flex flex-wrap gap-2 md:col-span-4">
+              <button type="submit" className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+                <Save className="mr-2" size={17} />
+                {categoryForm.id ? "Update Kategori" : "Tambah Kategori"}
+              </button>
+              <button type="button" onClick={resetCategoryForm} className="rounded border px-4 py-2 text-sm font-semibold">
+                Reset
+              </button>
+            </div>
+          </form>
+
+          <DataTable headers={["Kategori", "Status", "Urutan", "Deskripsi", "Aksi"]} rows={categoryTableRows} />
+
+          <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+            <form onSubmit={saveField} className="rounded border border-gray-100 p-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <select
+                  value={activeConfigCategory}
+                  onChange={(event) => {
+                    setActiveConfigCategory(event.target.value);
+                    resetFieldForm();
+                  }}
+                  className={inputClass}
+                >
+                  <option value="">Pilih kategori</option>
+                  {sortedCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.nama_kategori}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={fieldForm.field_type}
+                  onChange={(event) =>
+                    setFieldForm((current) => ({
+                      ...current,
+                      field_type: event.target.value as CapaianField["field_type"],
+                      field_options: event.target.value === "select" && !current.field_options.length ? [""] : current.field_options,
+                    }))
+                  }
+                  className={inputClass}
+                >
+                  <option value="text">Text</option>
+                  <option value="number">Number</option>
+                  <option value="select">Select</option>
+                  <option value="toggle">Toggle</option>
+                  <option value="textarea">Textarea</option>
+                </select>
+                <input
+                  value={fieldForm.field_label}
+                  onChange={(event) =>
+                    setFieldForm((current) => ({
+                      ...current,
+                      field_label: event.target.value,
+                      field_key: current.id ? current.field_key : normalizeFieldKey(event.target.value),
+                    }))
+                  }
+                  placeholder="Label field, contoh Surat"
+                  className={inputClass}
+                />
+                <input
+                  value={fieldForm.field_key}
+                  onChange={(event) => setFieldForm((current) => ({ ...current, field_key: normalizeFieldKey(event.target.value) }))}
+                  placeholder="Key field, contoh surat"
+                  className={inputClass}
+                />
+                <input
+                  type="number"
+                  value={fieldForm.urutan}
+                  onChange={(event) => setFieldForm((current) => ({ ...current, urutan: Number(event.target.value) }))}
+                  placeholder="Urutan"
+                  className={inputClass}
+                />
+                <label className="flex min-h-11 items-center gap-3 rounded border border-gray-200 px-3 text-sm font-semibold text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={fieldForm.wajib}
+                    onChange={(event) => setFieldForm((current) => ({ ...current, wajib: event.target.checked }))}
+                  />
+                  Wajib diisi
+                </label>
+              </div>
+
+              {fieldForm.field_type === "select" ? (
+                <div className="mt-3 rounded bg-gray-50 p-3">
+                  <p className="text-sm font-semibold text-gray-700">Opsi select</p>
+                  <div className="mt-2 grid gap-2">
+                    {fieldForm.field_options.map((option, index) => (
+                      <div key={index} className="flex gap-2">
+                        <input
+                          value={option}
+                          onChange={(event) =>
+                            setFieldForm((current) => ({
+                              ...current,
+                              field_options: current.field_options.map((item, itemIndex) =>
+                                itemIndex === index ? event.target.value : item,
+                              ),
+                            }))
+                          }
+                          placeholder={`Opsi ${index + 1}`}
+                          className={inputClass}
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFieldForm((current) => ({
+                              ...current,
+                              field_options: current.field_options.filter((_, itemIndex) => itemIndex !== index),
+                            }))
+                          }
+                          className="rounded border border-red-200 px-3 text-sm font-semibold text-red-700"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setFieldForm((current) => ({ ...current, field_options: [...current.field_options, ""] }))}
+                      className="inline-flex w-fit items-center rounded border px-3 py-2 text-sm font-semibold"
+                    >
+                      <Plus className="mr-2" size={15} />
+                      Tambah Opsi
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button type="submit" className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
+                  <Save className="mr-2" size={17} />
+                  {fieldForm.id ? "Update Field" : "Tambah Field"}
+                </button>
+                <button type="button" onClick={resetFieldForm} className="rounded border px-4 py-2 text-sm font-semibold">
+                  Reset Field
+                </button>
+              </div>
+            </form>
+
+            <div className="rounded border border-gray-100 p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Preview Field</h3>
+              <div className="mt-3 grid gap-3">
+                {activeConfigFields.length ? activeConfigFields.map((field, index) => (
+                  <div key={field.id} className="rounded bg-gray-50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-gray-900">{field.field_label}</p>
+                        <p className="text-xs text-gray-500">
+                          {field.field_key} - {field.field_type}{field.wajib ? " - wajib" : ""}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => moveField(field, -1)} disabled={index === 0} className="rounded border px-2 py-1 text-xs disabled:opacity-40">
+                          Naik
+                        </button>
+                        <button type="button" onClick={() => moveField(field, 1)} disabled={index === activeConfigFields.length - 1} className="rounded border px-2 py-1 text-xs disabled:opacity-40">
+                          Turun
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFieldForm({
+                              id: field.id,
+                              field_key: field.field_key,
+                              field_label: field.field_label,
+                              field_type: field.field_type,
+                              field_options: optionList(field),
+                              wajib: field.wajib,
+                              urutan: field.urutan,
+                            })
+                          }
+                          className="rounded border px-2 py-1 text-xs font-semibold"
+                        >
+                          Edit
+                        </button>
+                        <button type="button" onClick={() => deleteField(field)} className="rounded border border-red-200 px-2 py-1 text-xs font-semibold text-red-700">
+                          Hapus
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )) : <p className="text-sm text-gray-500">Belum ada field pada kategori ini.</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <form onSubmit={saveCapaian} className="rounded bg-white p-5 shadow-soft">
-        <div className="grid gap-3 md:grid-cols-2">
-          <select value={form.santri_id} onChange={(event) => setForm((current) => ({ ...current, santri_id: event.target.value }))} className={inputClass}>
-            <option value="">Pilih santri</option>
-            {santri.map((item) => (
-              <option key={item.id} value={item.id}>{item.nama_lengkap}</option>
-            ))}
-          </select>
-          <select value={form.jenis} onChange={(event) => setForm((current) => ({ ...current, jenis: event.target.value }))} className={inputClass}>
-            <option value="hafalan Quran">Hafalan Quran</option>
-            <option value="kitab">Kitab</option>
-          </select>
-          <input value={form.detail} onChange={(event) => setForm((current) => ({ ...current, detail: event.target.value }))} placeholder="Detail, contoh Juz 1 atau nama kitab" className={inputClass} />
-          <input value={form.progres} onChange={(event) => setForm((current) => ({ ...current, progres: event.target.value }))} placeholder="Progres" className={inputClass} />
+        <h2 className="text-lg font-semibold">Input Capaian</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <label className="grid gap-2 text-sm font-semibold text-gray-700">
+            Santri
+            <select value={form.santri_id} onChange={(event) => setForm((current) => ({ ...current, santri_id: event.target.value }))} className={inputClass}>
+              <option value="">Pilih santri</option>
+              {santri.map((item) => (
+                <option key={item.id} value={item.id}>{item.nama_lengkap}</option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-gray-700">
+            Kategori Capaian
+            <select
+              value={form.kategori_id}
+              onChange={(event) => setForm((current) => ({ ...current, kategori_id: event.target.value, data_dinamis: {} }))}
+              className={inputClass}
+            >
+              <option value="">Pilih kategori</option>
+              {sortedCategories.filter((category) => category.aktif).map((category) => (
+                <option key={category.id} value={category.id}>{category.nama_kategori}</option>
+              ))}
+            </select>
+          </label>
+          {selectedCategoryFields.map((field) => renderDynamicField(field))}
+          <label className="grid gap-2 text-sm font-semibold text-gray-700 md:col-span-2">
+            Catatan progres
+            <input
+              value={form.progres}
+              onChange={(event) => setForm((current) => ({ ...current, progres: event.target.value }))}
+              placeholder="Catatan tambahan, contoh lancar, perlu murojaah, atau target berikutnya"
+              className={inputClass}
+            />
+          </label>
+          {form.kategori_id && !selectedCategoryFields.length ? (
+            <p className="rounded bg-amber-50 p-3 text-sm font-medium text-amber-800 md:col-span-2">
+              Kategori ini belum punya field isian. Admin perlu menambahkan field di konfigurasi.
+            </p>
+          ) : null}
         </div>
         <button className="mt-4 rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
           Simpan Capaian
@@ -2204,15 +2945,41 @@ function CapaianModule() {
         {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
       </form>
 
+      <div className="rounded bg-white p-5 shadow-soft">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold">Data Capaian</h2>
+          <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className={inputClass}>
+            <option value="">Semua kategori</option>
+            {sortedCategories.map((category) => (
+              <option key={category.id} value={category.id}>{category.nama_kategori}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <DataTable
-        headers={["Santri", "Jenis", "Detail", "Progres", "Update"]}
-        rows={records.map((record) => [
-          record.santri?.nama_lengkap || "-",
-          record.jenis,
-          record.detail,
-          record.progres || "-",
-          formatDate(record.updated_at),
-        ])}
+        headers={
+          categoryFilter && filterFields.length
+            ? ["Santri", "Kategori", ...filterFields.map((field) => field.field_label), "Progres", "Update"]
+            : ["Santri", "Kategori", "Ringkasan", "Progres", "Update"]
+        }
+        rows={filteredRecords.map((record) =>
+          categoryFilter && filterFields.length
+            ? [
+                record.santri?.nama_lengkap || "-",
+                record.kategori?.nama_kategori || record.jenis || "-",
+                ...filterFields.map((field) => dynamicValue(record, field)),
+                record.progres || "-",
+                formatDate(record.updated_at),
+              ]
+            : [
+                record.santri?.nama_lengkap || "-",
+                record.kategori?.nama_kategori || record.jenis || "-",
+                recordSummary(record),
+                record.progres || "-",
+                formatDate(record.updated_at),
+              ],
+        )}
       />
 
       <div className="rounded bg-white p-5 shadow-soft">
@@ -2221,9 +2988,10 @@ function CapaianModule() {
           {history.map((item) => (
             <div key={item.id} className="rounded bg-gray-50 p-3 text-sm">
               <span className="font-semibold">{item.santri?.nama_lengkap || "-"}</span>{" "}
-              {item.aksi} {item.jenis} - {item.detail} ({item.progres || "-"})
+              {item.aksi} {item.kategori?.nama_kategori || item.jenis || "Capaian"} - {recordSummary(item)} ({item.progres || "-"})
             </div>
           ))}
+          {!history.length ? <p className="text-sm text-gray-500">Belum ada riwayat perubahan.</p> : null}
         </div>
       </div>
     </ModuleShell>
@@ -2252,7 +3020,7 @@ function PerizinanModule({ role }: { role: string }) {
     catatan: "",
     nomor_surat: "",
   });
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useNotifiedMessage();
 
   async function loadData() {
     const [santriResult, izinResult] = await Promise.all([
@@ -2565,7 +3333,7 @@ function SuratModule() {
     santri_id: "",
     isi_tambahan: "",
   });
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useNotifiedMessage();
 
   async function loadData() {
     const [santriResult, archiveResult] = await Promise.all([
@@ -2699,7 +3467,7 @@ function PsbModule() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "pendaftar" | "pengaturan">("dashboard");
   const [statusFilter, setStatusFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useNotifiedMessage();
   const [settings, setSettings] = useState({
     active: false,
     tahun_ajaran: "",
@@ -3112,7 +3880,7 @@ export function PesantrenDataModule({
   if (slug === "data-asatidz") return <AsatidzModule />;
   if (slug === "raport-santri") return <RaportModule role={role} />;
   if (slug === "catatan-pelanggaran") return <PelanggaranModule role={role} />;
-  if (slug === "capaian-santri") return <CapaianModule />;
+  if (slug === "capaian-santri") return <CapaianModule role={role} />;
   if (slug === "perizinan") return <PerizinanModule role={role} />;
   if (slug === "manajemen-akun") return <AccountManagementModule entity="pesantren" />;
   if (slug === "surat-keluar") return <SuratModule />;

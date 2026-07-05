@@ -101,6 +101,14 @@ type LookupResult = {
     periode: string;
     nilai: string | null;
   }[];
+  pelanggaran?: {
+    tanggal: string;
+    nama_pelanggaran: string;
+    poin: number;
+    tingkatan: string;
+    keterangan?: string | null;
+  }[];
+  total_poin_pelanggaran?: number;
 };
 
 const fallbackHero =
@@ -523,6 +531,8 @@ export default function PesantrenLandingPage() {
           riwayat_pembayaran: [],
         })),
         raport: [],
+        pelanggaran: [],
+        total_poin_pelanggaran: 0,
       });
       return;
     }
@@ -830,6 +840,39 @@ export default function PesantrenLandingPage() {
       );
       y += 7;
     });
+
+    y += 6;
+    if (y > 260) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFontSize(13);
+    doc.text("Riwayat Pelanggaran", 14, y);
+    y += 8;
+    doc.setFontSize(10);
+    doc.text(`Total poin: ${lookup.total_poin_pelanggaran || 0}`, 14, y);
+    y += 7;
+    if (lookup.pelanggaran?.length) {
+      lookup.pelanggaran.forEach((item, index) => {
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.text(
+          `${index + 1}. ${formatDate(item.tanggal)} - ${item.nama_pelanggaran} (${item.poin} poin, ${item.tingkatan})`,
+          14,
+          y,
+          { maxWidth: 180 },
+        );
+        y += 7;
+        if (item.keterangan) {
+          doc.text(`Catatan: ${item.keterangan}`, 18, y, { maxWidth: 172 });
+          y += 7;
+        }
+      });
+    } else {
+      doc.text("Tidak ada catatan pelanggaran.", 14, y);
+    }
 
     doc.save(`rekap-${lookup.santri.nis || "santri"}.pdf`);
   }
@@ -1507,9 +1550,14 @@ export default function PesantrenLandingPage() {
                     <p className="mt-1 text-sm text-gray-600">
                       NIS {lookup.santri.nis} - {lookup.santri.kelas}
                     </p>
-                    <p className="mt-2 inline-flex rounded bg-green-50 px-3 py-1 text-sm font-semibold capitalize text-green-700">
-                      {lookup.santri.status}
-                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span className="inline-flex rounded bg-green-50 px-3 py-1 text-sm font-semibold capitalize text-green-700">
+                        {lookup.santri.status}
+                      </span>
+                      <span className="inline-flex rounded bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
+                        {lookup.total_poin_pelanggaran || 0} poin pelanggaran
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -1604,6 +1652,46 @@ export default function PesantrenLandingPage() {
                     ) : (
                       <p className="rounded bg-gray-50 p-4 text-sm text-gray-600 sm:col-span-2">
                         Ringkasan raport belum tersedia.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold">Riwayat Pelanggaran</h4>
+                  <div className="mt-3 overflow-hidden rounded border border-gray-200">
+                    {lookup.pelanggaran?.length ? (
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                          <thead className="bg-gray-50 text-left text-xs uppercase tracking-[0.12em] text-gray-500">
+                            <tr>
+                              <th className="px-4 py-3">Tanggal</th>
+                              <th className="px-4 py-3">Pelanggaran</th>
+                              <th className="px-4 py-3">Poin</th>
+                              <th className="px-4 py-3">Tingkatan</th>
+                              <th className="px-4 py-3">Keterangan</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 bg-white">
+                            {lookup.pelanggaran.map((item, index) => (
+                              <tr key={`${item.tanggal}-${item.nama_pelanggaran}-${index}`}>
+                                <td className="px-4 py-3">{formatDate(item.tanggal)}</td>
+                                <td className="px-4 py-3 font-semibold text-gray-950">
+                                  {item.nama_pelanggaran}
+                                </td>
+                                <td className="px-4 py-3">{item.poin}</td>
+                                <td className="px-4 py-3 capitalize">{item.tingkatan}</td>
+                                <td className="px-4 py-3 text-gray-600">
+                                  {item.keterangan || "-"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="bg-gray-50 p-4 text-sm text-gray-600">
+                        Tidak ada catatan pelanggaran.
                       </p>
                     )}
                   </div>

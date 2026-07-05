@@ -23,6 +23,7 @@ export default function LoginPage() {
   const { user, profile, loading, refreshProfile } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [logoFailed, setLogoFailed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as LocationState | null;
@@ -117,6 +118,11 @@ export default function LoginPage() {
   const logoUrl = entity === "smp" ? smpLogoUrl : pesantrenLogoUrl;
   const entityLabel =
     entity === "smp" ? "SMP Ma'arif NU Sariwangi" : "PP An-Nur Mageung";
+  const logoFallback = entity === "smp" ? "SMP" : "AN";
+
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [logoUrl]);
 
   if (loading) {
     return (
@@ -137,14 +143,18 @@ export default function LoginPage() {
       <section className="w-full max-w-md rounded bg-white p-6 shadow-soft sm:p-8">
         {/* Logo + identitas lembaga */}
         <div className="mb-6 flex items-center gap-4">
-          <img
-            src={logoUrl}
-            alt={entityLabel}
-            className="h-14 w-14 shrink-0 rounded-xl border border-gray-100 bg-white object-contain p-1 shadow-sm"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
-            }}
-          />
+          {!logoFailed ? (
+            <img
+              src={logoUrl}
+              alt={entityLabel}
+              className="h-14 w-14 shrink-0 rounded-xl border border-gray-100 bg-white object-contain p-1 shadow-sm"
+              onError={() => setLogoFailed(true)}
+            />
+          ) : (
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl border border-green-900/10 bg-green-50 text-sm font-black text-green-800 shadow-sm">
+              {logoFallback}
+            </span>
+          )}
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
               Admin

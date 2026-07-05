@@ -98,8 +98,14 @@ Deno.serve(async (req) => {
     const isSuperadmin =
       ppRequester.data?.role === "superadmin" ||
       smpRequester.data?.role === "superadmin";
+    const canCreateInstitutionGuru =
+      role === "guru" &&
+      (
+        (entitas === "pesantren" && ["superadmin", "admin"].includes(String(ppRequester.data?.role || ""))) ||
+        (entitas === "smp" && ["superadmin", "admin"].includes(String(smpRequester.data?.role || "")))
+      );
 
-    if (!isSuperadmin) {
+    if (!isSuperadmin && !canCreateInstitutionGuru) {
       return jsonResponse({ error: "Forbidden" }, 403);
     }
 
