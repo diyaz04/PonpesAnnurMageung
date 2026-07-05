@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   ArrowLeft,
   FileCheck,
+  Filter,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -1549,15 +1550,43 @@ function SuratModule() {
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   
+  const [logFilterJenis, setLogFilterJenis] = useState('Semua');
+  const [logFilterBulan, setLogFilterBulan] = useState('Semua');
+  const [logFilterTahun, setLogFilterTahun] = useState(new Date().getFullYear().toString());
+  const [logPerPage, setLogPerPage] = useState(10);
+  const [logCurrentPage, setLogCurrentPage] = useState(1);
+
+  const filteredArchive = useMemo(() => {
+    return archive.filter(row => {
+      let matchJenis = logFilterJenis === 'Semua' || row.jenis_surat === logFilterJenis;
+      
+      const dateObj = row.tanggal_surat ? new Date(row.tanggal_surat) : null;
+      let matchBulan = logFilterBulan === 'Semua';
+      if (logFilterBulan !== 'Semua' && dateObj) {
+        matchBulan = String(dateObj.getMonth() + 1).padStart(2, '0') === logFilterBulan;
+      }
+      
+      let matchTahun = !logFilterTahun;
+      if (logFilterTahun && dateObj) {
+        matchTahun = String(dateObj.getFullYear()) === logFilterTahun;
+      }
+      
+      return matchJenis && matchBulan && matchTahun;
+    });
+  }, [archive, logFilterJenis, logFilterBulan, logFilterTahun]);
+
+  const totalLogPages = Math.ceil(filteredArchive.length / logPerPage);
+  const paginatedArchive = filteredArchive.slice((logCurrentPage - 1) * logPerPage, logCurrentPage * logPerPage);
+  
   function toggleSelect(id: string) {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   }
   
   function toggleSelectAll() {
-    if (selectedIds.length === archive.length) {
+    if (selectedIds.length === filteredArchive.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(archive.map(a => a.id));
+      setSelectedIds(filteredArchive.map(a => a.id));
     }
   }
 
@@ -2864,6 +2893,41 @@ function SuratModule() {
 
       {activeTab === 'log' && (
         <div className="space-y-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end bg-white p-4 rounded-xl shadow-sm mb-4 border border-gray-100 gap-4">
+            <div className="flex flex-wrap items-end gap-3 w-full md:w-auto">
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Jenis Surat</label>
+                <select className={inputClass} value={logFilterJenis} onChange={e => {setLogFilterJenis(e.target.value); setLogCurrentPage(1);}}>
+                  <option value="Semua">Semua</option>
+                  {SURAT_CARDS.map(c => <option key={c.id} value={c.title}>{c.title}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Bulan</label>
+                <select className={inputClass} value={logFilterBulan} onChange={e => {setLogFilterBulan(e.target.value); setLogCurrentPage(1);}}>
+                  <option value="Semua">Semua</option>
+                  {['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map((b, i) => (
+                    <option key={b} value={String(i + 1).padStart(2, '0')}>{b}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Tahun</label>
+                <input type="number" className={inputClass + " w-24"} value={logFilterTahun} onChange={e => {setLogFilterTahun(e.target.value); setLogCurrentPage(1);}} />
+              </div>
+              <button onClick={() => setLogCurrentPage(1)} className="bg-white border border-gray-200 rounded px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm font-semibold h-[42px] shadow-sm">
+                <Filter size={16} /> Filter
+              </button>
+            </div>
+            
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Per halaman</label>
+              <select className={inputClass + " w-24"} value={logPerPage} onChange={e => {setLogPerPage(Number(e.target.value)); setLogCurrentPage(1);}}>
+                {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+          </div>
+
           {selectedIds.length > 0 && (
             <div className="flex items-center justify-between p-3 bg-red-50 border border-red-100 rounded-lg">
               <span className="text-sm font-medium text-red-800">{selectedIds.length} item terpilih</span>
@@ -2872,19 +2936,63 @@ function SuratModule() {
               </button>
             </div>
           )}
-          <DataTable 
-            headers={[
-              <input key="chk-all" type="checkbox" checked={selectedIds.length > 0 && selectedIds.length === archive.length} onChange={toggleSelectAll} className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />,
-              'Tanggal', 'Nomor', 'Jenis', 'Perihal', 'Aksi'
-            ]} 
-            rows={archive.map((row) => [
-              <input key={`chk-${row.id}`} type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleSelect(row.id)} className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />,
-              formatDate(row.tanggal_surat), row.nomor_surat || '-', row.jenis_surat, row.perihal || '-', 
-              <div key="actions" className="flex gap-2">
-                <button onClick={() => downloadArchive(row)} className="rounded border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold hover:bg-gray-50 flex items-center gap-1"><Download size={14}/> Unduh</button>
+          
+          <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-soft">
+            <DataTable 
+              headers={[
+                <input key="chk-all" type="checkbox" checked={selectedIds.length > 0 && selectedIds.length === filteredArchive.length} onChange={toggleSelectAll} className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />,
+                'No. Surat', 'Jenis', 'Perihal', 'Dicetak oleh', 'Tanggal', 'Aksi'
+              ]} 
+              rows={paginatedArchive.map((row) => {
+                const pembuat = teachers.find(t => t.user_id === row.dibuat_oleh)?.nama_lengkap || 'Administrator';
+                return [
+                  <input key={`chk-${row.id}`} type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleSelect(row.id)} className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />,
+                  <span key={`no-${row.id}`} className="font-mono text-xs">{row.nomor_surat || '-'}</span>, 
+                  <span key={`jenis-${row.id}`} className="bg-orange-50 text-orange-700 px-2 py-1 rounded text-xs font-semibold whitespace-nowrap">{row.jenis_surat}</span>, 
+                  <span key={`perihal-${row.id}`} className="text-gray-600 truncate block max-w-[200px]">{row.perihal || '-'}</span>, 
+                  <span key={`pembuat-${row.id}`} className="text-gray-600">{pembuat}</span>,
+                  <span key={`tgl-${row.id}`} className="text-gray-500">{formatDate(row.tanggal_surat)}</span>,
+                  <div key="actions" className="flex gap-2">
+                    <button onClick={() => downloadArchive(row)} className="text-blue-500 hover:text-blue-700 p-1 rounded" title="Download PDF"><RefreshCcw size={16}/></button>
+                    <button onClick={() => { setSelectedIds([row.id]); deleteSelected(); }} className="text-red-400 hover:text-red-600 p-1 rounded" title="Hapus"><Trash2 size={16}/></button>
+                  </div>
+                ]
+              })} 
+            />
+          </div>
+          
+          {totalLogPages > 1 && (
+            <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-100 mt-4 shadow-sm">
+              <span className="text-sm text-gray-500">
+                Menampilkan {((logCurrentPage - 1) * logPerPage) + 1} - {Math.min(logCurrentPage * logPerPage, filteredArchive.length)} dari {filteredArchive.length} surat
+              </span>
+              <div className="flex gap-1">
+                <button 
+                  onClick={() => setLogCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={logCurrentPage === 1}
+                  className="px-3 py-1 text-sm rounded border bg-white disabled:opacity-50 hover:bg-gray-50"
+                >
+                  Prev
+                </button>
+                {Array.from({ length: totalLogPages }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setLogCurrentPage(p)}
+                    className={`px-3 py-1 text-sm rounded border ${logCurrentPage === p ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white hover:bg-gray-50'}`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button 
+                  onClick={() => setLogCurrentPage(p => Math.min(totalLogPages, p + 1))}
+                  disabled={logCurrentPage === totalLogPages}
+                  className="px-3 py-1 text-sm rounded border bg-white disabled:opacity-50 hover:bg-gray-50"
+                >
+                  Next
+                </button>
               </div>
-            ])} 
-          />
+            </div>
+          )}
         </div>
       )}
     </ModuleShell>
