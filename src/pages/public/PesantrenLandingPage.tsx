@@ -184,9 +184,25 @@ const fallbackGallery: GalleryRow[] = [
 ];
 
 type PsbFormState = {
+  tanggal_masuk: string;
   nama_lengkap: string;
+  kewarganegaraan: string;
+  nik: string;
+  nisn: string;
   jenis_kelamin: "L" | "P";
+  tempat_lahir: string;
   tanggal_lahir: string;
+  agama: string;
+  no_handphone: string;
+  nama_ayah_kandung: string;
+  status_ayah_kandung: string;
+  nik_ayah: string;
+  nama_ibu_kandung: string;
+  status_ibu_kandung: string;
+  nik_ibu: string;
+  status_wali: string;
+  nama_wali: string;
+  asal_negara: string;
   alamat: string;
   nama_orang_tua: string;
   no_hp: string;
@@ -341,9 +357,25 @@ export default function PesantrenLandingPage() {
   const [suggestionStatus, setSuggestionStatus] = useState("");
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const [psbForm, setPsbForm] = useState<PsbFormState>({
+    tanggal_masuk: "",
     nama_lengkap: "",
+    kewarganegaraan: "Indonesia",
+    nik: "",
+    nisn: "",
     jenis_kelamin: "L",
+    tempat_lahir: "",
     tanggal_lahir: "",
+    agama: "Islam",
+    no_handphone: "",
+    nama_ayah_kandung: "",
+    status_ayah_kandung: "",
+    nik_ayah: "",
+    nama_ibu_kandung: "",
+    status_ibu_kandung: "",
+    nik_ibu: "",
+    status_wali: "",
+    nama_wali: "",
+    asal_negara: "Indonesia",
     alamat: "",
     nama_orang_tua: "",
     no_hp: "",
@@ -596,6 +628,8 @@ export default function PesantrenLandingPage() {
     const margin = 18;
     const labelX = 28;
     const valueX = 76;
+    const labelX2 = 112;
+    const valueX2 = 148;
 
     doc.setFillColor(16, 82, 53);
     doc.rect(0, 0, pageWidth, 34, "F");
@@ -620,54 +654,71 @@ export default function PesantrenLandingPage() {
     doc.text(nomorPendaftaran, pageWidth / 2, 60, { align: "center" });
 
     doc.setFillColor(244, 248, 244);
-    doc.roundedRect(margin, 70, pageWidth - margin * 2, 86, 3, 3, "F");
+    doc.roundedRect(margin, 70, pageWidth - margin * 2, 128, 3, 3, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.text("Data Pendaftar", labelX, 82);
 
     const rows = [
+      ["Tanggal Masuk", formatDate(form.tanggal_masuk)],
       ["Nama Lengkap", form.nama_lengkap],
+      ["Kewarganegaraan", form.kewarganegaraan],
+      ["NIK", form.nik],
+      ["NISN", form.nisn],
       ["Jenis Kelamin", form.jenis_kelamin === "L" ? "Laki-laki" : "Perempuan"],
+      ["Tempat Lahir", form.tempat_lahir],
       ["Tanggal Lahir", formatDate(form.tanggal_lahir)],
-      ["Nama Orang Tua/Wali", form.nama_orang_tua],
-      ["No. HP", form.no_hp],
+      ["Agama", form.agama],
+      ["No. Handphone", form.no_handphone || form.no_hp],
+      ["Nama Ayah", form.nama_ayah_kandung],
+      ["Status Ayah", form.status_ayah_kandung],
+      ["NIK Ayah", form.nik_ayah],
+      ["Nama Ibu", form.nama_ibu_kandung],
+      ["Status Ibu", form.status_ibu_kandung],
+      ["NIK Ibu", form.nik_ibu],
+      ["Status Wali", form.status_wali],
+      ["Nama Wali", form.nama_wali || form.nama_orang_tua],
+      ["Asal Negara", form.asal_negara],
       ["Alamat", form.alamat],
     ];
 
-    let y = 94;
-    doc.setFontSize(10);
-    rows.forEach(([label, value]) => {
+    doc.setFontSize(7.4);
+    rows.forEach(([label, value], index) => {
+      const leftColumn = index % 2 === 0;
+      const y = 94 + Math.floor(index / 2) * 8;
+      const currentLabelX = leftColumn ? labelX : labelX2;
+      const currentValueX = leftColumn ? 62 : valueX2;
+      const maxWidth = leftColumn ? 46 : pageWidth - currentValueX - margin;
       doc.setFont("helvetica", "bold");
-      doc.text(label, labelX, y);
-      doc.text(":", valueX - 4, y);
+      doc.text(label, currentLabelX, y);
+      doc.text(":", currentValueX - 4, y);
       doc.setFont("helvetica", "normal");
-      const wrapped = doc.splitTextToSize(value || "-", pageWidth - valueX - margin);
-      doc.text(wrapped, valueX, y);
-      y += Math.max(8, wrapped.length * 5);
+      const wrapped = doc.splitTextToSize(value || "-", maxWidth).slice(0, 2);
+      doc.text(wrapped, currentValueX, y);
     });
 
     doc.setFillColor(232, 245, 236);
-    doc.roundedRect(margin, 164, pageWidth - margin * 2, 28, 3, 3, "F");
+    doc.roundedRect(margin, 204, pageWidth - margin * 2, 28, 3, 3, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("Status Awal: Belum Terverifikasi", labelX, 176);
+    doc.text("Status Awal: Belum Terverifikasi", labelX, 216);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.text(
       "Simpan bukti ini. Panitia akan memperbarui status setelah proses verifikasi administrasi.",
       labelX,
-      184,
+      224,
     );
 
-    doc.addImage(qrDataUrl, "PNG", pageWidth - margin - 34, 204, 34, 34);
+    doc.addImage(qrDataUrl, "PNG", pageWidth - margin - 34, 240, 34, 34);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text("Validasi QR", margin, 213);
+    doc.text("Validasi QR", margin, 249);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text("Scan QR untuk membuka data pendaftaran dan status verifikasi resmi.", margin, 221);
+    doc.text("Scan QR untuk membuka data pendaftaran dan status verifikasi resmi.", margin, 257);
     doc.setTextColor(16, 82, 53);
-    doc.text(validationUrl, margin, 229, { maxWidth: pageWidth - margin * 2 - 40 });
+    doc.text(validationUrl, margin, 265, { maxWidth: pageWidth - margin * 2 - 40 });
 
     doc.setTextColor(120, 120, 120);
     doc.setFontSize(8);
@@ -695,8 +746,8 @@ export default function PesantrenLandingPage() {
       setPsbStatus("PSB belum dibuka.");
       return;
     }
-    if (!psbForm.nama_lengkap.trim() || !psbForm.nama_orang_tua.trim() || !psbForm.no_hp.trim()) {
-      setPsbStatus("Nama pendaftar, nama orang tua/wali, dan no HP wajib diisi.");
+    if (!psbForm.nama_lengkap.trim() || !psbForm.no_handphone.trim()) {
+      setPsbStatus("Nama pendaftar dan no handphone wajib diisi.");
       return;
     }
     if (psbPhoto && !psbPhoto.type.startsWith("image/")) {
@@ -752,12 +803,28 @@ export default function PesantrenLandingPage() {
       id,
       tahun_ajaran: psbYear,
       nomor_pendaftaran: nomorPendaftaran,
+      tanggal_masuk: psbForm.tanggal_masuk || null,
       nama_lengkap: psbForm.nama_lengkap.trim(),
+      kewarganegaraan: psbForm.kewarganegaraan.trim() || null,
+      nik: psbForm.nik.trim() || null,
+      nisn: psbForm.nisn.trim() || null,
       jenis_kelamin: psbForm.jenis_kelamin,
+      tempat_lahir: psbForm.tempat_lahir.trim() || null,
       tanggal_lahir: psbForm.tanggal_lahir || null,
+      agama: psbForm.agama.trim() || null,
+      no_handphone: psbForm.no_handphone.trim(),
       alamat: psbForm.alamat.trim() || null,
-      nama_orang_tua: psbForm.nama_orang_tua.trim(),
-      no_hp: psbForm.no_hp.trim(),
+      nama_orang_tua: psbForm.nama_wali.trim() || psbForm.nama_orang_tua.trim() || null,
+      no_hp: psbForm.no_handphone.trim() || psbForm.no_hp.trim(),
+      nama_ayah_kandung: psbForm.nama_ayah_kandung.trim() || null,
+      status_ayah_kandung: psbForm.status_ayah_kandung.trim() || null,
+      nik_ayah: psbForm.nik_ayah.trim() || null,
+      nama_ibu_kandung: psbForm.nama_ibu_kandung.trim() || null,
+      status_ibu_kandung: psbForm.status_ibu_kandung.trim() || null,
+      nik_ibu: psbForm.nik_ibu.trim() || null,
+      status_wali: psbForm.status_wali.trim() || null,
+      nama_wali: psbForm.nama_wali.trim() || null,
+      asal_negara: psbForm.asal_negara.trim() || null,
       status: "baru",
       bukti_url: storagePath,
       foto_url: photoPath,
@@ -781,9 +848,25 @@ export default function PesantrenLandingPage() {
     setPsbPhoto(null);
     setPsbPhotoInputKey((value) => value + 1);
     setPsbForm({
+      tanggal_masuk: "",
       nama_lengkap: "",
+      kewarganegaraan: "Indonesia",
+      nik: "",
+      nisn: "",
       jenis_kelamin: "L",
+      tempat_lahir: "",
       tanggal_lahir: "",
+      agama: "Islam",
+      no_handphone: "",
+      nama_ayah_kandung: "",
+      status_ayah_kandung: "",
+      nik_ayah: "",
+      nama_ibu_kandung: "",
+      status_ibu_kandung: "",
+      nik_ibu: "",
+      status_wali: "",
+      nama_wali: "",
+      asal_negara: "Indonesia",
       alamat: "",
       nama_orang_tua: "",
       no_hp: "",
@@ -1240,12 +1323,53 @@ export default function PesantrenLandingPage() {
 
             <form onSubmit={handlePsbSubmit} className="premium-card p-6 sm:p-8">
               <div className="grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  Tanggal masuk
+                  <input
+                    type="date"
+                    value={psbForm.tanggal_masuk}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, tanggal_masuk: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
                 <label className="grid gap-2 text-sm font-semibold text-gray-700 sm:col-span-2">
                   Nama lengkap calon santri
                   <input
                     value={psbForm.nama_lengkap}
                     onChange={(event) =>
                       setPsbForm((form) => ({ ...form, nama_lengkap: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  Kewarganegaraan
+                  <input
+                    value={psbForm.kewarganegaraan}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, kewarganegaraan: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  NIK
+                  <input
+                    value={psbForm.nik}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, nik: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  NISN
+                  <input
+                    value={psbForm.nisn}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, nisn: event.target.value }))
                     }
                     className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
                   />
@@ -1267,6 +1391,16 @@ export default function PesantrenLandingPage() {
                   </select>
                 </label>
                 <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  Tempat lahir
+                  <input
+                    value={psbForm.tempat_lahir}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, tempat_lahir: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
                   Tanggal lahir
                   <input
                     type="date"
@@ -1278,21 +1412,111 @@ export default function PesantrenLandingPage() {
                   />
                 </label>
                 <label className="grid gap-2 text-sm font-semibold text-gray-700">
-                  Nama orang tua/wali
+                  Agama
                   <input
-                    value={psbForm.nama_orang_tua}
+                    value={psbForm.agama}
                     onChange={(event) =>
-                      setPsbForm((form) => ({ ...form, nama_orang_tua: event.target.value }))
+                      setPsbForm((form) => ({ ...form, agama: event.target.value }))
                     }
                     className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </label>
                 <label className="grid gap-2 text-sm font-semibold text-gray-700">
-                  No HP aktif
+                  No handphone
                   <input
-                    value={psbForm.no_hp}
+                    value={psbForm.no_handphone}
                     onChange={(event) =>
-                      setPsbForm((form) => ({ ...form, no_hp: event.target.value }))
+                      setPsbForm((form) => ({ ...form, no_handphone: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  Nama ayah kandung
+                  <input
+                    value={psbForm.nama_ayah_kandung}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, nama_ayah_kandung: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  Status ayah kandung
+                  <input
+                    value={psbForm.status_ayah_kandung}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, status_ayah_kandung: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  NIK ayah
+                  <input
+                    value={psbForm.nik_ayah}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, nik_ayah: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  Nama ibu kandung
+                  <input
+                    value={psbForm.nama_ibu_kandung}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, nama_ibu_kandung: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  Status ibu kandung
+                  <input
+                    value={psbForm.status_ibu_kandung}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, status_ibu_kandung: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  NIK ibu
+                  <input
+                    value={psbForm.nik_ibu}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, nik_ibu: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  Status wali
+                  <input
+                    value={psbForm.status_wali}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, status_wali: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  Nama wali
+                  <input
+                    value={psbForm.nama_wali}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, nama_wali: event.target.value, nama_orang_tua: event.target.value }))
+                    }
+                    className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-gray-700">
+                  Asal negara
+                  <input
+                    value={psbForm.asal_negara}
+                    onChange={(event) =>
+                      setPsbForm((form) => ({ ...form, asal_negara: event.target.value }))
                     }
                     className="min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-green-500"
                   />

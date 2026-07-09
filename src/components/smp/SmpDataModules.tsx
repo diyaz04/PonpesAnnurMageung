@@ -22,6 +22,8 @@ import {
   ArrowLeft,
   FileCheck,
   Filter,
+  ExternalLink,
+  QrCode,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -50,15 +52,72 @@ import LandingContentAdmin from "../landing-admin/LandingContentAdmin";
 type Siswa = {
   id: string;
   nis: string;
+  nipd: string | null;
   nisn: string | null;
   kode_unik: string;
   nama_lengkap: string;
   jenis_kelamin: "L" | "P";
   kelas: string | null;
   tahun_masuk: number;
+  tempat_lahir: string | null;
   tanggal_lahir: string | null;
+  nik: string | null;
+  agama: string | null;
   alamat: string | null;
+  rt: string | null;
+  rw: string | null;
+  dusun: string | null;
+  kelurahan: string | null;
+  kecamatan: string | null;
+  kode_pos: string | null;
+  jenis_tinggal: string | null;
+  alat_transportasi: string | null;
+  telepon: string | null;
+  hp: string | null;
+  email: string | null;
+  skhun: string | null;
+  penerima_kps: boolean | null;
+  no_kps: string | null;
+  no_peserta_ujian_nasional: string | null;
+  no_seri_ijazah: string | null;
+  penerima_kip: boolean | null;
+  nomor_kip: string | null;
+  nama_di_kip: string | null;
+  nomor_kks: string | null;
+  no_registrasi_akta_lahir: string | null;
+  bank: string | null;
+  nomor_rekening_bank: string | null;
+  rekening_atas_nama: string | null;
+  layak_pip: boolean | null;
+  alasan_layak_pip: string | null;
+  kebutuhan_khusus: string | null;
+  sekolah_asal: string | null;
+  anak_ke: number | null;
+  lintang: string | null;
+  bujur: string | null;
+  no_kk: string | null;
+  berat_badan: number | null;
+  tinggi_badan: number | null;
+  lingkar_kepala: number | null;
+  jarak_rumah_ke_sekolah_km: number | null;
+  ayah_nama: string | null;
+  ayah_tahun_lahir: number | null;
+  ayah_jenjang_pendidikan: string | null;
+  ayah_pekerjaan: string | null;
+  ayah_penghasilan: string | null;
+  ayah_nik: string | null;
+  ibu_nama: string | null;
+  ibu_tahun_lahir: number | null;
+  ibu_jenjang_pendidikan: string | null;
+  ibu_pekerjaan: string | null;
+  ibu_penghasilan: string | null;
+  ibu_nik: string | null;
   nama_wali: string | null;
+  wali_tahun_lahir: number | null;
+  wali_jenjang_pendidikan: string | null;
+  wali_pekerjaan: string | null;
+  wali_penghasilan: string | null;
+  wali_nik: string | null;
   no_hp_wali: string | null;
   foto_url: string | null;
   status: "aktif" | "alumni" | "keluar";
@@ -182,6 +241,8 @@ type WajahData = {
   siswa?: { nama_lengkap: string; kelas: string | null };
 };
 
+type SignatureMode = "wet" | "digital";
+
 const inputClass =
   "min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-emerald-700";
 
@@ -190,35 +251,153 @@ const emptySiswa: Partial<Siswa> = {
   jenis_kelamin: "L",
   kelas: "",
   tahun_masuk: new Date().getFullYear(),
+  agama: "Islam",
+  penerima_kps: false,
+  penerima_kip: false,
+  layak_pip: false,
   status: "aktif",
 };
 
 type SiswaImportKey =
   | "nis"
+  | "nipd"
   | "nisn"
   | "kode_unik"
   | "nama_lengkap"
   | "jenis_kelamin"
   | "kelas"
   | "tahun_masuk"
+  | "tempat_lahir"
   | "tanggal_lahir"
+  | "nik"
+  | "agama"
   | "alamat"
+  | "rt"
+  | "rw"
+  | "dusun"
+  | "kelurahan"
+  | "kecamatan"
+  | "kode_pos"
+  | "jenis_tinggal"
+  | "alat_transportasi"
+  | "telepon"
+  | "hp"
+  | "email"
+  | "skhun"
+  | "penerima_kps"
+  | "no_kps"
+  | "no_peserta_ujian_nasional"
+  | "no_seri_ijazah"
+  | "penerima_kip"
+  | "nomor_kip"
+  | "nama_di_kip"
+  | "nomor_kks"
+  | "no_registrasi_akta_lahir"
+  | "bank"
+  | "nomor_rekening_bank"
+  | "rekening_atas_nama"
+  | "layak_pip"
+  | "alasan_layak_pip"
+  | "kebutuhan_khusus"
+  | "sekolah_asal"
+  | "anak_ke"
+  | "lintang"
+  | "bujur"
+  | "no_kk"
+  | "berat_badan"
+  | "tinggi_badan"
+  | "lingkar_kepala"
+  | "jarak_rumah_ke_sekolah_km"
+  | "ayah_nama"
+  | "ayah_tahun_lahir"
+  | "ayah_jenjang_pendidikan"
+  | "ayah_pekerjaan"
+  | "ayah_penghasilan"
+  | "ayah_nik"
+  | "ibu_nama"
+  | "ibu_tahun_lahir"
+  | "ibu_jenjang_pendidikan"
+  | "ibu_pekerjaan"
+  | "ibu_penghasilan"
+  | "ibu_nik"
   | "nama_wali"
+  | "wali_tahun_lahir"
+  | "wali_jenjang_pendidikan"
+  | "wali_pekerjaan"
+  | "wali_penghasilan"
+  | "wali_nik"
   | "no_hp_wali"
   | "status";
 
 const siswaImportColumns: ExcelColumn<SiswaImportKey>[] = [
   { key: "nis", header: "NIS", example: "2526-L-0001" },
-  { key: "nisn", header: "NISN", example: "0123456789" },
+  { key: "nipd", header: "NIPD", example: "25260001" },
   { key: "kode_unik", header: "Kode Unik", example: "ABC12345" },
-  { key: "nama_lengkap", header: "Nama Lengkap", required: true, example: "Siti Aminah" },
+  { key: "nama_lengkap", header: "Nama", required: true, example: "Siti Aminah" },
   { key: "jenis_kelamin", header: "Jenis Kelamin", required: true, example: "P" },
-  { key: "kelas", header: "Kelas", example: "VII A" },
-  { key: "tahun_masuk", header: "Tahun Masuk", required: true, example: "2026" },
+  { key: "nisn", header: "NISN", example: "0123456789" },
+  { key: "tempat_lahir", header: "Tempat Lahir", example: "Tasikmalaya" },
   { key: "tanggal_lahir", header: "Tanggal Lahir", example: "2012-05-20" },
-  { key: "alamat", header: "Alamat", example: "Sariwangi, Tasikmalaya" },
-  { key: "nama_wali", header: "Nama Wali", example: "Ibu Halimah" },
+  { key: "nik", header: "NIK", example: "3278060101120001" },
+  { key: "agama", header: "Agama", example: "Islam" },
+  { key: "alamat", header: "Alamat", example: "Kp. Mageung" },
+  { key: "rt", header: "RT", example: "001" },
+  { key: "rw", header: "RW", example: "004" },
+  { key: "dusun", header: "Dusun", example: "Mageung" },
+  { key: "kelurahan", header: "Kelurahan", example: "Sirnasari" },
+  { key: "kecamatan", header: "Kecamatan", example: "Sariwangi" },
+  { key: "kode_pos", header: "Kode Pos", example: "46465" },
+  { key: "jenis_tinggal", header: "Jenis Tinggal", example: "Bersama orang tua" },
+  { key: "alat_transportasi", header: "Alat Transportasi", example: "Jalan kaki" },
+  { key: "telepon", header: "Telepon", example: "" },
+  { key: "hp", header: "HP", example: "081234567890" },
+  { key: "email", header: "E-Mail", example: "siswa@email.com" },
+  { key: "skhun", header: "SKHUN", example: "" },
+  { key: "penerima_kps", header: "Penerima KPS", example: "tidak" },
+  { key: "no_kps", header: "No. KPS", example: "" },
+  { key: "kelas", header: "Rombel Saat Ini", example: "VII A" },
+  { key: "no_peserta_ujian_nasional", header: "No Peserta Ujian Nasional", example: "" },
+  { key: "no_seri_ijazah", header: "No Seri Ijazah", example: "" },
+  { key: "penerima_kip", header: "Penerima KIP", example: "tidak" },
+  { key: "nomor_kip", header: "Nomor KIP", example: "" },
+  { key: "nama_di_kip", header: "Nama di KIP", example: "" },
+  { key: "nomor_kks", header: "Nomor KKS", example: "" },
+  { key: "no_registrasi_akta_lahir", header: "No Registrasi Akta Lahir", example: "" },
+  { key: "bank", header: "Bank", example: "BRI" },
+  { key: "nomor_rekening_bank", header: "Nomor Rekening Bank", example: "" },
+  { key: "rekening_atas_nama", header: "Rekening Atas Nama", example: "" },
+  { key: "layak_pip", header: "Layak PIP", example: "tidak" },
+  { key: "alasan_layak_pip", header: "Alasan Layak PIP", example: "" },
+  { key: "kebutuhan_khusus", header: "Kebutuhan Khusus", example: "Tidak ada" },
+  { key: "sekolah_asal", header: "Sekolah Asal", example: "SDN Sirnasari" },
+  { key: "anak_ke", header: "Anak ke-berapa", example: "1" },
+  { key: "lintang", header: "Lintang", example: "-7.123456" },
+  { key: "bujur", header: "Bujur", example: "108.123456" },
+  { key: "no_kk", header: "No KK", example: "3278060101010001" },
+  { key: "berat_badan", header: "Berat Badan", example: "35" },
+  { key: "tinggi_badan", header: "Tinggi Badan", example: "145" },
+  { key: "lingkar_kepala", header: "Lingkar Kepala", example: "52" },
+  { key: "jarak_rumah_ke_sekolah_km", header: "Jarak Rumah ke Sekolah (KM)", example: "2.5" },
+  { key: "ayah_nama", header: "Nama Ayah", example: "Ahmad" },
+  { key: "ayah_tahun_lahir", header: "Tahun Lahir Ayah", example: "1980" },
+  { key: "ayah_jenjang_pendidikan", header: "Jenjang Pendidikan Ayah", example: "SMA" },
+  { key: "ayah_pekerjaan", header: "Pekerjaan Ayah", example: "Wiraswasta" },
+  { key: "ayah_penghasilan", header: "Penghasilan Ayah", example: "1.000.000 - 2.000.000" },
+  { key: "ayah_nik", header: "NIK Ayah", example: "3278060101800001" },
+  { key: "ibu_nama", header: "Nama Ibu", example: "Halimah" },
+  { key: "ibu_tahun_lahir", header: "Tahun Lahir Ibu", example: "1984" },
+  { key: "ibu_jenjang_pendidikan", header: "Jenjang Pendidikan Ibu", example: "SMA" },
+  { key: "ibu_pekerjaan", header: "Pekerjaan Ibu", example: "Ibu rumah tangga" },
+  { key: "ibu_penghasilan", header: "Penghasilan Ibu", example: "Tidak berpenghasilan" },
+  { key: "ibu_nik", header: "NIK Ibu", example: "3278060101840002" },
+  { key: "nama_wali", header: "Nama Wali", example: "H. Ujang" },
+  { key: "wali_tahun_lahir", header: "Tahun Lahir Wali", example: "1975" },
+  { key: "wali_jenjang_pendidikan", header: "Jenjang Pendidikan Wali", example: "SMA" },
+  { key: "wali_pekerjaan", header: "Pekerjaan Wali", example: "Petani" },
+  { key: "wali_penghasilan", header: "Penghasilan Wali", example: "1.000.000 - 2.000.000" },
+  { key: "wali_nik", header: "NIK Wali", example: "3278060101750003" },
   { key: "no_hp_wali", header: "No HP Wali", example: "081234567890" },
+  { key: "tahun_masuk", header: "Tahun Masuk", required: true, example: "2026" },
   { key: "status", header: "Status", example: "aktif" },
 ];
 
@@ -255,6 +434,24 @@ function buildNis(tahunMasuk: number, gender: string, sequence: number) {
 
 function matchText(value: string | null | undefined, query: string) {
   return (value || "").toLowerCase().includes(query.toLowerCase());
+}
+
+function nullableText(value: string | null | undefined) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
+function nullableNumber(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeYesNo(value: unknown) {
+  const text = String(value || "").trim().toLowerCase();
+  if (["ya", "iya", "yes", "y", "true", "1"].includes(text)) return true;
+  if (["tidak", "no", "n", "false", "0"].includes(text)) return false;
+  return null;
 }
 
 function siswaToDocumentData(row: Siswa): StudentDocumentData {
@@ -396,7 +593,9 @@ function DataSiswaModule() {
     const bySearch =
       matchText(row.nama_lengkap, search) ||
       matchText(row.nis, search) ||
-      matchText(row.nisn, search);
+      matchText(row.nipd, search) ||
+      matchText(row.nisn, search) ||
+      matchText(row.nik, search);
     return (
       bySearch &&
       (statusFilter ? row.status === statusFilter : true) &&
@@ -425,16 +624,73 @@ function DataSiswaModule() {
       nis:
         editing.nis ||
         buildNis(Number(editing.tahun_masuk), editing.jenis_kelamin, sequence),
-      nisn: editing.nisn || null,
+      nipd: nullableText(editing.nipd),
+      nisn: nullableText(editing.nisn),
       kode_unik: editing.kode_unik || randomCode(),
       nama_lengkap: editing.nama_lengkap,
       jenis_kelamin: editing.jenis_kelamin,
-      kelas: editing.kelas || null,
+      kelas: nullableText(editing.kelas),
       tahun_masuk: Number(editing.tahun_masuk),
+      tempat_lahir: nullableText(editing.tempat_lahir),
       tanggal_lahir: editing.tanggal_lahir || null,
-      alamat: editing.alamat || null,
-      nama_wali: editing.nama_wali || null,
-      no_hp_wali: editing.no_hp_wali || null,
+      nik: nullableText(editing.nik),
+      agama: nullableText(editing.agama),
+      alamat: nullableText(editing.alamat),
+      rt: nullableText(editing.rt),
+      rw: nullableText(editing.rw),
+      dusun: nullableText(editing.dusun),
+      kelurahan: nullableText(editing.kelurahan),
+      kecamatan: nullableText(editing.kecamatan),
+      kode_pos: nullableText(editing.kode_pos),
+      jenis_tinggal: nullableText(editing.jenis_tinggal),
+      alat_transportasi: nullableText(editing.alat_transportasi),
+      telepon: nullableText(editing.telepon),
+      hp: nullableText(editing.hp),
+      email: nullableText(editing.email),
+      skhun: nullableText(editing.skhun),
+      penerima_kps: editing.penerima_kps ?? null,
+      no_kps: editing.penerima_kps ? nullableText(editing.no_kps) : null,
+      no_peserta_ujian_nasional: nullableText(editing.no_peserta_ujian_nasional),
+      no_seri_ijazah: nullableText(editing.no_seri_ijazah),
+      penerima_kip: editing.penerima_kip ?? null,
+      nomor_kip: editing.penerima_kip ? nullableText(editing.nomor_kip) : null,
+      nama_di_kip: editing.penerima_kip ? nullableText(editing.nama_di_kip) : null,
+      nomor_kks: nullableText(editing.nomor_kks),
+      no_registrasi_akta_lahir: nullableText(editing.no_registrasi_akta_lahir),
+      bank: nullableText(editing.bank),
+      nomor_rekening_bank: nullableText(editing.nomor_rekening_bank),
+      rekening_atas_nama: nullableText(editing.rekening_atas_nama),
+      layak_pip: editing.layak_pip ?? null,
+      alasan_layak_pip: editing.layak_pip ? nullableText(editing.alasan_layak_pip) : null,
+      kebutuhan_khusus: nullableText(editing.kebutuhan_khusus),
+      sekolah_asal: nullableText(editing.sekolah_asal),
+      anak_ke: nullableNumber(editing.anak_ke),
+      lintang: nullableText(editing.lintang),
+      bujur: nullableText(editing.bujur),
+      no_kk: nullableText(editing.no_kk),
+      berat_badan: nullableNumber(editing.berat_badan),
+      tinggi_badan: nullableNumber(editing.tinggi_badan),
+      lingkar_kepala: nullableNumber(editing.lingkar_kepala),
+      jarak_rumah_ke_sekolah_km: nullableNumber(editing.jarak_rumah_ke_sekolah_km),
+      ayah_nama: nullableText(editing.ayah_nama),
+      ayah_tahun_lahir: nullableNumber(editing.ayah_tahun_lahir),
+      ayah_jenjang_pendidikan: nullableText(editing.ayah_jenjang_pendidikan),
+      ayah_pekerjaan: nullableText(editing.ayah_pekerjaan),
+      ayah_penghasilan: nullableText(editing.ayah_penghasilan),
+      ayah_nik: nullableText(editing.ayah_nik),
+      ibu_nama: nullableText(editing.ibu_nama),
+      ibu_tahun_lahir: nullableNumber(editing.ibu_tahun_lahir),
+      ibu_jenjang_pendidikan: nullableText(editing.ibu_jenjang_pendidikan),
+      ibu_pekerjaan: nullableText(editing.ibu_pekerjaan),
+      ibu_penghasilan: nullableText(editing.ibu_penghasilan),
+      ibu_nik: nullableText(editing.ibu_nik),
+      nama_wali: nullableText(editing.nama_wali),
+      wali_tahun_lahir: nullableNumber(editing.wali_tahun_lahir),
+      wali_jenjang_pendidikan: nullableText(editing.wali_jenjang_pendidikan),
+      wali_pekerjaan: nullableText(editing.wali_pekerjaan),
+      wali_penghasilan: nullableText(editing.wali_penghasilan),
+      wali_nik: nullableText(editing.wali_nik),
+      no_hp_wali: nullableText(editing.no_hp_wali),
       foto_url: fotoUrl,
       status: editing.status || "aktif",
     };
@@ -490,7 +746,11 @@ function DataSiswaModule() {
         const nama = excelCellToText(row.nama_lengkap);
         const jenisKelamin = normalizeGender(row.jenis_kelamin) as Siswa["jenis_kelamin"];
         const tahunMasuk = parseExcelNumber(row.tahun_masuk);
+        const nipd = excelCellToText(row.nipd) || null;
         const nisn = excelCellToText(row.nisn) || null;
+        const penerimaKps = normalizeYesNo(row.penerima_kps);
+        const penerimaKip = normalizeYesNo(row.penerima_kip);
+        const layakPip = normalizeYesNo(row.layak_pip);
 
         if (!nama) errors.push(`Baris ${rowNumber}: Nama Lengkap wajib diisi.`);
         if (!jenisKelamin) errors.push(`Baris ${rowNumber}: Jenis Kelamin harus L atau P.`);
@@ -520,15 +780,72 @@ function DataSiswaModule() {
 
         return {
           nis,
+          nipd,
           nisn,
           kode_unik: kodeUnik,
           nama_lengkap: nama,
           jenis_kelamin: jenisKelamin,
           kelas: excelCellToText(row.kelas) || null,
           tahun_masuk: Number(tahunMasuk),
+          tempat_lahir: excelCellToText(row.tempat_lahir) || null,
           tanggal_lahir: parseExcelDate(row.tanggal_lahir),
+          nik: excelCellToText(row.nik) || null,
+          agama: excelCellToText(row.agama) || null,
           alamat: excelCellToText(row.alamat) || null,
+          rt: excelCellToText(row.rt) || null,
+          rw: excelCellToText(row.rw) || null,
+          dusun: excelCellToText(row.dusun) || null,
+          kelurahan: excelCellToText(row.kelurahan) || null,
+          kecamatan: excelCellToText(row.kecamatan) || null,
+          kode_pos: excelCellToText(row.kode_pos) || null,
+          jenis_tinggal: excelCellToText(row.jenis_tinggal) || null,
+          alat_transportasi: excelCellToText(row.alat_transportasi) || null,
+          telepon: excelCellToText(row.telepon) || null,
+          hp: excelCellToText(row.hp) || null,
+          email: excelCellToText(row.email) || null,
+          skhun: excelCellToText(row.skhun) || null,
+          penerima_kps: penerimaKps,
+          no_kps: penerimaKps ? excelCellToText(row.no_kps) || null : null,
+          no_peserta_ujian_nasional: excelCellToText(row.no_peserta_ujian_nasional) || null,
+          no_seri_ijazah: excelCellToText(row.no_seri_ijazah) || null,
+          penerima_kip: penerimaKip,
+          nomor_kip: penerimaKip ? excelCellToText(row.nomor_kip) || null : null,
+          nama_di_kip: penerimaKip ? excelCellToText(row.nama_di_kip) || null : null,
+          nomor_kks: excelCellToText(row.nomor_kks) || null,
+          no_registrasi_akta_lahir: excelCellToText(row.no_registrasi_akta_lahir) || null,
+          bank: excelCellToText(row.bank) || null,
+          nomor_rekening_bank: excelCellToText(row.nomor_rekening_bank) || null,
+          rekening_atas_nama: excelCellToText(row.rekening_atas_nama) || null,
+          layak_pip: layakPip,
+          alasan_layak_pip: layakPip ? excelCellToText(row.alasan_layak_pip) || null : null,
+          kebutuhan_khusus: excelCellToText(row.kebutuhan_khusus) || null,
+          sekolah_asal: excelCellToText(row.sekolah_asal) || null,
+          anak_ke: parseExcelNumber(row.anak_ke),
+          lintang: excelCellToText(row.lintang) || null,
+          bujur: excelCellToText(row.bujur) || null,
+          no_kk: excelCellToText(row.no_kk) || null,
+          berat_badan: parseExcelNumber(row.berat_badan),
+          tinggi_badan: parseExcelNumber(row.tinggi_badan),
+          lingkar_kepala: parseExcelNumber(row.lingkar_kepala),
+          jarak_rumah_ke_sekolah_km: parseExcelNumber(row.jarak_rumah_ke_sekolah_km),
+          ayah_nama: excelCellToText(row.ayah_nama) || null,
+          ayah_tahun_lahir: parseExcelNumber(row.ayah_tahun_lahir),
+          ayah_jenjang_pendidikan: excelCellToText(row.ayah_jenjang_pendidikan) || null,
+          ayah_pekerjaan: excelCellToText(row.ayah_pekerjaan) || null,
+          ayah_penghasilan: excelCellToText(row.ayah_penghasilan) || null,
+          ayah_nik: excelCellToText(row.ayah_nik) || null,
+          ibu_nama: excelCellToText(row.ibu_nama) || null,
+          ibu_tahun_lahir: parseExcelNumber(row.ibu_tahun_lahir),
+          ibu_jenjang_pendidikan: excelCellToText(row.ibu_jenjang_pendidikan) || null,
+          ibu_pekerjaan: excelCellToText(row.ibu_pekerjaan) || null,
+          ibu_penghasilan: excelCellToText(row.ibu_penghasilan) || null,
+          ibu_nik: excelCellToText(row.ibu_nik) || null,
           nama_wali: excelCellToText(row.nama_wali) || null,
+          wali_tahun_lahir: parseExcelNumber(row.wali_tahun_lahir),
+          wali_jenjang_pendidikan: excelCellToText(row.wali_jenjang_pendidikan) || null,
+          wali_pekerjaan: excelCellToText(row.wali_pekerjaan) || null,
+          wali_penghasilan: excelCellToText(row.wali_penghasilan) || null,
+          wali_nik: excelCellToText(row.wali_nik) || null,
           no_hp_wali: excelCellToText(row.no_hp_wali) || null,
           foto_url: null,
           status: normalizeStatus(row.status) as Siswa["status"],
@@ -618,6 +935,65 @@ function DataSiswaModule() {
     loadRows();
   }
 
+  function updateEditingField<K extends keyof Siswa>(key: K, value: Siswa[K] | "") {
+    setEditing((current) => ({ ...current, [key]: value }));
+  }
+
+  function textField(key: keyof Siswa, label: string, type = "text", placeholder = "") {
+    return (
+      <Field label={label}>
+        <input
+          type={type}
+          value={String(editing?.[key] ?? "")}
+          onChange={(event) => updateEditingField(key, event.target.value as Siswa[keyof Siswa])}
+          placeholder={placeholder}
+          className={inputClass}
+        />
+      </Field>
+    );
+  }
+
+  function numberField(key: keyof Siswa, label: string, step = "1") {
+    return (
+      <Field label={label}>
+        <input
+          type="number"
+          step={step}
+          value={String(editing?.[key] ?? "")}
+          onChange={(event) =>
+            updateEditingField(
+              key,
+              (event.target.value === "" ? null : Number(event.target.value)) as Siswa[keyof Siswa],
+            )
+          }
+          className={inputClass}
+        />
+      </Field>
+    );
+  }
+
+  function yesNoField(key: keyof Siswa, label: string) {
+    const value = editing?.[key];
+    return (
+      <Field label={label}>
+        <select
+          value={value === true ? "ya" : value === false ? "tidak" : ""}
+          onChange={(event) =>
+            updateEditingField(
+              key,
+              (event.target.value === "" ? null : event.target.value === "ya") as Siswa[keyof Siswa],
+            )
+          }
+          className={inputClass}
+        >
+          <option value="">Belum diisi</option>
+          <option value="ya">Iya</option>
+          <option value="tidak">Tidak</option>
+        </select>
+      </Field>
+    );
+  }
+
   return (
     <ModuleShell
       title="Data Siswa"
@@ -630,7 +1006,7 @@ function DataSiswaModule() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Cari nama, NIS, atau NISN"
+              placeholder="Cari nama, NIS, NIPD, NISN, atau NIK"
               className={`${inputClass} w-full pl-10`}
             />
           </label>
@@ -688,54 +1064,134 @@ function DataSiswaModule() {
 
       {editing ? (
         <form onSubmit={saveSiswa} className="rounded bg-white p-5 shadow-soft">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <Field label="Nama lengkap">
-              <input value={editing.nama_lengkap || ""} onChange={(event) => setEditing((cur) => ({ ...cur, nama_lengkap: event.target.value }))} className={inputClass} />
-            </Field>
-            <Field label="Jenis kelamin">
-              <select value={editing.jenis_kelamin || "L"} onChange={(event) => setEditing((cur) => ({ ...cur, jenis_kelamin: event.target.value as "L" | "P" }))} className={inputClass}>
-                <option value="L">Laki-laki</option>
-                <option value="P">Perempuan</option>
-              </select>
-            </Field>
-            <Field label="Kelas">
-              <input value={editing.kelas || ""} onChange={(event) => setEditing((cur) => ({ ...cur, kelas: event.target.value }))} className={inputClass} />
-            </Field>
-            <Field label="Tahun masuk">
-              <input type="number" value={editing.tahun_masuk || ""} onChange={(event) => setEditing((cur) => ({ ...cur, tahun_masuk: Number(event.target.value) }))} className={inputClass} />
-            </Field>
-            <Field label="NIS">
-              <input value={editing.nis || ""} onChange={(event) => setEditing((cur) => ({ ...cur, nis: event.target.value }))} placeholder="Otomatis jika kosong" className={inputClass} />
-            </Field>
-            <Field label="NISN">
-              <input value={editing.nisn || ""} onChange={(event) => setEditing((cur) => ({ ...cur, nisn: event.target.value }))} className={inputClass} />
-            </Field>
-            <Field label="Kode unik">
-              <input value={editing.kode_unik || ""} onChange={(event) => setEditing((cur) => ({ ...cur, kode_unik: event.target.value }))} placeholder="Otomatis jika kosong" className={inputClass} />
-            </Field>
-            <Field label="Tanggal lahir">
-              <input type="date" value={editing.tanggal_lahir || ""} onChange={(event) => setEditing((cur) => ({ ...cur, tanggal_lahir: event.target.value }))} className={inputClass} />
-            </Field>
-            <Field label="Status">
-              <select value={editing.status || "aktif"} onChange={(event) => setEditing((cur) => ({ ...cur, status: event.target.value as Siswa["status"] }))} className={inputClass}>
-                <option value="aktif">Aktif</option>
-                <option value="alumni">Alumni</option>
-                <option value="keluar">Keluar</option>
-              </select>
-            </Field>
-            <Field label="Nama wali">
-              <input value={editing.nama_wali || ""} onChange={(event) => setEditing((cur) => ({ ...cur, nama_wali: event.target.value }))} className={inputClass} />
-            </Field>
-            <Field label="No. HP wali">
-              <input value={editing.no_hp_wali || ""} onChange={(event) => setEditing((cur) => ({ ...cur, no_hp_wali: event.target.value }))} className={inputClass} />
-            </Field>
-            <Field label="Upload foto">
-              <input type="file" accept="image/*" onChange={(event) => setPhotoFile(event.target.files?.[0] || null)} className={inputClass} />
-            </Field>
+          <div className="grid gap-5">
+            <div>
+              <h2 className="mb-3 text-base font-semibold text-gray-950">Identitas Siswa</h2>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {textField("nama_lengkap", "Nama")}
+                {textField("nipd", "NIPD")}
+                {textField("nis", "NIS", "text", "Otomatis jika kosong")}
+                {textField("nisn", "NISN")}
+                {textField("kode_unik", "Kode unik", "text", "Otomatis jika kosong")}
+                {textField("nik", "NIK")}
+                <Field label="Jenis kelamin">
+                  <select value={editing.jenis_kelamin || "L"} onChange={(event) => setEditing((cur) => ({ ...cur, jenis_kelamin: event.target.value as "L" | "P" }))} className={inputClass}>
+                    <option value="L">Laki-laki</option>
+                    <option value="P">Perempuan</option>
+                  </select>
+                </Field>
+                {textField("tempat_lahir", "Tempat lahir")}
+                {textField("tanggal_lahir", "Tanggal lahir", "date")}
+                {textField("agama", "Agama")}
+                {textField("kelas", "Rombel saat ini")}
+                {numberField("tahun_masuk", "Tahun masuk")}
+                <Field label="Status">
+                  <select value={editing.status || "aktif"} onChange={(event) => setEditing((cur) => ({ ...cur, status: event.target.value as Siswa["status"] }))} className={inputClass}>
+                    <option value="aktif">Aktif</option>
+                    <option value="alumni">Alumni</option>
+                    <option value="keluar">Keluar</option>
+                  </select>
+                </Field>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-5">
+              <h2 className="mb-3 text-base font-semibold text-gray-950">Alamat dan Kontak</h2>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {textField("rt", "RT")}
+                {textField("rw", "RW")}
+                {textField("dusun", "Dusun")}
+                {textField("kelurahan", "Kelurahan")}
+                {textField("kecamatan", "Kecamatan")}
+                {textField("kode_pos", "Kode Pos")}
+                {textField("jenis_tinggal", "Jenis tinggal")}
+                {textField("alat_transportasi", "Alat transportasi")}
+                {textField("telepon", "Telepon")}
+                {textField("hp", "HP")}
+                {textField("email", "E-Mail", "email")}
+                <Field label="Upload foto">
+                  <input type="file" accept="image/*" onChange={(event) => setPhotoFile(event.target.files?.[0] || null)} className={inputClass} />
+                </Field>
+              </div>
+              <Field label="Alamat">
+                <textarea value={editing.alamat || ""} onChange={(event) => setEditing((cur) => ({ ...cur, alamat: event.target.value }))} rows={3} className="rounded border border-gray-200 px-3 py-3 font-normal" />
+              </Field>
+            </div>
+
+            <div className="border-t border-gray-100 pt-5">
+              <h2 className="mb-3 text-base font-semibold text-gray-950">Dokumen, Bantuan, dan Bank</h2>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {textField("skhun", "SKHUN")}
+                {yesNoField("penerima_kps", "Penerima KPS")}
+                {editing.penerima_kps ? textField("no_kps", "No. KPS") : null}
+                {textField("no_peserta_ujian_nasional", "No Peserta Ujian Nasional")}
+                {textField("no_seri_ijazah", "No Seri Ijazah")}
+                {yesNoField("penerima_kip", "Penerima KIP")}
+                {editing.penerima_kip ? textField("nomor_kip", "Nomor KIP") : null}
+                {editing.penerima_kip ? textField("nama_di_kip", "Nama di KIP") : null}
+                {textField("nomor_kks", "Nomor KKS")}
+                {textField("no_registrasi_akta_lahir", "No Registrasi Akta Lahir")}
+                {textField("bank", "Bank")}
+                {textField("nomor_rekening_bank", "Nomor Rekening Bank")}
+                {textField("rekening_atas_nama", "Rekening Atas Nama")}
+                {yesNoField("layak_pip", "Layak PIP")}
+                {editing.layak_pip ? textField("alasan_layak_pip", "Alasan Layak PIP") : null}
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-5">
+              <h2 className="mb-3 text-base font-semibold text-gray-950">Data Tambahan</h2>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {textField("kebutuhan_khusus", "Kebutuhan khusus")}
+                {textField("sekolah_asal", "Sekolah asal")}
+                {numberField("anak_ke", "Anak ke-berapa")}
+                {textField("lintang", "Lintang")}
+                {textField("bujur", "Bujur")}
+                {textField("no_kk", "No KK")}
+                {numberField("berat_badan", "Berat badan", "0.1")}
+                {numberField("tinggi_badan", "Tinggi badan", "0.1")}
+                {numberField("lingkar_kepala", "Lingkar kepala", "0.1")}
+                {numberField("jarak_rumah_ke_sekolah_km", "Jarak Rumah ke Sekolah (KM)", "0.01")}
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-5">
+              <h2 className="mb-3 text-base font-semibold text-gray-950">Identitas Ayah</h2>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {textField("ayah_nama", "Nama ayah")}
+                {numberField("ayah_tahun_lahir", "Tahun lahir ayah")}
+                {textField("ayah_jenjang_pendidikan", "Jenjang pendidikan ayah")}
+                {textField("ayah_pekerjaan", "Pekerjaan ayah")}
+                {textField("ayah_penghasilan", "Penghasilan ayah")}
+                {textField("ayah_nik", "NIK ayah")}
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-5">
+              <h2 className="mb-3 text-base font-semibold text-gray-950">Identitas Ibu</h2>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {textField("ibu_nama", "Nama ibu")}
+                {numberField("ibu_tahun_lahir", "Tahun lahir ibu")}
+                {textField("ibu_jenjang_pendidikan", "Jenjang pendidikan ibu")}
+                {textField("ibu_pekerjaan", "Pekerjaan ibu")}
+                {textField("ibu_penghasilan", "Penghasilan ibu")}
+                {textField("ibu_nik", "NIK ibu")}
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-5">
+              <h2 className="mb-3 text-base font-semibold text-gray-950">Identitas Wali</h2>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {textField("nama_wali", "Nama wali")}
+                {numberField("wali_tahun_lahir", "Tahun lahir wali")}
+                {textField("wali_jenjang_pendidikan", "Jenjang pendidikan wali")}
+                {textField("wali_pekerjaan", "Pekerjaan wali")}
+                {textField("wali_penghasilan", "Penghasilan wali")}
+                {textField("wali_nik", "NIK wali")}
+                {textField("no_hp_wali", "No. HP wali")}
+              </div>
+            </div>
           </div>
-          <Field label="Alamat">
-            <textarea value={editing.alamat || ""} onChange={(event) => setEditing((cur) => ({ ...cur, alamat: event.target.value }))} rows={3} className="rounded border border-gray-200 px-3 py-3 font-normal" />
-          </Field>
           <div className="mt-5 flex gap-3">
             <button className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
               <Save className="mr-2" size={17} /> Simpan
@@ -746,9 +1202,10 @@ function DataSiswaModule() {
       ) : null}
 
       <DataTable
-        headers={["NIS", "NISN", "Nama", "JK", "Kelas", "Status", "Aksi"]}
+        headers={["NIS", "NIPD", "NISN", "Nama", "JK", "Rombel", "Status", "Aksi"]}
         rows={filteredRows.map((row) => [
           row.nis,
+          row.nipd || "-",
           row.nisn || "-",
           row.nama_lengkap,
           row.jenis_kelamin,
@@ -1228,53 +1685,61 @@ function RaportModule({ role }: { role: string }) {
       nilai: nilaiRows.find((row) => row.siswa_id === student.id && row.mapel_id === item.id),
     }));
     const { jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
+    const autoTable = (await import("jspdf-autotable")).default;
+    const doc = new jsPDF("p", "pt", "a4");
+    
     const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFillColor(6, 78, 59);
-    doc.rect(0, 0, pageWidth, 34, "F");
+    doc.rect(0, 0, pageWidth, 60, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
-    doc.text("RAPORT SISWA", pageWidth / 2, 13, { align: "center" });
-    doc.setFontSize(10);
-    doc.text("SMP MA'ARIF NU SARIWANGI", pageWidth / 2, 21, { align: "center" });
+    doc.setFontSize(18);
+    doc.text("RAPORT SISWA", pageWidth / 2, 25, { align: "center" });
+    doc.setFontSize(12);
+    doc.text("SMP MA'ARIF NU SARIWANGI", pageWidth / 2, 45, { align: "center" });
+    
     doc.setTextColor(17, 24, 39);
     doc.setFont("helvetica", "normal");
-    doc.text(`Nama: ${student.nama_lengkap}`, 14, 46);
-    doc.text(`NIS: ${student.nis}`, 14, 53);
-    doc.text(`Kelas: ${student.kelas || "-"}`, 14, 60);
-    doc.text(`Periode: ${selectedPeriodRow.nama || `${selectedPeriodRow.tahun_ajaran} - ${selectedPeriodRow.semester}`}`, 112, 46);
-    doc.text(`Status: ${publish ? "Published" : "Preview"}`, 112, 53);
-    let y = 74;
-    doc.setFont("helvetica", "bold");
-    doc.setFillColor(240, 253, 244);
-    doc.rect(14, y - 7, 182, 9, "F");
-    doc.text("Mata Pelajaran", 18, y);
-    doc.text("Nilai", 104, y);
-    doc.text("Predikat", 128, y);
-    doc.text("Deskripsi", 154, y);
-    y += 9;
-    doc.setFont("helvetica", "normal");
-    rows.forEach((row) => {
-      const deskripsi = doc.splitTextToSize(row.nilai?.deskripsi || "-", 38);
-      const rowHeight = Math.max(10, deskripsi.length * 5);
-      if (y + rowHeight > 280) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.text(row.mapel.mata_pelajaran, 18, y);
-      doc.text(row.nilai?.nilai || "-", 104, y);
-      doc.text(row.nilai?.predikat || "-", 128, y);
-      doc.text(deskripsi, 154, y);
-      doc.line(14, y + rowHeight - 5, 196, y + rowHeight - 5);
-      y += rowHeight;
-    });
-    y = Math.max(y + 12, 220);
     doc.setFontSize(10);
-    doc.text("Wali Kelas", 32, y);
-    doc.text("Kepala Sekolah", 138, y);
-    doc.text("(________________)", 26, y + 30);
-    doc.text("(________________)", 132, y + 30);
+    doc.text(`Nama: ${student.nama_lengkap}`, 40, 90);
+    doc.text(`NIS: ${student.nis}`, 40, 105);
+    doc.text(`Kelas: ${student.kelas || "-"}`, 40, 120);
+    
+    doc.text(`Periode: ${selectedPeriodRow.nama || `${selectedPeriodRow.tahun_ajaran} - ${selectedPeriodRow.semester}`}`, 350, 90);
+    doc.text(`Status: ${publish ? "Published" : "Preview"}`, 350, 105);
+
+    const tableBody = rows.map((row, index) => [
+      index + 1,
+      row.mapel.mata_pelajaran,
+      row.nilai?.nilai || "-",
+      row.nilai?.predikat || "-",
+      row.nilai?.deskripsi || "-",
+    ]);
+
+    autoTable(doc, {
+      startY: 140,
+      head: [["No", "Mata Pelajaran", "Nilai", "Predikat", "Deskripsi"]],
+      body: tableBody,
+      theme: "grid",
+      headStyles: { fillColor: [4, 120, 87] },
+      columnStyles: {
+        0: { cellWidth: 30 },
+        1: { cellWidth: 150 },
+        2: { cellWidth: 40, halign: "center" },
+        3: { cellWidth: 50, halign: "center" },
+        4: { cellWidth: "auto" },
+      },
+      styles: { fontSize: 10, cellPadding: 6 },
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY || 140;
+    
+    doc.setFontSize(10);
+    doc.text("Wali Kelas", 80, finalY + 40);
+    doc.text("Kepala Sekolah", 420, finalY + 40);
+    doc.text("(_________________)", 65, finalY + 90);
+    doc.text("(_________________)", 405, finalY + 90);
+    
     const filename = `raport-${student.nis}-${selectedPeriodRow.tahun_ajaran.replace("/", "-")}-${selectedPeriodRow.semester}.pdf`;
     if (!publish) {
       doc.save(filename);
@@ -1549,6 +2014,8 @@ function SuratModule() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [signatureMode, setSignatureMode] = useState<SignatureMode>("wet");
+  const [previewValidationId, setPreviewValidationId] = useState<string | null>(null);
   
   const [logFilterJenis, setLogFilterJenis] = useState('Semua');
   const [logFilterBulan, setLogFilterBulan] = useState('Semua');
@@ -1685,6 +2152,86 @@ function SuratModule() {
 
   useEffect(() => { loadData(); }, []);
 
+  function createUuid() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+      const random = Math.floor(Math.random() * 16);
+      const value = char === 'x' ? random : (random & 0x3) | 0x8;
+      return value.toString(16);
+    });
+  }
+
+  function validationUrlFor(id: string) {
+    return `${window.location.origin}/validasi-surat-smp/${id}`;
+  }
+
+  async function prepareSignatureAssets() {
+    if (signatureMode !== "digital") {
+      setPreviewValidationId(null);
+      return { validationId: null, validationUrl: "", qrDataUrl: null as string | null };
+    }
+
+    const validationId = createUuid();
+    const validationUrl = validationUrlFor(validationId);
+    const QRCode = await import("qrcode");
+    const qrDataUrl = await QRCode.toDataURL(validationUrl, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      width: 260,
+      color: { dark: "#0f5132", light: "#FFFFFF" },
+    });
+    setPreviewValidationId(validationId);
+    return { validationId, validationUrl, qrDataUrl };
+  }
+
+  function resetPreview() {
+    setPreviewPdfUrl(null);
+    setPreviewBlob(null);
+    setPreviewValidationId(null);
+  }
+
+  function drawSignatureBlock(
+    doc: any,
+    x: number,
+    y: number,
+    placeDate: string,
+    role: string,
+    signer: string,
+    qrDataUrl?: string | null,
+    validationUrl?: string,
+  ) {
+    doc.setFont('times', 'normal');
+    doc.setFontSize(12);
+    doc.text(placeDate || '', x, y);
+    doc.text(role || 'Kepala Sekolah', x, y + 8);
+
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, 'PNG', x, y + 13, 24, 24);
+      doc.setFontSize(7);
+      doc.text('Tanda tangan digital', x + 29, y + 18);
+      doc.text('Scan QR untuk validasi', x + 29, y + 22);
+      if (validationUrl) {
+        doc.setFontSize(5.5);
+        doc.text(doc.splitTextToSize(validationUrl, 46).slice(0, 2), x + 29, y + 26);
+      }
+      doc.setFont('times', 'bold');
+      doc.setFontSize(12);
+      doc.text(signer || '', x + 29, y + 39);
+      const nameWidth = doc.getTextWidth(signer || '');
+      doc.line(x + 29, y + 40, x + 29 + nameWidth, y + 40);
+      doc.setFont('times', 'normal');
+      return;
+    }
+
+    doc.setFont('times', 'bold');
+    doc.text(signer || '', x, y + 35);
+    const nameWidth = doc.getTextWidth(signer || '');
+    doc.line(x, y + 36, x + nameWidth, y + 36);
+    doc.setFont('times', 'normal');
+  }
+
   function drawKop(doc: any, logoKiri?: string | null, logoKanan?: string | null) {
     if (logoKiri) doc.addImage(logoKiri, 'PNG', 12, 6, 38, 38);
     if (logoKanan) doc.addImage(logoKanan, 'PNG', 160, 6, 38, 38);
@@ -1717,6 +2264,7 @@ function SuratModule() {
     try {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
+      const { validationUrl, qrDataUrl } = await prepareSignatureAssets();
 
       const loadImage = (url: string) => {
         return new Promise<string | null>((resolve) => {
@@ -1756,13 +2304,16 @@ function SuratModule() {
       doc.text('Setelah melaksanakan tugas ini agar segera membuat laporan dan atas perhatiannya', 30, 165);
       doc.text('disampaikan terima kasih.', 20, 173);
 
-      doc.text(`Sariwangi, ${formatDate(formTugas.tanggal_dikeluarkan)}`, 120, 195);
-      doc.text(`Kepala SMP Ma'arif NU Sariwangi`, 120, 203);
-      doc.setFont('times', 'bold');
-      doc.text(formTugas.pejabat, 120, 230);
-      const nw = doc.getTextWidth(formTugas.pejabat);
-      doc.line(120, 231, 120 + nw, 231);
-      doc.setFont('times', 'normal');
+      drawSignatureBlock(
+        doc,
+        120,
+        195,
+        `Sariwangi, ${formatDate(formTugas.tanggal_dikeluarkan)}`,
+        `Kepala SMP Ma'arif NU Sariwangi`,
+        formTugas.pejabat,
+        qrDataUrl,
+        validationUrl,
+      );
 
       // PAGE 2: SPPD Table
       doc.addPage();
@@ -1820,13 +2371,16 @@ function SuratModule() {
 
     currentY += 15;
     doc.text(`Dikeluarkan di : Sariwangi`, 120, currentY);
-    doc.text(`Pada tanggal : ${formatDate(formTugas.tanggal_dikeluarkan)}`, 120, currentY + 6);
-    doc.text(`Kepala SMP Ma'arif NU Sariwangi`, 120, currentY + 12);
-    doc.setFont('times', 'bold');
-    doc.text(formTugas.pejabat, 120, currentY + 35);
-    const nw2 = doc.getTextWidth(formTugas.pejabat);
-    doc.line(120, currentY + 36, 120 + nw2, currentY + 36);
-    doc.setFont('times', 'normal');
+    drawSignatureBlock(
+      doc,
+      120,
+      currentY + 6,
+      `Pada tanggal : ${formatDate(formTugas.tanggal_dikeluarkan)}`,
+      `Kepala SMP Ma'arif NU Sariwangi`,
+      formTugas.pejabat,
+      qrDataUrl,
+      validationUrl,
+    );
 
     // PAGE 3: SPPD Page 2
     doc.addPage();
@@ -1836,12 +2390,16 @@ function SuratModule() {
     doc.text('Tujuan', 80, 72); doc.text(`: ${formTugas.tempat}`, 110, 72);
     doc.text('Pada Tanggal', 80, 79); doc.text(`: ${formatDate(formTugas.hari_tanggal)}`, 110, 79);
     
-    doc.text(`Kepala SMP Ma'arif NU Sariwangi`, 110, 92);
-    doc.setFont('times', 'bold');
-    doc.text(formTugas.pejabat, 110, 115);
-    const nw3 = doc.getTextWidth(formTugas.pejabat);
-    doc.line(110, 116, 110 + nw3, 116);
-    doc.setFont('times', 'normal');
+    drawSignatureBlock(
+      doc,
+      110,
+      84,
+      '',
+      `Kepala SMP Ma'arif NU Sariwangi`,
+      formTugas.pejabat,
+      qrDataUrl,
+      validationUrl,
+    );
 
     // Box configurations
     const bx = 15, by = 125, bw = 85, bh = 45;
@@ -1882,9 +2440,19 @@ function SuratModule() {
     
     doc.setFont('times', 'bold');
     doc.text('Pejabat Pembuat Komitmen', bx2 + 20, cy3 + 35);
-    doc.text(formTugas.pejabat, bx2 + 20, cy3 + 55);
-    const nw4 = doc.getTextWidth(formTugas.pejabat);
-    doc.line(bx2 + 20, cy3 + 56, bx2 + 20 + nw4, cy3 + 56);
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, 'PNG', bx2 + 20, cy3 + 40, 16, 16);
+      doc.setFontSize(6);
+      doc.text('QR validasi surat', bx2 + 40, cy3 + 47);
+      doc.setFontSize(12);
+      doc.text(formTugas.pejabat, bx2 + 40, cy3 + 56);
+      const nw4 = doc.getTextWidth(formTugas.pejabat);
+      doc.line(bx2 + 40, cy3 + 57, bx2 + 40 + nw4, cy3 + 57);
+    } else {
+      doc.text(formTugas.pejabat, bx2 + 20, cy3 + 55);
+      const nw4 = doc.getTextWidth(formTugas.pejabat);
+      doc.line(bx2 + 20, cy3 + 56, bx2 + 20 + nw4, cy3 + 56);
+    }
     doc.setFont('times', 'normal');
     
     const blob = doc.output('blob');
@@ -1905,6 +2473,7 @@ function SuratModule() {
       const path = `smp/tugas-${Date.now()}-${Math.floor(Math.random() * 10000)}.pdf`;
       const upload = await supabase.storage.from('smp-surat-keluar').upload(path, previewBlob, { contentType: 'application/pdf' });
       const { error } = await supabase.from('smp_surat_keluar').insert({
+        ...(previewValidationId ? { id: previewValidationId } : {}),
         nomor_surat: formTugas.nomor_surat || null,
         jenis_surat: 'Surat Tugas & SPPD',
         perihal: formTugas.tugas,
@@ -1924,8 +2493,7 @@ function SuratModule() {
       link.click();
       
       setMessage('Surat Tugas & SPPD berhasil disimpan dan didownload.');
-      setPreviewPdfUrl(null);
-      setPreviewBlob(null);
+      resetPreview();
       loadData();
       setActiveTab('log');
       setActiveForm(null);
@@ -1942,6 +2510,7 @@ function SuratModule() {
     try {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
+      const { validationUrl, qrDataUrl } = await prepareSignatureAssets();
 
       const loadImage = (url: string) => {
         return new Promise<string | null>((resolve) => {
@@ -2015,15 +2584,16 @@ function SuratModule() {
       doc.text(`Demikian surat keterangan ini dibuat untuk dipergunakan sebagaimana mestinya.`, 20, currentY + 16);
 
       currentY += 35;
-      doc.text(formAktif.tempat_tanggal || '', 120, currentY);
-      doc.text(`Kepala Sekolah,`, 120, currentY + 8);
-      
-      currentY += 35;
-      doc.setFont('times', 'bold');
-      doc.text(formAktif.pejabat || '', 120, currentY);
-      const nw = doc.getTextWidth(formAktif.pejabat || '');
-      doc.line(120, currentY + 1, 120 + nw, currentY + 1);
-      doc.setFont('times', 'normal');
+      drawSignatureBlock(
+        doc,
+        120,
+        currentY,
+        formAktif.tempat_tanggal || '',
+        'Kepala Sekolah,',
+        formAktif.pejabat || '',
+        qrDataUrl,
+        validationUrl,
+      );
 
       const blob = doc.output('blob');
       setPreviewBlob(blob);
@@ -2043,6 +2613,7 @@ function SuratModule() {
       const path = `smp/aktif-${Date.now()}-${Math.floor(Math.random() * 10000)}.pdf`;
       const upload = await supabase.storage.from('smp-surat-keluar').upload(path, previewBlob, { contentType: 'application/pdf' });
       const { error } = await supabase.from('smp_surat_keluar').insert({
+        ...(previewValidationId ? { id: previewValidationId } : {}),
         nomor_surat: formAktif.nomor_surat || null,
         jenis_surat: 'Surat Keterangan Aktif',
         perihal: formAktif.tujuan,
@@ -2062,8 +2633,7 @@ function SuratModule() {
       link.click();
       
       setMessage('Surat Keterangan Aktif berhasil disimpan dan didownload.');
-      setPreviewPdfUrl(null);
-      setPreviewBlob(null);
+      resetPreview();
       loadData();
       setActiveTab('log');
       setActiveForm(null);
@@ -2080,6 +2650,7 @@ function SuratModule() {
     try {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
+      const { validationUrl, qrDataUrl } = await prepareSignatureAssets();
 
       const loadImage = (url: string) => {
         return new Promise<string | null>((resolve) => {
@@ -2129,15 +2700,16 @@ function SuratModule() {
       doc.text(splitTujuan, 20, 215);
 
       let currentY = 215 + (splitTujuan.length * 7) + 15;
-      doc.text(formWali.tempat_tanggal || '', 120, currentY);
-      doc.text(`Kepala Sekolah`, 120, currentY + 8);
-      
-      currentY += 35;
-      doc.setFont('times', 'bold');
-      doc.text(formWali.pejabat || '', 120, currentY);
-      const nw = doc.getTextWidth(formWali.pejabat || '');
-      doc.line(120, currentY + 1, 120 + nw, currentY + 1);
-      doc.setFont('times', 'normal');
+      drawSignatureBlock(
+        doc,
+        120,
+        currentY,
+        formWali.tempat_tanggal || '',
+        'Kepala Sekolah',
+        formWali.pejabat || '',
+        qrDataUrl,
+        validationUrl,
+      );
 
       const blob = doc.output('blob');
       setPreviewBlob(blob);
@@ -2157,6 +2729,7 @@ function SuratModule() {
       const path = `smp/wali-${Date.now()}-${Math.floor(Math.random() * 10000)}.pdf`;
       const upload = await supabase.storage.from('smp-surat-keluar').upload(path, previewBlob, { contentType: 'application/pdf' });
       const { error } = await supabase.from('smp_surat_keluar').insert({
+        ...(previewValidationId ? { id: previewValidationId } : {}),
         nomor_surat: formWali.nomor_surat || null,
         jenis_surat: 'Surat Keterangan Wali Siswa',
         perihal: 'Keterangan Wali Siswa',
@@ -2176,8 +2749,7 @@ function SuratModule() {
       link.click();
       
       setMessage('Surat Keterangan Wali Siswa berhasil disimpan dan didownload.');
-      setPreviewPdfUrl(null);
-      setPreviewBlob(null);
+      resetPreview();
       loadData();
       setActiveTab('log');
       setActiveForm(null);
@@ -2194,6 +2766,7 @@ function SuratModule() {
     try {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
+      const { validationUrl, qrDataUrl } = await prepareSignatureAssets();
 
       const loadImage = (url: string) => {
         return new Promise<string | null>((resolve) => {
@@ -2282,15 +2855,16 @@ function SuratModule() {
       doc.text(`Demikian surat rekomendasi ini dibuat untuk dapat dipergunakan sebagaimana mestinya.`, 20, currentY);
 
       currentY += 20;
-      doc.text(formRekomendasi.tempat_tanggal || '', 120, currentY);
-      doc.text(`Kepala Sekolah`, 120, currentY + 8);
-      
-      currentY += 35;
-      doc.setFont('times', 'bold');
-      doc.text(formRekomendasi.pejabat || '', 120, currentY);
-      const nw2 = doc.getTextWidth(formRekomendasi.pejabat || '');
-      doc.line(120, currentY + 1, 120 + nw2, currentY + 1);
-      doc.setFont('times', 'normal');
+      drawSignatureBlock(
+        doc,
+        120,
+        currentY,
+        formRekomendasi.tempat_tanggal || '',
+        'Kepala Sekolah',
+        formRekomendasi.pejabat || '',
+        qrDataUrl,
+        validationUrl,
+      );
 
       if (formRekomendasi.format_cetak === '2_lembar') {
         doc.addPage();
@@ -2326,6 +2900,7 @@ function SuratModule() {
       const path = `smp/rekomendasi-${Date.now()}-${Math.floor(Math.random() * 10000)}.pdf`;
       const upload = await supabase.storage.from('smp-surat-keluar').upload(path, previewBlob, { contentType: 'application/pdf' });
       const { error } = await supabase.from('smp_surat_keluar').insert({
+        ...(previewValidationId ? { id: previewValidationId } : {}),
         nomor_surat: formRekomendasi.nomor_surat || null,
         jenis_surat: 'Surat Rekomendasi',
         perihal: 'Rekomendasi Kegiatan',
@@ -2345,8 +2920,7 @@ function SuratModule() {
       link.click();
       
       setMessage('Surat Rekomendasi berhasil disimpan dan didownload.');
-      setPreviewPdfUrl(null);
-      setPreviewBlob(null);
+      resetPreview();
       loadData();
       setActiveTab('log');
       setActiveForm(null);
@@ -2381,6 +2955,42 @@ function SuratModule() {
           <FileText size={16} /> Log Surat Keluar
         </button>
       </div>
+
+      {activeTab === 'buat' && (
+        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-soft sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded bg-emerald-50 text-emerald-700">
+              <QrCode size={20} />
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">Tanda Tangan</h3>
+              <p className="text-xs text-gray-500">Pilih tanda tangan basah atau digital QR untuk validasi surat.</p>
+            </div>
+          </div>
+          <div className="inline-flex rounded border border-gray-200 bg-gray-50 p-1">
+            {([
+              ["wet", "Basah"],
+              ["digital", "Digital QR"],
+            ] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => {
+                  setSignatureMode(mode);
+                  resetPreview();
+                }}
+                className={`rounded px-4 py-2 text-sm font-semibold transition ${
+                  signatureMode === mode
+                    ? "bg-white text-emerald-800 shadow-sm"
+                    : "text-gray-500 hover:text-gray-900"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {activeTab === 'buat' && !activeForm && (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
@@ -2515,7 +3125,7 @@ function SuratModule() {
                 <button onClick={saveAndDownloadTugas} disabled={generating} className="flex-1 bg-emerald-800 text-white text-sm font-semibold py-2.5 rounded shadow-sm hover:bg-emerald-700 disabled:opacity-70">
                   {generating ? 'Menyimpan...' : 'Simpan ke Log & Download'}
                 </button>
-                <button onClick={() => { setPreviewPdfUrl(null); setPreviewBlob(null); }} className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded border border-gray-200 hover:bg-gray-200 shadow-sm">
+                <button onClick={resetPreview} className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded border border-gray-200 hover:bg-gray-200 shadow-sm">
                   Batal / Edit
                 </button>
               </div>
@@ -2954,6 +3564,7 @@ function SuratModule() {
                   <span key={`tgl-${row.id}`} className="text-gray-500">{formatDate(row.tanggal_surat)}</span>,
                   <div key="actions" className="flex gap-2">
                     <button onClick={() => downloadArchive(row)} className="text-blue-500 hover:text-blue-700 p-1 rounded" title="Download PDF"><RefreshCcw size={16}/></button>
+                    <a href={validationUrlFor(row.id)} target="_blank" rel="noreferrer" className="text-emerald-700 hover:text-emerald-900 p-1 rounded" title="Buka validasi"><ExternalLink size={16}/></a>
                     <button onClick={() => { setSelectedIds([row.id]); deleteSelected(); }} className="text-red-400 hover:text-red-600 p-1 rounded" title="Hapus"><Trash2 size={16}/></button>
                   </div>
                 ]
@@ -3450,6 +4061,9 @@ function PresensiModule() {
   const [tanggal, setTanggal] = useState(new Date().toISOString().slice(0, 10));
   const [range, setRange] = useState({ from: new Date().toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10), tipe: "harian" });
   const [samples, setSamples] = useState<number[][]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [rekapTab, setRekapTab] = useState<"riwayat" | "kelas" | "orang">("riwayat");
   const [message, setMessage] = useState("");
 
   async function loadData() {
@@ -3466,7 +4080,7 @@ function PresensiModule() {
   useEffect(() => { loadData(); }, [range.from, range.to]);
 
   async function loadModels() {
-    if (modelsReady) return;
+    if (modelsReady && faceapi) return faceapi;
     const api = await import("face-api.js");
     const loadFrom = async (modelUrl: string) => {
       await Promise.all([
@@ -3484,6 +4098,7 @@ function PresensiModule() {
     setFaceapi(api);
     setModelsReady(true);
     setMessage("Model face recognition siap.");
+    return api;
   }
 
   async function startCamera() {
@@ -3518,12 +4133,54 @@ function PresensiModule() {
       return;
     }
     setSamples((current) => [...current, descriptor]);
-    setMessage(`Sample tersimpan (${samples.length + 1}/5).`);
+    setMessage(`Sample tersimpan (${samples.length + 1}). Minimal 3 sample dibutuhkan.`);
+  }
+
+  async function handleUploadImages(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const files = Array.from(e.target.files);
+    
+    const api = await loadModels();
+    setIsUploading(true);
+    setUploadProgress(0);
+    setMessage(`Memproses ${files.length} gambar...`);
+    
+    let successCount = 0;
+    const newSamples: number[][] = [];
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        const img = await api.bufferToImage(file);
+        const detection = await api
+          .detectSingleFace(img, new api.SsdMobilenetv1Options())
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+        
+        if (detection) {
+          newSamples.push(Array.from(detection.descriptor as Float32Array));
+          successCount++;
+        }
+      } catch (err) {
+        console.error("Gagal mendeteksi wajah di file", file.name, err);
+      }
+      setUploadProgress(Math.round(((i + 1) / files.length) * 100));
+    }
+    
+    if (successCount > 0) {
+      setSamples((current) => [...current, ...newSamples]);
+      setMessage(`Berhasil mengekstrak ${successCount} wajah dari ${files.length} gambar.`);
+    } else {
+      setMessage(`Tidak ditemukan wajah yang jelas pada ${files.length} gambar tersebut.`);
+    }
+    setIsUploading(false);
+    
+    e.target.value = ""; // Reset input
   }
 
   async function saveEnrollment() {
-    if (!selectedSiswa || samples.length < 5) {
-      setMessage("Pilih siswa dan ambil minimal 5 sample wajah.");
+    if (!selectedSiswa || samples.length < 3) {
+      setMessage("Pilih siswa dan ambil/upload minimal 3 sample wajah.");
       return;
     }
     const averaged = samples[0].map((_, index) =>
@@ -3610,14 +4267,42 @@ function PresensiModule() {
 
   async function exportPdf() {
     const { jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
-    doc.text("Rekap Presensi SMP Ma'arif NU Sariwangi", 14, 16);
-    let y = 28;
-    presensi.forEach((row, index) => {
-      if (y > 280) { doc.addPage(); y = 18; }
-      doc.text(`${index + 1}. ${row.tanggal} - ${row.siswa?.nama_lengkap || "-"} - ${row.status} - ${row.metode}`, 14, y);
-      y += 7;
+    const autoTable = (await import("jspdf-autotable")).default;
+    const doc = new jsPDF("p", "pt", "a4");
+    const formatDate = (d: string) => new Date(d).toLocaleDateString("id-ID");
+
+    doc.setFontSize(16);
+    doc.text("LAPORAN REKAPITULASI PRESENSI", 40, 40);
+    doc.setFontSize(10);
+    doc.text(`SMP Ma'arif NU Sariwangi`, 40, 55);
+    doc.text(`Periode: ${formatDate(range.from)} - ${formatDate(range.to)}`, 40, 70);
+    doc.text(`Dicetak pada: ${formatDate(new Date().toISOString())}`, 40, 85);
+
+    const tableBody = presensi.map((row, index) => [
+      index + 1,
+      formatDate(row.tanggal),
+      row.siswa?.nis || "-",
+      row.siswa?.nama_lengkap || "-",
+      row.siswa?.kelas || "-",
+      row.jam_masuk ? row.jam_masuk.slice(11, 16) : "-",
+      row.status,
+      row.metode,
+    ]);
+
+    autoTable(doc, {
+      startY: 100,
+      head: [["No", "Tanggal", "NIS", "Nama Lengkap", "Kelas", "Jam Masuk", "Status", "Metode"]],
+      body: tableBody,
+      theme: "grid",
+      headStyles: { fillColor: [4, 120, 87] },
+      styles: { fontSize: 9 },
     });
+
+    const finalY = (doc as any).lastAutoTable.finalY || 100;
+    doc.text("Mengetahui,", 400, finalY + 40);
+    doc.text("Kepala Sekolah", 400, finalY + 55);
+    doc.line(400, finalY + 110, 530, finalY + 110);
+
     doc.save("rekap-presensi-smp.pdf");
   }
 
@@ -3630,6 +4315,54 @@ function PresensiModule() {
   const kelasList = Array.from(new Set(siswa.map((item) => item.kelas).filter(Boolean))) as string[];
   const siswaKelas = siswa.filter((item) => (kelas ? item.kelas === kelas : true));
   const presentIds = new Set(presensi.filter((row) => row.tanggal === tanggal).map((row) => row.siswa_id));
+
+  const rekapPerOrang = useMemo(() => {
+    const map = new Map<string, any>();
+    presensi.forEach(row => {
+      const id = row.siswa_id;
+      if (!map.has(id)) {
+        map.set(id, {
+          siswa: row.siswa,
+          hadir: 0,
+          izin: 0,
+          sakit: 0,
+          alpa: 0,
+          total: 0
+        });
+      }
+      const data = map.get(id);
+      if (row.status === "hadir") data.hadir++;
+      if (row.status === "izin") data.izin++;
+      if (row.status === "sakit") data.sakit++;
+      if (row.status === "alpa") data.alpa++;
+      data.total++;
+    });
+    return Array.from(map.values()).sort((a, b) => (a.siswa?.nama_lengkap || "").localeCompare(b.siswa?.nama_lengkap || ""));
+  }, [presensi]);
+
+  const rekapPerKelas = useMemo(() => {
+    const map = new Map<string, any>();
+    presensi.forEach(row => {
+      const kelasStr = row.siswa?.kelas || "Tanpa Kelas";
+      if (!map.has(kelasStr)) {
+        map.set(kelasStr, {
+          kelas: kelasStr,
+          hadir: 0,
+          izin: 0,
+          sakit: 0,
+          alpa: 0,
+          total: 0
+        });
+      }
+      const data = map.get(kelasStr);
+      if (row.status === "hadir") data.hadir++;
+      if (row.status === "izin") data.izin++;
+      if (row.status === "sakit") data.sakit++;
+      if (row.status === "alpa") data.alpa++;
+      data.total++;
+    });
+    return Array.from(map.values()).sort((a, b) => a.kelas.localeCompare(b.kelas));
+  }, [presensi]);
 
   return (
     <ModuleShell title="Presensi Online Face Recognition" description="Enrollment wajah, presensi real-time, fallback manual, rekap dan export.">
@@ -3655,9 +4388,36 @@ function PresensiModule() {
             <div className="rounded bg-white p-5 shadow-soft">
               <h2 className="text-lg font-semibold">Enrollment Wajah</h2>
               <select value={selectedSiswa} onChange={(e) => setSelectedSiswa(e.target.value)} className={`${inputClass} mt-4 w-full`}><option value="">Pilih siswa</option>{siswa.map((item) => <option key={item.id} value={item.id}>{item.nama_lengkap} ({item.kelas || "-"})</option>)}</select>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button onClick={captureSample} className="rounded border px-4 py-2 text-sm font-semibold">Ambil Sample ({samples.length}/5)</button>
-                <button onClick={saveEnrollment} className="rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">Simpan Descriptor</button>
+              <div className="mt-4 flex flex-col gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button onClick={captureSample} className="rounded border px-4 py-2 text-sm font-semibold hover:bg-gray-50">
+                    Ambil dari Kamera
+                  </button>
+                  <label className="cursor-pointer rounded border px-4 py-2 text-sm font-semibold hover:bg-gray-50 relative overflow-hidden">
+                    {isUploading ? "Memproses..." : "Upload Foto (Pilih min. 3)"}
+                    <input type="file" multiple accept="image/*" onChange={handleUploadImages} className="hidden" disabled={isUploading} />
+                    {isUploading && (
+                      <div 
+                        className="absolute bottom-0 left-0 h-1 bg-emerald-500 transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    )}
+                  </label>
+                  <button onClick={() => setSamples([])} className="rounded border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
+                    Reset ({samples.length})
+                  </button>
+                </div>
+                {!selectedSiswa && (
+                  <p className="text-sm font-medium text-amber-600">Pilih siswa pada dropdown di atas terlebih dahulu.</p>
+                )}
+                <button 
+                  onClick={saveEnrollment} 
+                  disabled={samples.length < 3 || !selectedSiswa}
+                  className="rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  title={!selectedSiswa ? "Pilih siswa terlebih dahulu" : samples.length < 3 ? "Minimal butuh 3 sample" : ""}
+                >
+                  Simpan Descriptor ({samples.length} Sample)
+                </button>
               </div>
               <DataTable headers={["Siswa", "Kelas", "Status"]} rows={wajah.map((row) => [row.siswa?.nama_lengkap || row.siswa_id, row.siswa?.kelas || "-", row.aktif ? "Aktif" : "Nonaktif"])} />
             </div>
@@ -3695,8 +4455,25 @@ function PresensiModule() {
               <select value={kelas} onChange={(e) => setKelas(e.target.value)} className={inputClass}><option value="">Semua kelas</option>{kelasList.map((item) => <option key={item}>{item}</option>)}</select>
               <div className="flex gap-2"><button onClick={exportPdf} className="rounded border px-3 py-2 text-sm font-semibold">PDF</button><button onClick={exportCsv} className="rounded border px-3 py-2 text-sm font-semibold">Excel/CSV</button></div>
             </div>
+            <div className="mt-5 flex gap-2 border-b">
+              {(["riwayat", "kelas", "orang"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setRekapTab(tab)}
+                  className={["px-4 py-2 text-sm font-semibold border-b-2", rekapTab === tab ? "border-emerald-800 text-emerald-800" : "border-transparent text-gray-500"].join(" ")}
+                >
+                  {tab === "riwayat" ? "Riwayat Presensi" : tab === "kelas" ? "Rekap per Kelas" : "Rekap per Siswa"}
+                </button>
+              ))}
+            </div>
           </div>
-          <DataTable headers={["Tanggal", "NIS", "Nama", "Kelas", "Status", "Metode", "Jam Masuk"]} rows={presensi.filter((row) => kelas ? row.siswa?.kelas === kelas : true).map((row) => [row.tanggal, row.siswa?.nis || "-", row.siswa?.nama_lengkap || "-", row.siswa?.kelas || "-", row.status, row.metode, row.jam_masuk ? new Date(row.jam_masuk).toLocaleTimeString("id-ID") : "-"])} />
+          {rekapTab === "riwayat" ? (
+            <DataTable headers={["Tanggal", "NIS", "Nama", "Kelas", "Status", "Metode", "Jam Masuk"]} rows={presensi.filter((row) => kelas ? row.siswa?.kelas === kelas : true).map((row) => [row.tanggal, row.siswa?.nis || "-", row.siswa?.nama_lengkap || "-", row.siswa?.kelas || "-", row.status, row.metode, row.jam_masuk ? new Date(row.jam_masuk).toLocaleTimeString("id-ID") : "-"])} />
+          ) : rekapTab === "kelas" ? (
+            <DataTable headers={["Kelas", "Total Presensi", "Hadir", "Izin", "Sakit", "Alpa"]} rows={rekapPerKelas.filter((row) => kelas ? row.kelas === kelas : true).map((row) => [row.kelas, row.total, row.hadir, row.izin, row.sakit, row.alpa])} />
+          ) : (
+            <DataTable headers={["NIS", "Nama", "Kelas", "Total Presensi", "Hadir", "Izin", "Sakit", "Alpa"]} rows={rekapPerOrang.filter((row) => kelas ? row.siswa?.kelas === kelas : true).map((row) => [row.siswa?.nis || "-", row.siswa?.nama_lengkap || "-", row.siswa?.kelas || "-", row.total, row.hadir, row.izin, row.sakit, row.alpa])} />
+          )}
         </div>
       )}
     </ModuleShell>

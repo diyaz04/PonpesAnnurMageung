@@ -533,9 +533,10 @@ export default function FinanceModule({
   );
   const [bayarTab, setBayarTab] = useState<"catat" | "riwayat">("catat");
   const [tabunganTab, setTabunganTab] = useState<"catat" | "tarik_cash" | "riwayat">("catat");
-  const [laporanTab, setLaporanTab] = useState<"ringkasan" | "pembayaran" | "tunggakan">(
+  const [laporanTab, setLaporanTab] = useState<"ringkasan" | "pembayaran" | "tunggakan" | "rekap_tagihan">(
     "ringkasan",
   );
+  const [selectedRekapTagihan, setSelectedRekapTagihan] = useState<string>("");
   const [billTypes, setBillTypes] = useState<BillType[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -571,6 +572,7 @@ export default function FinanceModule({
   const [historyPeriod, setHistoryPeriod] = useState("");
   const [paymentForm, setPaymentForm] = useState({
     mode: "cicil",
+    metode: "cash",
     tunai: "",
     dari_tabungan: "",
     tanggal_bayar: new Date().toISOString().slice(0, 10),
@@ -598,6 +600,10 @@ export default function FinanceModule({
   });
   const activeRole = profiles.pesantren?.role || profiles.smp?.role || "";
   const canRetractInvoice = activeRole === "superadmin" || activeRole === "bendahara";
+
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetValidationText, setResetValidationText] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
 
   async function loadData(entity = activeEntity) {
     const [typeResult, santriResult, siswaResult, invoiceResult, settingResult, savingsResult] =
@@ -1419,11 +1425,24 @@ export default function FinanceModule({
       return;
     }
 
-    const savingsAmount = parseAmount(paymentForm.dari_tabungan);
-    const cashAmount =
-      paymentForm.mode === "lunas"
-        ? Math.max(selectedRemaining - savingsAmount, 0)
-        : parseAmount(paymentForm.tunai);
+    const isTabungan = paymentForm.metode === "tabungan";
+    
+    let savingsAmount = 0;
+    let cashAmount = 0;
+    
+    if (paymentForm.mode === "lunas") {
+      if (isTabungan) {
+        savingsAmount = selectedRemaining;
+      } else {
+        cashAmount = selectedRemaining;
+      }
+    } else {
+      if (isTabungan) {
+        savingsAmount = parseAmount(paymentForm.dari_tabungan);
+      } else {
+        cashAmount = parseAmount(paymentForm.tunai);
+      }
+    }
     const totalAmount = cashAmount + savingsAmount;
     if (totalAmount <= 0) {
       setMessage("Jumlah pembayaran harus lebih dari 0.");
@@ -1437,7 +1456,7 @@ export default function FinanceModule({
       setMessage("Syahriyah yang berisi tabungan kegiatan tidak bisa dibayar dari saldo tabungan.");
       return;
     }
-    if (savingsAmount > selectedSavingsBalance) {
+    if (savingsAmount > 0 && savingsAmount > selectedSavingsBalance) {
       setMessage("Saldo tabungan kegiatan tidak cukup.");
       return;
     }
@@ -1540,6 +1559,7 @@ export default function FinanceModule({
       );
       setPaymentForm({
         mode: "cicil",
+        metode: "cash",
         tunai: "",
         dari_tabungan: "",
         tanggal_bayar: new Date().toISOString().slice(0, 10),
@@ -1632,6 +1652,146 @@ export default function FinanceModule({
     loadData();
   }
 
+  async function handleResetAllData() {
+    if (resetValidationText !== "hapus semua data sekarang") {
+      setMessage("Frasa validasi tidak sesuai.");
+      return;
+    }
+    setIsResetting(true);
+    
+    // We clear all tables in reverse order of dependency if needed, or just all of them for the activeEntity
+    // Assuming RLS allows superadmin to delete, we can simply delete all rows for the activeEntity
+    const deletePromises = [
+      supabase.from("keu_tabungan_kegiatan").delete().eq("entitas", activeEntity),
+      supabase.from("keu_pembayaran_tagihan").delete().not("id", "is", null), // This table doesn't have entitas, we delete all where we can, but wait! keu_pembayaran_tagihan has tagihan_id, which links to tagihan which has entitas.
+      // Actually, deleting tagihan will cascade delete pembayaran if FK is setup. To be safe, we delete invoices, which cascades.
+      supabase.from("keu_tagihan").delete().eq("entitas", activeEntity),
+      supabase.from("keu_pengaturan_pembayaran_item").delete().not("id", "is", null), // Depends on pengaturan
+      supabase.from("keu_pengaturan_pembayaran").delete().eq("entitas", activeEntity),
+      supabase.from("keu_jenis_tagihan").delete().eq("entitas", activeEntity),
+    ];
+
+    try {
+      // Clear payments first since it doesn't have entitas and relies on tagihan_id. 
+      // We can fetch tagihan ids first, or just rely on cascade. Let's delete payments by tagihan_id:
+      const { data: tags } = await supabase.from("keu_tagihan").select("id").eq("entitas", activeEntity);
+      if (tags && tags.length > 0) {
+        const tagIds = tags.map(t => t.id);
+        // split into chunks of 100 to avoid url too long for 'in'
+        for (let i = 0; i < tagIds.length; i += 100) {
+          await supabase.from("keu_pembayaran_tagihan").delete().in("tagihan_id", tagIds.slice(i, i + 100));
+        }
+      }
+      
+      // Delete setting items
+      const { data: sets } = await supabase.from("keu_pengaturan_pembayaran").select("id").eq("entitas", activeEntity);
+      if (sets && sets.length > 0) {
+        const setIds = sets.map(s => s.id);
+        for (let i = 0; i < setIds.length; i += 100) {
+          await supabase.from("keu_pengaturan_pembayaran_item").delete().in("pengaturan_id", setIds.slice(i, i + 100));
+        }
+      }
+
+      await Promise.all([
+        supabase.from("keu_tabungan_kegiatan").delete().eq("entitas", activeEntity),
+        supabase.from("keu_tagihan").delete().eq("entitas", activeEntity),
+        supabase.from("keu_pengaturan_pembayaran").delete().eq("entitas", activeEntity),
+        supabase.from("keu_jenis_tagihan").delete().eq("entitas", activeEntity),
+      ]);
+      
+      notifySuccess("Seluruh data keuangan berhasil di-reset!");
+      setShowResetModal(false);
+      setResetValidationText("");
+      loadData();
+    } catch (e: any) {
+      setMessage(`Gagal reset data: ${e.message}`);
+    } finally {
+      setIsResetting(false);
+    }
+  }
+
+  const invoiceBatches = useMemo(() => {
+    const batches = new Map<string, { label: string; id: string; count: number }>();
+    invoices.forEach((inv) => {
+      const label = invoiceLabel(inv);
+      if (!batches.has(label)) {
+        batches.set(label, { label, id: label, count: 1 });
+      } else {
+        batches.get(label)!.count++;
+      }
+    });
+    return Array.from(batches.values()).sort((a, b) => b.label.localeCompare(a.label));
+  }, [invoices]);
+
+  const rekapTagihanData = useMemo(() => {
+    if (!selectedRekapTagihan) return [];
+    return invoices.filter((inv) => invoiceLabel(inv) === selectedRekapTagihan);
+  }, [invoices, selectedRekapTagihan]);
+
+  async function exportRekapPdf() {
+    if (!selectedRekapTagihan) {
+      setMessage("Pilih tagihan yang ingin direkap terlebih dahulu.");
+      return;
+    }
+    const { jsPDF } = await import("jspdf");
+    const autoTable = (await import("jspdf-autotable")).default;
+    const doc = new jsPDF("p", "pt", "a4");
+
+    doc.setFontSize(16);
+    doc.text("LAPORAN REKAPITULASI PEMBAYARAN", 40, 40);
+    doc.setFontSize(10);
+    doc.text(`Tujuan: ${entityLabel(activeEntity)}`, 40, 55);
+    doc.text(`Tagihan: ${selectedRekapTagihan}`, 40, 70);
+    doc.text(`Dicetak pada: ${formatDate(new Date().toISOString())}`, 40, 85);
+
+    let totalTagihan = 0;
+    let totalTerbayar = 0;
+    let totalSisa = 0;
+
+    const tableBody = rekapTagihanData.map((invoice, index) => {
+      const member = memberByAnyId(invoice.anggota_id);
+      
+      const paid = payments
+        .filter((payment) => payment.tagihan_id === invoice.id)
+        .reduce((total, payment) => total + Number(payment.jumlah_bayar || 0), 0);
+        
+      const nominal = Number(invoice.nominal || 0);
+      const sisa = Math.max(nominal - paid, 0);
+      
+      totalTagihan += nominal;
+      totalTerbayar += paid;
+      totalSisa += sisa;
+
+      return [
+        index + 1,
+        member?.nis || "-",
+        member?.nama_lengkap || "-",
+        formatCurrency(nominal),
+        formatCurrency(paid),
+        formatCurrency(sisa),
+        invoice.status === "lunas" ? "Lunas" : sisa < nominal ? "Cicilan" : "Belum Lunas",
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 100,
+      head: [["No", "NIS", "Nama Lengkap", "Total", "Terbayar", "Sisa", "Status"]],
+      body: tableBody,
+      theme: "grid",
+      headStyles: { fillColor: [4, 120, 87] }, // emerald-800
+      foot: [["", "", "TOTAL", formatCurrency(totalTagihan), formatCurrency(totalTerbayar), formatCurrency(totalSisa), ""]],
+      footStyles: { fillColor: [240, 253, 244], textColor: [4, 120, 87], fontStyle: "bold" },
+    });
+
+    // Tanda Tangan
+    const finalY = (doc as any).lastAutoTable.finalY || 100;
+    doc.text("Mengetahui,", 400, finalY + 40);
+    doc.text("Bendahara", 400, finalY + 55);
+    doc.line(400, finalY + 110, 530, finalY + 110);
+
+    doc.save(`rekap-tagihan-${selectedRekapTagihan}.pdf`);
+  }
+
   function exportCsv() {
     const csv = [
       ["Entitas", "Tanggal", "NIS", "Nama", "Jenis", "Kategori", "Jumlah Bayar", "Status Tagihan"].join(","),
@@ -1663,35 +1823,49 @@ export default function FinanceModule({
 
   async function exportPdf() {
     const { jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
-    doc.text(`Laporan Keuangan ${entityLabel(activeEntity)}`, 14, 16);
+    const autoTable = (await import("jspdf-autotable")).default;
+    const doc = new jsPDF("p", "pt", "a4");
+
+    doc.setFontSize(16);
+    doc.text(`LAPORAN KEUANGAN - ${entityLabel(activeEntity).toUpperCase()}`, 40, 40);
     doc.setFontSize(10);
-    doc.text(`Periode: ${formatDate(report.from)} - ${formatDate(report.to)}`, 14, 24);
-    let y = 36;
-    reportPayments.forEach((payment, index) => {
-      if (y > 280) {
-        doc.addPage();
-        y = 18;
-      }
+    doc.text(`Periode: ${formatDate(report.from)} - ${formatDate(report.to)}`, 40, 55);
+    doc.text(`Dicetak pada: ${formatDate(new Date().toISOString())}`, 40, 70);
+
+    let totalPembayaran = 0;
+
+    const tableBody = reportPayments.map((payment, index) => {
       const invoice = invoices.find((item) => item.id === payment.tagihan_id);
       const member = memberByAnyId(invoice?.anggota_id);
-      doc.text(
-        `${index + 1}. ${payment.tanggal_bayar} - ${member?.nama_lengkap || "-"} - ${
-          invoice ? invoiceLabel(invoice) : "-"
-        } - ${formatCurrency(payment.jumlah_bayar)}`,
-        14,
-        y,
-      );
-      y += 7;
+      const jumlah = Number(payment.jumlah_bayar || 0);
+      totalPembayaran += jumlah;
+      
+      return [
+        index + 1,
+        formatDate(payment.tanggal_bayar),
+        member?.nis || "-",
+        member?.nama_lengkap || "-",
+        invoice ? invoiceLabel(invoice) : "-",
+        formatCurrency(jumlah),
+      ];
     });
-    y += 6;
-    doc.text(
-      `Total Pembayaran: ${formatCurrency(
-        reportPayments.reduce((sum, payment) => sum + Number(payment.jumlah_bayar), 0),
-      )}`,
-      14,
-      y,
-    );
+
+    autoTable(doc, {
+      startY: 85,
+      head: [["No", "Tanggal", "NIS", "Nama Lengkap", "Rincian", "Jumlah Bayar"]],
+      body: tableBody,
+      theme: "grid",
+      headStyles: { fillColor: [4, 120, 87] }, // emerald-800
+      foot: [["", "", "", "", "TOTAL", formatCurrency(totalPembayaran)]],
+      footStyles: { fillColor: [240, 253, 244], textColor: [4, 120, 87], fontStyle: "bold" },
+    });
+
+    // Tanda Tangan
+    const finalY = (doc as any).lastAutoTable.finalY || 85;
+    doc.text("Mengetahui,", 400, finalY + 40);
+    doc.text("Bendahara", 400, finalY + 55);
+    doc.line(400, finalY + 110, 530, finalY + 110);
+
     doc.save(`laporan-keuangan-${activeEntity}.pdf`);
   }
 
@@ -1749,14 +1923,24 @@ export default function FinanceModule({
 
       {tab === "pengaturan" ? (
         <div className="grid gap-4">
-          <SubTabBar
-            value={pengaturanTab}
-            onChange={setPengaturanTab}
-            items={[
-              { value: "konfigurasi", label: "Pengaturan & Komponen" },
-              { value: "daftar", label: "Daftar Hasil Konfigurasi" },
-            ]}
-          />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <SubTabBar
+              value={pengaturanTab}
+              onChange={setPengaturanTab}
+              items={[
+                { value: "konfigurasi", label: "Pengaturan & Komponen" },
+                { value: "daftar", label: "Daftar Hasil Konfigurasi" },
+              ]}
+            />
+            {activeRole === "superadmin" ? (
+              <button
+                onClick={() => setShowResetModal(true)}
+                className="rounded bg-red-700 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-red-800"
+              >
+                Reset Semua Data Keuangan
+              </button>
+            ) : null}
+          </div>
           {pengaturanTab === "konfigurasi" ? (
             <div className="grid gap-5 xl:grid-cols-[460px_1fr]">
               <form onSubmit={savePaymentSetting} className="rounded bg-white p-5 shadow-soft">
@@ -2344,6 +2528,7 @@ export default function FinanceModule({
                 setPaymentForm((form) => ({
                   ...form,
                   mode: "cicil",
+                  metode: "cash",
                   tunai: "",
                   dari_tabungan: "",
                 }));
@@ -2364,6 +2549,7 @@ export default function FinanceModule({
                 setPaymentForm((form) => ({
                   ...form,
                   mode: "cicil",
+                  metode: "cash",
                   tunai: "",
                   dari_tabungan: "",
                 }));
@@ -2415,6 +2601,7 @@ export default function FinanceModule({
                     ...form,
                     mode: event.target.value,
                     tunai: event.target.value === "lunas" ? "" : form.tunai,
+                    dari_tabungan: event.target.value === "lunas" ? "" : form.dari_tabungan,
                   }))
                 }
                 className={inputClass}
@@ -2422,33 +2609,40 @@ export default function FinanceModule({
                 <option value="cicil">Cicil</option>
                 <option value="lunas">Lunas</option>
               </select>
+              
+              <select
+                value={paymentForm.metode || "cash"}
+                onChange={(event) => {
+                  const newMetode = event.target.value;
+                  setPaymentForm((form) => ({
+                    ...form,
+                    metode: newMetode,
+                    tunai: "",
+                    dari_tabungan: "",
+                  }));
+                }}
+                className={inputClass}
+              >
+                <option value="cash">Metode: Tunai / Transfer</option>
+                <option value="tabungan">Metode: Ambil dari Tabungan Kegiatan</option>
+              </select>
+
               <input
                 type="number"
-                value={paymentForm.tunai}
+                value={paymentForm.metode === "tabungan" ? paymentForm.dari_tabungan : paymentForm.tunai}
                 onChange={(event) =>
                   setPaymentForm((form) => ({
                     ...form,
-                    tunai: event.target.value,
+                    tunai: form.metode === "tabungan" ? "" : event.target.value,
+                    dari_tabungan: form.metode === "tabungan" ? event.target.value : "",
                   }))
                 }
                 placeholder={
                   paymentForm.mode === "lunas"
-                    ? `Otomatis: ${formatCurrency(Math.max(selectedRemaining - parseAmount(paymentForm.dari_tabungan), 0))}`
-                    : "Nominal cicilan tunai/transfer"
+                    ? `Otomatis lunas: ${formatCurrency(selectedRemaining)}`
+                    : `Nominal cicilan ${paymentForm.metode === "tabungan" ? "dari tabungan" : "tunai/transfer"}`
                 }
                 disabled={paymentForm.mode === "lunas"}
-                className={inputClass}
-              />
-              <input
-                type="number"
-                value={paymentForm.dari_tabungan}
-                onChange={(event) =>
-                  setPaymentForm((form) => ({
-                    ...form,
-                    dari_tabungan: event.target.value,
-                  }))
-                }
-                placeholder="Ambil dari tabungan kegiatan"
                 className={inputClass}
               />
               <input
@@ -2758,6 +2952,7 @@ export default function FinanceModule({
               { value: "ringkasan", label: "Ringkasan" },
               { value: "pembayaran", label: "Data Pembayaran" },
               { value: "tunggakan", label: "Data Tunggakan" },
+              { value: "rekap_tagihan", label: "Rekap per Tagihan" },
             ]}
           />
           <div className="rounded bg-white p-5 shadow-soft">
@@ -2906,6 +3101,104 @@ export default function FinanceModule({
             })}
           />
           ) : null}
+
+          {laporanTab === "rekap_tagihan" ? (
+            <div className="rounded bg-white p-5 shadow-soft">
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  value={selectedRekapTagihan}
+                  onChange={(e) => setSelectedRekapTagihan(e.target.value)}
+                  className={`${inputClass} flex-1 md:max-w-md`}
+                >
+                  <option value="">Pilih tagihan untuk direkap</option>
+                  {invoiceBatches.map((batch) => (
+                    <option key={batch.id} value={batch.id}>
+                      {batch.label} ({batch.count} data)
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={exportRekapPdf}
+                  disabled={!selectedRekapTagihan}
+                  className="inline-flex items-center rounded bg-emerald-800 px-4 py-2 font-semibold text-white disabled:opacity-50"
+                >
+                  Cetak PDF Rekap
+                </button>
+              </div>
+
+              {selectedRekapTagihan ? (
+                <div className="mt-5">
+                  <DataTable
+                    headers={["NIS", "Nama", "Total Tagihan", "Terbayar", "Sisa", "Status"]}
+                    rows={rekapTagihanData.map((invoice) => {
+                      const member = memberByAnyId(invoice.anggota_id);
+                      const paid = payments
+                        .filter((payment) => payment.tagihan_id === invoice.id)
+                        .reduce((total, payment) => total + Number(payment.jumlah_bayar || 0), 0);
+                      const nominal = Number(invoice.nominal || 0);
+                      const sisa = Math.max(nominal - paid, 0);
+                      
+                      return [
+                        member?.nis || "-",
+                        member?.nama_lengkap || "-",
+                        formatCurrency(nominal),
+                        formatCurrency(paid),
+                        <span key="sisa" className={sisa > 0 ? "font-semibold text-red-700" : "text-emerald-700"}>
+                          {formatCurrency(sisa)}
+                        </span>,
+                        <span key="status" className={invoice.status === "lunas" ? "font-semibold text-emerald-700" : sisa < nominal ? "font-semibold text-blue-700" : "font-semibold text-red-700"}>
+                          {invoice.status === "lunas" ? "Lunas" : sisa < nominal ? "Cicilan" : "Belum Lunas"}
+                        </span>
+                      ];
+                    })}
+                  />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {showResetModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-red-700">DANGER ZONE: Reset Semua Data Keuangan</h3>
+            <p className="mt-2 text-sm text-gray-700">
+              Perhatian! Tindakan ini akan <strong>menghapus permanen</strong> seluruh catatan tagihan, riwayat pembayaran, mutasi tabungan, dan konfigurasi tarif di entitas {entityLabel(activeEntity)}. Data yang terhapus tidak dapat dikembalikan.
+            </p>
+            <p className="mt-4 text-sm font-semibold text-gray-900">
+              Ketik <span className="rounded bg-gray-200 px-1 font-mono text-red-600">hapus semua data sekarang</span> untuk melanjutkan.
+            </p>
+            <input
+              type="text"
+              value={resetValidationText}
+              onChange={(e) => setResetValidationText(e.target.value)}
+              className={`${inputClass} mt-2 w-full`}
+              placeholder="hapus semua data sekarang"
+            />
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowResetModal(false);
+                  setResetValidationText("");
+                }}
+                className="rounded px-4 py-2 text-sm font-semibold hover:bg-gray-100"
+                disabled={isResetting}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleResetAllData}
+                disabled={resetValidationText !== "hapus semua data sekarang" || isResetting}
+                className="rounded bg-red-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {isResetting ? "Menghapus..." : "Hapus Permanen"}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </section>

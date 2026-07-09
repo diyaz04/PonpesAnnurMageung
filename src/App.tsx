@@ -9,10 +9,12 @@ import PesantrenAdminPage from "./pages/admin/PesantrenAdminPage";
 import SmpAdminPage from "./pages/admin/SmpAdminPage";
 import PesantrenArticlePage from "./pages/public/PesantrenArticlePage";
 import PesantrenLandingPage from "./pages/public/PesantrenLandingPage";
+import PesantrenLetterValidationPage from "./pages/public/PesantrenLetterValidationPage";
 import PermissionValidationPage from "./pages/public/PermissionValidationPage";
 import PsbValidationPage from "./pages/public/PsbValidationPage";
 import SpmbValidationPage from "./pages/public/SpmbValidationPage";
 import SmpLandingPage from "./pages/public/SmpLandingPage";
+import SmpLetterValidationPage from "./pages/public/SmpLetterValidationPage";
 import SmpPresensiPage from "./pages/public/SmpPresensiPage";
 
 const adminRoles = ["superadmin", "admin", "bendahara", "guru"];
@@ -30,6 +32,8 @@ export default function App() {
         <Route path="validasi-izin/:id" element={<PermissionValidationPage />} />
         <Route path="validasi-psb/:id" element={<PsbValidationPage />} />
         <Route path="validasi-spmb/:id" element={<SpmbValidationPage />} />
+        <Route path="validasi-surat-pesantren/:id" element={<PesantrenLetterValidationPage />} />
+        <Route path="validasi-surat-smp/:id" element={<SmpLetterValidationPage />} />
       </Route>
 
       {/* Presensi publik — standalone full-page tanpa PublicLayout */}

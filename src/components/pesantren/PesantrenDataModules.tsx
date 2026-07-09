@@ -1,10 +1,13 @@
 import {
   Download,
+  ExternalLink,
   Eye,
   FileText,
   FileUp,
+  Mail,
   Pencil,
   Plus,
+  QrCode,
   RefreshCcw,
   Save,
   Search,
@@ -47,8 +50,26 @@ type Santri = {
   nama_lengkap: string;
   jenis_kelamin: "L" | "P";
   tahun_masuk: number;
+  tanggal_masuk: string | null;
+  kewarganegaraan: string | null;
+  nik: string | null;
+  nisn: string | null;
+  tempat_lahir: string | null;
   kelas_pengajian: string | null;
   tanggal_lahir: string | null;
+  agama: string | null;
+  no_handphone: string | null;
+  nama_ayah_kandung: string | null;
+  status_ayah_kandung: string | null;
+  nik_ayah: string | null;
+  nama_ibu_kandung: string | null;
+  status_ibu_kandung: string | null;
+  nik_ibu: string | null;
+  status_wali: string | null;
+  jenjang: string | null;
+  tingkat_kelas: string | null;
+  kitas: string | null;
+  asal_negara: string | null;
   alamat: string | null;
   nama_wali: string | null;
   no_hp_wali: string | null;
@@ -140,7 +161,26 @@ type PsbRow = {
   nomor_pendaftaran: string | null;
   nama_lengkap: string;
   jenis_kelamin: string | null;
+  tanggal_masuk: string | null;
+  kewarganegaraan: string | null;
+  nik: string | null;
+  nisn: string | null;
+  tempat_lahir: string | null;
   tanggal_lahir: string | null;
+  agama: string | null;
+  no_handphone: string | null;
+  nama_ayah_kandung: string | null;
+  status_ayah_kandung: string | null;
+  nik_ayah: string | null;
+  nama_ibu_kandung: string | null;
+  status_ibu_kandung: string | null;
+  nik_ibu: string | null;
+  status_wali: string | null;
+  nama_wali: string | null;
+  jenjang: string | null;
+  tingkat_kelas: string | null;
+  kitas: string | null;
+  asal_negara: string | null;
   alamat: string | null;
   nama_orang_tua: string | null;
   no_hp: string | null;
@@ -204,12 +244,20 @@ type CapaianField = {
   urutan: number;
 };
 
+type SignatureMode = "wet" | "digital";
+
 const emptySantri: Partial<Santri> = {
   nama_lengkap: "",
   jenis_kelamin: "L",
   tahun_masuk: new Date().getFullYear(),
+  tanggal_masuk: new Date().toISOString().slice(0, 10),
+  kewarganegaraan: "Indonesia",
+  agama: "Islam",
   kelas_pengajian: "",
+  jenjang: "",
+  tingkat_kelas: "",
   tanggal_lahir: "",
+  tempat_lahir: "",
   alamat: "",
   nama_wali: "",
   no_hp_wali: "",
@@ -219,39 +267,74 @@ const emptySantri: Partial<Santri> = {
 type SantriImportKey =
   | "nis"
   | "kode_unik"
+  | "tanggal_masuk"
   | "nama_lengkap"
+  | "kewarganegaraan"
+  | "nik"
+  | "nisn"
   | "jenis_kelamin"
-  | "tahun_masuk"
-  | "kelas_pengajian"
+  | "tempat_lahir"
   | "tanggal_lahir"
-  | "alamat"
+  | "agama"
+  | "no_handphone"
+  | "nama_ayah_kandung"
+  | "status_ayah_kandung"
+  | "nik_ayah"
+  | "nama_ibu_kandung"
+  | "status_ibu_kandung"
+  | "nik_ibu"
+  | "status_wali"
   | "nama_wali"
+  | "tahun_masuk"
+  | "jenjang"
+  | "tingkat_kelas"
+  | "kelas_pengajian"
+  | "kitas"
+  | "asal_negara"
+  | "alamat"
   | "no_hp_wali"
   | "status";
 
 const santriImportColumns: ExcelColumn<SantriImportKey>[] = [
   { key: "nis", header: "NIS", example: "2526-L-0001" },
   { key: "kode_unik", header: "Kode Unik", example: "ABC12345" },
+  { key: "tanggal_masuk", header: "Tanggal Masuk", example: "2026-07-01" },
   { key: "nama_lengkap", header: "Nama Lengkap", required: true, example: "Ahmad Fauzi" },
+  { key: "kewarganegaraan", header: "Kewarganegaraan", example: "Indonesia" },
+  { key: "nik", header: "NIK", example: "3200000000000001" },
+  { key: "nisn", header: "NISN", example: "0123456789" },
   { key: "jenis_kelamin", header: "Jenis Kelamin", required: true, example: "L" },
-  { key: "tahun_masuk", header: "Tahun Masuk", required: true, example: "2026" },
-  { key: "kelas_pengajian", header: "Kelas Pengajian", example: "Ibtida A" },
+  { key: "tempat_lahir", header: "Tempat Lahir", example: "Tasikmalaya" },
   { key: "tanggal_lahir", header: "Tanggal Lahir", example: "2012-05-20" },
-  { key: "alamat", header: "Alamat", example: "Sariwangi, Tasikmalaya" },
+  { key: "agama", header: "Agama", example: "Islam" },
+  { key: "no_handphone", header: "No Handphone", example: "081234567890" },
+  { key: "nama_ayah_kandung", header: "Nama Ayah Kandung", example: "Bapak Abdullah" },
+  { key: "status_ayah_kandung", header: "Status Ayah Kandung", example: "Kandung" },
+  { key: "nik_ayah", header: "NIK Ayah", example: "3200000000000002" },
+  { key: "nama_ibu_kandung", header: "Nama Ibu Kandung", example: "Ibu Aminah" },
+  { key: "status_ibu_kandung", header: "Status Ibu Kandung", example: "Kandung" },
+  { key: "nik_ibu", header: "NIK Ibu", example: "3200000000000003" },
+  { key: "status_wali", header: "Status Wali", example: "Orang Tua" },
   { key: "nama_wali", header: "Nama Wali", example: "Bapak Abdullah" },
+  { key: "tahun_masuk", header: "Tahun Masuk", required: true, example: "2026" },
+  { key: "jenjang", header: "Jenjang", example: "Pesantren" },
+  { key: "tingkat_kelas", header: "Tingkat Kelas", example: "Ibtida A" },
+  { key: "kelas_pengajian", header: "Kelas Pengajian", example: "Ibtida A" },
+  { key: "kitas", header: "KITAS", example: "" },
+  { key: "asal_negara", header: "Asal Negara", example: "Indonesia" },
+  { key: "alamat", header: "Alamat", example: "Sariwangi, Tasikmalaya" },
   { key: "no_hp_wali", header: "No HP Wali", example: "081234567890" },
   { key: "status", header: "Status", example: "aktif" },
 ];
 
 const suratTemplates = [
   "Surat Keterangan Aktif / Masih Mondok",
-  "Surat Keterangan Lulus / Alumni",
-  "Surat Izin Pulang / Keluar Pesantren",
-  "Surat Panggilan Orang Tua / Wali",
-  "Surat Keterangan Pindah / Mutasi",
-  "Surat Keterangan Kelakuan Baik",
   "Surat Undangan Acara/Kegiatan",
-  "Surat Keterangan Lainnya",
+];
+
+const SURAT_CARDS = [
+  { id: "aktif", title: "Surat Keterangan Aktif / Masih Mondok", desc: "Keterangan santri masih aktif mondok.", icon: UserCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
+  { id: "undangan", title: "Surat Undangan Acara/Kegiatan", desc: "Undangan kegiatan resmi pesantren.", icon: Mail, color: "text-pink-600", bg: "bg-pink-50" },
 ];
 
 function formatDate(value?: string | null) {
@@ -358,6 +441,24 @@ async function imageToDataUrl(url: string) {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
+}
+
+async function drawPesantrenKop(doc: any, y = 7) {
+  try {
+    const kop = await imageToDataUrl("/kop-pesantren.png");
+    doc.addImage(kop, "PNG", 15, y, 180, 41);
+  } catch {
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("times", "bold");
+    doc.setFontSize(14);
+    doc.text("PONDOK PESANTREN AN-NUR", 105, y + 16, { align: "center" });
+    doc.setFontSize(10);
+    doc.text("Kp. Mageung Ds. Sirnasari Kec. Sariwangi Kab. Tasikmalaya", 105, y + 24, { align: "center" });
+    doc.setLineWidth(0.8);
+    doc.line(15, y + 36, 195, y + 36);
+    doc.setLineWidth(0.25);
+    doc.line(15, y + 38, 195, y + 38);
+  }
 }
 
 function santriToDocumentData(row: Santri): StudentDocumentData {
@@ -468,8 +569,26 @@ function DataSantriModule() {
       nama_lengkap: editing.nama_lengkap,
       jenis_kelamin: editing.jenis_kelamin,
       tahun_masuk: Number(editing.tahun_masuk),
-      kelas_pengajian: editing.kelas_pengajian || null,
+      tanggal_masuk: editing.tanggal_masuk || null,
+      kewarganegaraan: editing.kewarganegaraan || null,
+      nik: editing.nik || null,
+      nisn: editing.nisn || null,
+      tempat_lahir: editing.tempat_lahir || null,
       tanggal_lahir: editing.tanggal_lahir || null,
+      agama: editing.agama || null,
+      no_handphone: editing.no_handphone || null,
+      nama_ayah_kandung: editing.nama_ayah_kandung || null,
+      status_ayah_kandung: editing.status_ayah_kandung || null,
+      nik_ayah: editing.nik_ayah || null,
+      nama_ibu_kandung: editing.nama_ibu_kandung || null,
+      status_ibu_kandung: editing.status_ibu_kandung || null,
+      nik_ibu: editing.nik_ibu || null,
+      status_wali: editing.status_wali || null,
+      jenjang: editing.jenjang || null,
+      tingkat_kelas: editing.tingkat_kelas || null,
+      kelas_pengajian: editing.kelas_pengajian || editing.tingkat_kelas || null,
+      kitas: editing.kitas || null,
+      asal_negara: editing.asal_negara || null,
       alamat: editing.alamat || null,
       nama_wali: editing.nama_wali || null,
       no_hp_wali: editing.no_hp_wali || null,
@@ -559,8 +678,26 @@ function DataSantriModule() {
           nama_lengkap: nama,
           jenis_kelamin: jenisKelamin,
           tahun_masuk: Number(tahunMasuk),
-          kelas_pengajian: excelCellToText(row.kelas_pengajian) || null,
+          tanggal_masuk: parseExcelDate(row.tanggal_masuk),
+          kewarganegaraan: excelCellToText(row.kewarganegaraan) || null,
+          nik: excelCellToText(row.nik) || null,
+          nisn: excelCellToText(row.nisn) || null,
+          tempat_lahir: excelCellToText(row.tempat_lahir) || null,
           tanggal_lahir: parseExcelDate(row.tanggal_lahir),
+          agama: excelCellToText(row.agama) || null,
+          no_handphone: excelCellToText(row.no_handphone) || null,
+          nama_ayah_kandung: excelCellToText(row.nama_ayah_kandung) || null,
+          status_ayah_kandung: excelCellToText(row.status_ayah_kandung) || null,
+          nik_ayah: excelCellToText(row.nik_ayah) || null,
+          nama_ibu_kandung: excelCellToText(row.nama_ibu_kandung) || null,
+          status_ibu_kandung: excelCellToText(row.status_ibu_kandung) || null,
+          nik_ibu: excelCellToText(row.nik_ibu) || null,
+          status_wali: excelCellToText(row.status_wali) || null,
+          jenjang: excelCellToText(row.jenjang) || null,
+          tingkat_kelas: excelCellToText(row.tingkat_kelas) || null,
+          kelas_pengajian: excelCellToText(row.kelas_pengajian) || excelCellToText(row.tingkat_kelas) || null,
+          kitas: excelCellToText(row.kitas) || null,
+          asal_negara: excelCellToText(row.asal_negara) || null,
           alamat: excelCellToText(row.alamat) || null,
           nama_wali: excelCellToText(row.nama_wali) || null,
           no_hp_wali: excelCellToText(row.no_hp_wali) || null,
@@ -896,6 +1033,19 @@ function DataSantriModule() {
                 className={inputClass}
               />
             </Field>
+            <Field label="Tanggal masuk">
+              <input
+                type="date"
+                value={editing.tanggal_masuk || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({
+                    ...current,
+                    tanggal_masuk: event.target.value,
+                  }))
+                }
+                className={inputClass}
+              />
+            </Field>
             <Field label="Kelas pengajian">
               <input
                 value={editing.kelas_pengajian || ""}
@@ -909,6 +1059,26 @@ function DataSantriModule() {
                 className={inputClass}
               />
             </Field>
+            <Field label="Jenjang">
+              <input
+                value={editing.jenjang || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, jenjang: event.target.value }))
+                }
+                placeholder="Contoh: Pesantren"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Tingkat kelas">
+              <input
+                value={editing.tingkat_kelas || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, tingkat_kelas: event.target.value }))
+                }
+                placeholder="Contoh: Ibtida A"
+                className={inputClass}
+              />
+            </Field>
             <Field label="NIS">
               <input
                 value={editing.nis || ""}
@@ -916,6 +1086,24 @@ function DataSantriModule() {
                   setEditing((current) => ({ ...current, nis: event.target.value }))
                 }
                 placeholder="Otomatis jika kosong"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="NISN">
+              <input
+                value={editing.nisn || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, nisn: event.target.value }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="NIK">
+              <input
+                value={editing.nik || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, nik: event.target.value }))
+                }
                 className={inputClass}
               />
             </Field>
@@ -932,6 +1120,15 @@ function DataSantriModule() {
                 className={inputClass}
               />
             </Field>
+            <Field label="Tempat lahir">
+              <input
+                value={editing.tempat_lahir || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, tempat_lahir: event.target.value }))
+                }
+                className={inputClass}
+              />
+            </Field>
             <Field label="Tanggal lahir">
               <input
                 type="date"
@@ -941,6 +1138,96 @@ function DataSantriModule() {
                     ...current,
                     tanggal_lahir: event.target.value,
                   }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Agama">
+              <input
+                value={editing.agama || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, agama: event.target.value }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Kewarganegaraan">
+              <input
+                value={editing.kewarganegaraan || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, kewarganegaraan: event.target.value }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="No handphone">
+              <input
+                value={editing.no_handphone || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, no_handphone: event.target.value }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Nama ayah kandung">
+              <input
+                value={editing.nama_ayah_kandung || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, nama_ayah_kandung: event.target.value }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Status ayah kandung">
+              <input
+                value={editing.status_ayah_kandung || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, status_ayah_kandung: event.target.value }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="NIK ayah">
+              <input
+                value={editing.nik_ayah || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, nik_ayah: event.target.value }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Nama ibu kandung">
+              <input
+                value={editing.nama_ibu_kandung || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, nama_ibu_kandung: event.target.value }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Status ibu kandung">
+              <input
+                value={editing.status_ibu_kandung || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, status_ibu_kandung: event.target.value }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="NIK ibu">
+              <input
+                value={editing.nik_ibu || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, nik_ibu: event.target.value }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Status wali">
+              <input
+                value={editing.status_wali || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, status_wali: event.target.value }))
                 }
                 className={inputClass}
               />
@@ -965,6 +1252,24 @@ function DataSantriModule() {
                     ...current,
                     no_hp_wali: event.target.value,
                   }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="KITAS">
+              <input
+                value={editing.kitas || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, kitas: event.target.value }))
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Asal negara">
+              <input
+                value={editing.asal_negara || ""}
+                onChange={(event) =>
+                  setEditing((current) => ({ ...current, asal_negara: event.target.value }))
                 }
                 className={inputClass}
               />
@@ -1041,10 +1346,12 @@ function DataSantriModule() {
                   />
                 </th>
                 <th className="px-4 py-3">NIS</th>
+                <th className="px-4 py-3">NISN</th>
+                <th className="px-4 py-3">NIK</th>
                 <th className="px-4 py-3">Nama</th>
                 <th className="px-4 py-3">JK</th>
                 <th className="px-4 py-3">Tahun</th>
-                <th className="px-4 py-3">Kelas Pengajian</th>
+                <th className="px-4 py-3">Tingkat Kelas</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Aksi</th>
               </tr>
@@ -1062,10 +1369,12 @@ function DataSantriModule() {
                     />
                   </td>
                   <td className="px-4 py-3 font-semibold">{row.nis}</td>
+                  <td className="px-4 py-3">{row.nisn || "-"}</td>
+                  <td className="px-4 py-3">{row.nik || "-"}</td>
                   <td className="px-4 py-3">{row.nama_lengkap}</td>
                   <td className="px-4 py-3">{row.jenis_kelamin}</td>
                   <td className="px-4 py-3">{row.tahun_masuk}</td>
-                  <td className="px-4 py-3">{row.kelas_pengajian || "-"}</td>
+                  <td className="px-4 py-3">{row.tingkat_kelas || row.kelas_pengajian || "-"}</td>
                   <td className="px-4 py-3 capitalize">{row.status}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
@@ -1887,53 +2196,60 @@ function RaportModule({ role }: { role: string }) {
       nilai: nilaiRows.find((row) => row.santri_id === student.id && row.mapel_id === item.id),
     }));
     const { jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
+    const autoTable = (await import("jspdf-autotable")).default;
+    const doc = new jsPDF("p", "pt", "a4");
+    
     const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFillColor(6, 78, 59);
-    doc.rect(0, 0, pageWidth, 34, "F");
+    doc.rect(0, 0, pageWidth, 60, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
-    doc.text("RAPORT SANTRI", pageWidth / 2, 13, { align: "center" });
-    doc.setFontSize(10);
-    doc.text("PONDOK PESANTREN AN-NUR MAGEUNG", pageWidth / 2, 21, { align: "center" });
+    doc.setFontSize(18);
+    doc.text("RAPORT SANTRI", pageWidth / 2, 25, { align: "center" });
+    doc.setFontSize(12);
+    doc.text("PONDOK PESANTREN AN-NUR MAGEUNG", pageWidth / 2, 45, { align: "center" });
+    
     doc.setTextColor(17, 24, 39);
     doc.setFont("helvetica", "normal");
-    doc.text(`Nama: ${student.nama_lengkap}`, 14, 46);
-    doc.text(`NIS: ${student.nis}`, 14, 53);
-    doc.text(`Kelas Pengajian: ${kelompok}`, 14, 60);
-    doc.text(`Periode: ${selectedPeriodRow.nama || `${selectedPeriodRow.tahun_ajaran} - ${selectedPeriodRow.semester}`}`, 112, 46);
-    doc.text(`Status: ${publish ? "Published" : "Preview"}`, 112, 53);
-    let y = 74;
-    doc.setFont("helvetica", "bold");
-    doc.setFillColor(240, 253, 244);
-    doc.rect(14, y - 7, 182, 9, "F");
-    doc.text("Pelajaran / Kitab", 18, y);
-    doc.text("Nilai", 104, y);
-    doc.text("Predikat", 128, y);
-    doc.text("Deskripsi", 154, y);
-    y += 9;
-    doc.setFont("helvetica", "normal");
-    rows.forEach((row) => {
-      const deskripsi = doc.splitTextToSize(row.nilai?.deskripsi || "-", 38);
-      const rowHeight = Math.max(10, deskripsi.length * 5);
-      if (y + rowHeight > 280) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.text(row.mapel.mata_pelajaran, 18, y);
-      doc.text(row.nilai?.nilai || "-", 104, y);
-      doc.text(row.nilai?.predikat || "-", 128, y);
-      doc.text(deskripsi, 154, y);
-      doc.line(14, y + rowHeight - 5, 196, y + rowHeight - 5);
-      y += rowHeight;
-    });
-    y = Math.max(y + 12, 220);
     doc.setFontSize(10);
-    doc.text("Wali Asrama / Ustadz", 28, y);
-    doc.text("Pengasuh Pesantren", 136, y);
-    doc.text("(________________)", 26, y + 30);
-    doc.text("(________________)", 132, y + 30);
+    doc.text(`Nama: ${student.nama_lengkap}`, 40, 90);
+    doc.text(`NIS: ${student.nis}`, 40, 105);
+    doc.text(`Kelas Pengajian: ${kelompok}`, 40, 120);
+    
+    doc.text(`Periode: ${selectedPeriodRow.nama || `${selectedPeriodRow.tahun_ajaran} - ${selectedPeriodRow.semester}`}`, 350, 90);
+    doc.text(`Status: ${publish ? "Published" : "Preview"}`, 350, 105);
+
+    const tableBody = rows.map((row, index) => [
+      index + 1,
+      row.mapel.mata_pelajaran,
+      row.nilai?.nilai || "-",
+      row.nilai?.predikat || "-",
+      row.nilai?.deskripsi || "-",
+    ]);
+
+    autoTable(doc, {
+      startY: 140,
+      head: [["No", "Pelajaran / Kitab", "Nilai", "Predikat", "Deskripsi"]],
+      body: tableBody,
+      theme: "grid",
+      headStyles: { fillColor: [4, 120, 87] },
+      columnStyles: {
+        0: { cellWidth: 30 },
+        1: { cellWidth: 150 },
+        2: { cellWidth: 40, halign: "center" },
+        3: { cellWidth: 50, halign: "center" },
+        4: { cellWidth: "auto" },
+      },
+      styles: { fontSize: 10, cellPadding: 6 },
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY || 140;
+    
+    doc.setFontSize(10);
+    doc.text("Wali Asrama / Ustadz", 70, finalY + 40);
+    doc.text("Pengasuh Pesantren", 410, finalY + 40);
+    doc.text("(_________________)", 65, finalY + 90);
+    doc.text("(_________________)", 405, finalY + 90);
     const filename = `raport-${student.nis}-${selectedPeriodRow.tahun_ajaran.replace("/", "-")}-${selectedPeriodRow.semester}.pdf`;
     if (!publish) {
       doc.save(filename);
@@ -3020,6 +3336,11 @@ function PerizinanModule({ role }: { role: string }) {
     catatan: "",
     nomor_surat: "",
   });
+  const [signatureMode, setSignatureMode] = useState<SignatureMode>("wet");
+  const [signer, setSigner] = useState({
+    nama: "",
+    jabatan: "Pimpinan Pesantren",
+  });
   const [message, setMessage] = useNotifiedMessage();
 
   async function loadData() {
@@ -3053,97 +3374,105 @@ function PerizinanModule({ role }: { role: string }) {
     const { jsPDF } = await import("jspdf");
     const QRCode = await import("qrcode");
     const doc = new jsPDF();
-    const qrDataUrl = await QRCode.toDataURL(validationUrl, {
-      margin: 1,
-      width: 220,
-      color: { dark: "#064e3b", light: "#ffffff" },
-    });
-    const line = (label: string, value?: string | null) => `${label}: ${value || "-"}`;
+    const qrDataUrl =
+      signatureMode === "digital"
+        ? await QRCode.toDataURL(validationUrl, {
+            margin: 1,
+            width: 240,
+            color: { dark: "#064e3b", light: "#ffffff" },
+          })
+        : null;
+    const value = (text?: string | null) => text || "-";
+    const tanggalIzin = `${formatDate(form.tanggal_mulai)} s.d. ${formatDate(form.tanggal_selesai)}`;
 
-    doc.setDrawColor(6, 78, 59);
-    doc.setLineWidth(1.2);
-    doc.rect(10, 10, 190, 277);
+    await drawPesantrenKop(doc, 8);
 
-    doc.setFillColor(6, 78, 59);
-    doc.rect(10, 10, 190, 28, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
-    doc.text("PONDOK PESANTREN AN-NUR MAGEUNG", 105, 21, { align: "center" });
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.text("Mageung, Sariwangi, Tasikmalaya", 105, 29, { align: "center" });
-
-    doc.setTextColor(17, 24, 39);
-    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.setDrawColor(0, 0, 0);
+    doc.setFont("times", "bold");
     doc.setFontSize(13);
-    doc.text(`SURAT IZIN ${form.jenis_izin.toUpperCase()}`, 105, 51, { align: "center" });
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Nomor: ${nomorSurat}`, 105, 58, { align: "center" });
+    doc.text(`SURAT IZIN ${form.jenis_izin.toUpperCase()}`, 105, 59, { align: "center" });
+    const titleWidth = doc.getTextWidth(`SURAT IZIN ${form.jenis_izin.toUpperCase()}`);
+    doc.line(105 - titleWidth / 2, 60.5, 105 + titleWidth / 2, 60.5);
+    doc.setFont("times", "normal");
+    doc.setFontSize(11);
+    doc.text(`Nomor : ${nomorSurat}`, 105, 68, { align: "center" });
 
-    doc.setDrawColor(209, 213, 219);
-    doc.line(20, 66, 190, 66);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(
-      doc.splitTextToSize(
-        "Yang bertanda tangan di bawah ini menerangkan bahwa santri berikut telah mendapatkan izin resmi dari pihak pesantren.",
-        170,
-      ),
-      20,
-      76,
+    doc.setFontSize(11);
+    const intro = doc.splitTextToSize(
+      "Yang bertanda tangan di bawah ini menerangkan bahwa santri berikut telah mendapatkan izin resmi dari Pondok Pesantren An-Nur.",
+      170,
     );
+    doc.text(intro, 20, 82);
 
-    doc.setFillColor(240, 253, 244);
-    doc.roundedRect(20, 92, 170, 42, 2, 2, "F");
-    doc.setFont("helvetica", "bold");
-    doc.text("DATA SANTRI", 25, 101);
-    doc.setFont("helvetica", "normal");
-    doc.text(line("Nama", selectedSantri?.nama_lengkap), 25, 111);
-    doc.text(line("NIS", selectedSantri?.nis), 25, 119);
-    doc.text(line("Kelas Pengajian", selectedSantri ? kelasPengajianLabel(selectedSantri) : "-"), 105, 111);
-    doc.text(line("Wali", selectedSantri?.nama_wali), 105, 119);
+    const drawRow = (label: string, text: string, x: number, y: number, labelWidth = 42, maxWidth = 122) => {
+      doc.setFont("times", "normal");
+      doc.text(label, x, y);
+      doc.text(":", x + labelWidth, y);
+      doc.text(doc.splitTextToSize(text || "-", maxWidth), x + labelWidth + 5, y);
+    };
 
-    doc.setFillColor(249, 250, 251);
-    doc.roundedRect(20, 142, 170, 66, 2, 2, "F");
-    doc.setFont("helvetica", "bold");
-    doc.text("DETAIL IZIN", 25, 151);
-    doc.setFont("helvetica", "normal");
-    doc.text(line("Jenis izin", form.jenis_izin), 25, 161);
-    doc.text(line("Tujuan", form.tujuan), 25, 169);
-    doc.text(line("Alasan", form.alasan), 25, 177);
-    doc.text(`Tanggal: ${formatDate(form.tanggal_mulai)} s.d. ${formatDate(form.tanggal_selesai)}`, 25, 185);
-    doc.text(line("Jam keluar", form.jam_keluar), 25, 193);
-    doc.text(line("Perkiraan kembali", form.jam_kembali), 105, 193);
-    doc.text(line("Penjemput/Pendamping", form.penjemput), 25, 201);
-    doc.text(line("No. HP", form.no_hp_penjemput), 105, 201);
+    doc.setFont("times", "bold");
+    doc.text("Data Santri", 20, 104);
+    doc.setFont("times", "normal");
+    drawRow("Nama", value(selectedSantri?.nama_lengkap), 25, 114);
+    drawRow("NIS", value(selectedSantri?.nis), 25, 122);
+    drawRow("Kelas Pengajian", selectedSantri ? kelasPengajianLabel(selectedSantri) : "-", 25, 130);
+    drawRow("Nama Wali", value(selectedSantri?.nama_wali), 25, 138);
+
+    doc.setFont("times", "bold");
+    doc.text("Detail Izin", 20, 154);
+    doc.setFont("times", "normal");
+    drawRow("Jenis Izin", value(form.jenis_izin), 25, 164);
+    drawRow("Tujuan", value(form.tujuan), 25, 172);
+    drawRow("Alasan", value(form.alasan), 25, 180);
+    drawRow("Tanggal", tanggalIzin, 25, 188);
+    drawRow("Jam Keluar", value(form.jam_keluar), 25, 196);
+    drawRow("Perkiraan Kembali", value(form.jam_kembali), 25, 204);
+    drawRow("Pendamping", value(form.penjemput), 25, 212);
+    drawRow("No. HP", value(form.no_hp_penjemput), 25, 220);
 
     const noteLines = doc.splitTextToSize(
       `Surat ini dibuat sebagai bukti bahwa santri yang bersangkutan telah mendapatkan izin. ${
         form.catatan ? `Catatan: ${form.catatan}` : ""
       }`,
-      112,
+      170,
     );
-    doc.text(noteLines, 20, 220);
+    doc.text(noteLines, 20, 238);
 
-    doc.addImage(qrDataUrl, "PNG", 153, 216, 31, 31);
-    doc.setFontSize(7.5);
-    doc.setFont("helvetica", "bold");
-    doc.text("VALIDASI QR", 168.5, 252, { align: "center" });
-    doc.setFont("helvetica", "normal");
-    doc.text(doc.splitTextToSize(validationUrl, 42), 147, 257);
+    const signX = 125;
+    const signY = 254;
+    doc.text(`Sariwangi, ${formatDate(form.tanggal_mulai)}`, signX, signY);
+    doc.text(signer.jabatan || "Pimpinan Pesantren", signX, signY + 8);
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, "PNG", signX, signY + 13, 23, 23);
+      doc.setFontSize(6.8);
+      doc.text("Tanda tangan digital", signX + 28, signY + 18);
+      doc.text("Scan QR untuk validasi", signX + 28, signY + 22);
+      doc.setFontSize(5.2);
+      doc.text(doc.splitTextToSize(validationUrl, 48).slice(0, 2), signX + 28, signY + 26);
+      doc.setFont("times", "bold");
+      doc.setFontSize(10.5);
+      doc.text(signer.nama || "(________________)", signX + 28, signY + 39);
+      const nameWidth = doc.getTextWidth(signer.nama || "(________________)");
+      doc.line(signX + 28, signY + 40, signX + 28 + nameWidth, signY + 40);
+    } else {
+      doc.setFont("times", "bold");
+      doc.text(signer.nama || "(________________)", signX, signY + 38);
+      const nameWidth = doc.getTextWidth(signer.nama || "(________________)");
+      doc.line(signX, signY + 39, signX + nameWidth, signY + 39);
+    }
 
-    doc.setFontSize(10);
-    doc.text("Petugas Pesantren", 135, 265);
-    doc.setFont("helvetica", "bold");
-    doc.text(form.penanggung_jawab || "(________________)", 130, 282);
-
-    doc.setFont("helvetica", "normal");
+    doc.setFont("times", "normal");
     doc.setFontSize(8);
     doc.setTextColor(75, 85, 99);
-    doc.text("Scan QR untuk memastikan surat ini cocok dengan arsip digital pesantren.", 20, 281);
+    doc.text(
+      signatureMode === "digital"
+        ? "QR pada tanda tangan berisi tautan validasi keabsahan surat."
+        : "Surat ini dapat ditandatangani basah setelah dicetak.",
+      20,
+      282,
+    );
     return { doc, blob: doc.output("blob") };
   }
 
@@ -3256,6 +3585,43 @@ function PerizinanModule({ role }: { role: string }) {
           <input type="time" value={form.jam_kembali} onChange={(event) => setForm((current) => ({ ...current, jam_kembali: event.target.value }))} className={inputClass} />
         </div>
         <textarea value={form.catatan} onChange={(event) => setForm((current) => ({ ...current, catatan: event.target.value }))} rows={3} placeholder="Catatan tambahan" className="mt-3 w-full rounded border border-gray-200 px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-700" />
+        <div className="mt-4 rounded border border-emerald-100 bg-emerald-50/60 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-950">Penandatangan Semua Surat Perizinan</h3>
+              <p className="mt-1 text-xs text-gray-600">Nama dan jabatan ini dipakai untuk surat yang digenerate dari menu perizinan.</p>
+            </div>
+            <div className="inline-flex rounded border border-gray-200 bg-white p-1">
+              {([
+                ["wet", "Basah"],
+                ["digital", "Digital QR"],
+              ] as const).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setSignatureMode(mode)}
+                  className={`rounded px-4 py-2 text-sm font-semibold ${signatureMode === mode ? "bg-emerald-800 text-white" : "text-gray-600 hover:text-gray-950"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <input
+              value={signer.nama}
+              onChange={(event) => setSigner((current) => ({ ...current, nama: event.target.value }))}
+              placeholder="Nama penandatangan"
+              className={inputClass}
+            />
+            <input
+              value={signer.jabatan}
+              onChange={(event) => setSigner((current) => ({ ...current, jabatan: event.target.value }))}
+              placeholder="Jabatan penandatangan"
+              className={inputClass}
+            />
+          </div>
+        </div>
         <button className="mt-4 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
           <FileText className="mr-2" size={17} />
           Simpan & Generate Surat
@@ -3324,6 +3690,9 @@ function SuratModule() {
   const { user } = useAuth();
   const [santri, setSantri] = useState<Santri[]>([]);
   const [archive, setArchive] = useState<SuratArchive[]>([]);
+  const [activeTab, setActiveTab] = useState<"buat" | "log">("buat");
+  const [activeCard, setActiveCard] = useState<string | null>(null);
+  const [signatureMode, setSignatureMode] = useState<SignatureMode>("wet");
   const [form, setForm] = useState({
     jenis_surat: suratTemplates[0],
     nomor_surat: "",
@@ -3332,8 +3701,18 @@ function SuratModule() {
     ditujukan: "",
     santri_id: "",
     isi_tambahan: "",
+    jabatan_penandatangan: "Pimpinan Pesantren",
+    nama_penandatangan: "",
+    undangan_acara: "",
+    undangan_tanggal: new Date().toISOString().slice(0, 10),
+    undangan_waktu: "",
+    undangan_tempat: "",
   });
   const [message, setMessage] = useNotifiedMessage();
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [previewValidationId, setPreviewValidationId] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
 
   async function loadData() {
     const [santriResult, archiveResult] = await Promise.all([
@@ -3351,46 +3730,308 @@ function SuratModule() {
   const selectedSantri = santri.find((item) => item.id === form.santri_id);
   const preview = `${form.jenis_surat}\nNomor: ${form.nomor_surat || "-"}\nPerihal: ${form.perihal || "-"}\nTanggal: ${formatDate(form.tanggal_surat)}\nDitujukan: ${form.ditujukan || "-"}\nSantri: ${selectedSantri?.nama_lengkap || "-"}\n\nDengan ini Pondok Pesantren An-Nur Mageung menerangkan bahwa informasi pada surat ini dibuat sesuai data administrasi pesantren.\n${form.isi_tambahan || ""}`;
 
-  async function generatePdf() {
-    const { jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
-    doc.setFontSize(14);
-    doc.text("PONDOK PESANTREN AN-NUR MAGEUNG", 105, 16, { align: "center" });
-    doc.setFontSize(10);
-    doc.text("Mageung, Sariwangi, Tasikmalaya", 105, 22, { align: "center" });
-    doc.line(14, 28, 196, 28);
-    doc.setFontSize(12);
-    doc.text(form.jenis_surat, 105, 40, { align: "center" });
-    doc.setFontSize(10);
-    const lines = doc.splitTextToSize(preview, 170);
-    doc.text(lines, 20, 52);
-    doc.text("Pimpinan Pesantren", 145, 250);
-
-    const blob = doc.output("blob");
-    const path = `pesantren/${Date.now()}-${randomCode(6)}.pdf`;
-    const upload = await supabase.storage.from("surat-keluar").upload(path, blob, {
-      contentType: "application/pdf",
+  function createUuid() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+      const random = Math.floor(Math.random() * 16);
+      const value = char === "x" ? random : (random & 0x3) | 0x8;
+      return value.toString(16);
     });
+  }
 
-    const { error } = await supabase.from("pp_surat_keluar").insert({
-      nomor_surat: form.nomor_surat || null,
-      jenis_surat: form.jenis_surat,
-      perihal: form.perihal || null,
-      ditujukan: form.ditujukan || null,
-      tanggal_surat: form.tanggal_surat,
-      santri_id: form.santri_id || null,
-      dibuat_oleh: user?.id || null,
-      file_url: upload.data?.path || null,
+  function validationUrlFor(id: string) {
+    return `${window.location.origin}/validasi-surat-pesantren/${id}`;
+  }
+
+  async function makeQrDataUrl(value: string) {
+    const QRCode = await import("qrcode");
+    return QRCode.toDataURL(value, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      width: 260,
+      color: { dark: "#064e3b", light: "#FFFFFF" },
     });
+  }
 
-    if (upload.error || error) {
-      setMessage(upload.error?.message || error?.message || "Surat belum tersimpan.");
+  function drawSignatureBlock(
+    doc: any,
+    x: number,
+    y: number,
+    qrDataUrl?: string | null,
+    validationUrl?: string,
+    lokasiSurat?: string
+  ) {
+    const loc = lokasiSurat || "Mageung";
+    doc.setFont("times", "normal");
+    doc.setFontSize(11);
+    doc.text(`${loc}, ${formatDate(form.tanggal_surat)}`, x, y);
+    doc.text(form.jabatan_penandatangan || "Pimpinan Pesantren", x, y + 8);
+
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, "PNG", x, y + 13, 25, 25);
+      doc.setFontSize(7);
+      doc.text("Tanda tangan digital", x + 30, y + 18);
+      doc.text("Scan QR untuk validasi", x + 30, y + 22);
+      if (validationUrl) {
+        doc.setFontSize(5.5);
+        doc.text(doc.splitTextToSize(validationUrl, 48).slice(0, 2), x + 30, y + 26);
+      }
+      doc.setFont("times", "bold");
+      doc.setFontSize(11);
+      doc.text(form.nama_penandatangan || form.jabatan_penandatangan || "Pimpinan Pesantren", x + 30, y + 40);
+      const width = doc.getTextWidth(form.nama_penandatangan || form.jabatan_penandatangan || "Pimpinan Pesantren");
+      doc.line(x + 30, y + 41, x + 30 + width, y + 41);
+      doc.setFont("times", "normal");
       return;
     }
 
-    doc.save(`${form.nomor_surat || "surat-keluar"}.pdf`);
-    setMessage("Surat berhasil digenerate dan masuk arsip.");
-    loadData();
+    doc.setFont("times", "bold");
+    doc.text(form.nama_penandatangan || form.jabatan_penandatangan || "Pimpinan Pesantren", x, y + 34);
+    const width = doc.getTextWidth(form.nama_penandatangan || form.jabatan_penandatangan || "Pimpinan Pesantren");
+    doc.line(x, y + 35, x + width, y + 35);
+    doc.setFont("times", "normal");
+  }
+
+  function selectCard(card: (typeof SURAT_CARDS)[number]) {
+    setActiveCard(card.id);
+    setForm((current) => ({
+      ...current,
+      jenis_surat: card.title,
+      perihal: card.id === "undangan" ? current.perihal || "Undangan Acara/Kegiatan" : current.perihal || card.title,
+      ditujukan: card.id === "undangan" ? current.ditujukan || "Bapak/Ibu/Wali Santri" : current.ditujukan,
+      undangan_acara: card.id === "undangan" ? current.undangan_acara || "Rapat / Kegiatan Pesantren" : current.undangan_acara,
+    }));
+  }
+
+  async function generatePdf() {
+    setGenerating(true);
+    setMessage("");
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+      const validationId = signatureMode === "digital" ? createUuid() : null;
+      setPreviewValidationId(validationId);
+      const validationUrl = validationId ? validationUrlFor(validationId) : "";
+      const qrDataUrl = validationUrl ? await makeQrDataUrl(validationUrl) : null;
+
+      await drawPesantrenKop(doc);
+      if (false) {
+      
+      doc.setFont("times", "normal");
+      doc.setFontSize(22);
+      doc.text("معهد النورالاسلامي", 105, 18, { align: "center" }); 
+      
+      doc.setFont("times", "bold");
+      doc.setFontSize(16);
+      doc.text("PONDOK PESANTREN AN-NUR", 105, 26, { align: "center" });
+      
+      doc.setFontSize(12);
+      doc.text("NSSPP: 5.1.0.0.320.62.306", 105, 32, { align: "center" });
+      
+      doc.setFont("times", "italic");
+      doc.setFontSize(10);
+      doc.text("Alamat : Kp. Mageung Ds. Sirnasari Kec. Sariwangi Kab. Tasikmalaya Provinsi Jawa Barat 46465", 105, 37, { align: "center" });
+      
+      const fullContactText = "Hp. 085314672849 – 085220053205 email : ppannur.mageung@gmail.com";
+      const contactText = "Hp. 085314672849 – 085220053205 email : ";
+      const emailText = "ppannur.mageung@gmail.com";
+      const fullWidth = doc.getTextWidth(fullContactText);
+      const startX = 105 - (fullWidth / 2);
+      
+      doc.text(contactText, startX, 42);
+      doc.setTextColor(0, 0, 255);
+      doc.text(emailText, startX + doc.getTextWidth(contactText), 42);
+      
+      doc.setDrawColor(0, 0, 255);
+      doc.setLineWidth(0.2);
+      doc.line(startX + doc.getTextWidth(contactText), 43, startX + doc.getTextWidth(contactText) + doc.getTextWidth(emailText), 43);
+      
+      doc.setTextColor(0, 0, 0);
+      doc.setDrawColor(0, 0, 0);
+      
+      doc.setLineWidth(1.0);
+      doc.line(15, 46, 195, 46);
+      doc.setLineWidth(0.3);
+      doc.line(15, 47.5, 195, 47.5);
+      }
+      doc.setTextColor(0, 0, 0);
+      doc.setDrawColor(0, 0, 0);
+
+    if (form.jenis_surat === "Surat Keterangan Aktif / Masih Mondok") {
+      doc.setFont("times", "bold");
+      doc.setFontSize(12);
+      doc.text("SURAT KETERANGAN SANTRI AKTIF", 105, 60, { align: "center" });
+      const titleWidth = doc.getTextWidth("SURAT KETERANGAN SANTRI AKTIF");
+      doc.line(105 - (titleWidth/2), 61, 105 + (titleWidth/2), 61);
+      
+      doc.setFont("times", "normal");
+      doc.text(`No : ${form.nomor_surat || "010/PPAM/II/2026"}`, 105, 67, { align: "center" });
+      
+      doc.text("Yang bertanda tangan di bawah ini,", 20, 80);
+      
+      doc.text("Nama Lengkap", 20, 88);
+      doc.text(`: ${form.nama_penandatangan || "Aj. Albar Ajiz Rahman"}`, 70, 88);
+      doc.text("Jabatan", 20, 96);
+      doc.text(`: ${form.jabatan_penandatangan || "Pimpinan Pondok Pesantren An-Nur"}`, 70, 96);
+      doc.text("Alamat Pondok Pesantren", 20, 104);
+      doc.text(": Kp. Mageung RT.001 RW.003 Desa Sirnasari", 70, 104);
+      doc.text("  Kecamatan Sariwangi Kabupaten Tasikmalaya", 72, 112);
+      
+      doc.text("Menerangkan bahwa :", 20, 126);
+      
+      const selectedSantriObj = santri.find((item) => item.id === form.santri_id);
+      const namaSantri = selectedSantriObj?.nama_lengkap || "(Nama Santri)";
+      const ttlSantri = selectedSantriObj?.tanggal_lahir ? `Tasikmalaya, ${formatDate(selectedSantriObj.tanggal_lahir)}` : "(Tempat, Tanggal Lahir)";
+      const alamatSantri = selectedSantriObj?.alamat || "(Alamat)";
+      
+      doc.text("Nama santri", 20, 134);
+      doc.text(`: ${namaSantri}`, 70, 134);
+      doc.text("Tempat Tanggal Lahir", 20, 142);
+      doc.text(`: ${ttlSantri}`, 70, 142);
+      doc.text("Alamat", 20, 150);
+      const splitAlamat = doc.splitTextToSize(`: ${alamatSantri}`, 120);
+      doc.text(splitAlamat, 70, 150);
+      
+      let yPos = 150 + (splitAlamat.length * 6) + 4;
+      
+      const defaultDesc = `adalah benar-benar Santri Aktif di pesantren kami dan yang bersangkutan merupakan santri yatim.`;
+      const descText = form.isi_tambahan || defaultDesc;
+      const splitDesc = doc.splitTextToSize(descText, 170);
+      doc.text(splitDesc, 20, yPos);
+      
+      yPos += (splitDesc.length * 6) + 4;
+      
+      doc.text("Demikian surat ini di buat dengan sebenarnya untuk dipergunakan sebagaimana mestinya.", 20, yPos);
+      
+      drawSignatureBlock(doc, 125, yPos + 25, qrDataUrl, validationUrl, "Sariwangi");
+    } else if (form.jenis_surat === "Surat Undangan Acara/Kegiatan") {
+      doc.setFont("times", "normal");
+      doc.setFontSize(11);
+      doc.text(`Nomor`, 20, 62);
+      doc.text(`: ${form.nomor_surat || "-"}`, 45, 62);
+      doc.text(`Lampiran`, 20, 70);
+      doc.text(`: -`, 45, 70);
+      doc.text(`Perihal`, 20, 78);
+      doc.text(`: ${form.perihal || "Undangan Acara/Kegiatan"}`, 45, 78);
+
+      doc.text("Kepada Yth.", 20, 96);
+      doc.setFont("times", "bold");
+      doc.text(form.ditujukan || "Bapak/Ibu/Wali Santri", 20, 104);
+      doc.setFont("times", "normal");
+      doc.text("di Tempat", 20, 112);
+
+      doc.text("Assalamu'alaikum Wr. Wb.", 20, 130);
+      const opening = doc.splitTextToSize(
+        "Dengan hormat, sehubungan dengan akan dilaksanakannya kegiatan Pondok Pesantren An-Nur, kami mengundang Bapak/Ibu/Saudara/i untuk hadir pada:",
+        170,
+      );
+      doc.text(opening, 20, 142);
+
+      const detailY = 162;
+      const row = (label: string, value: string, y: number) => {
+        doc.text(label, 32, y);
+        doc.text(":", 68, y);
+        doc.setFont("times", "bold");
+        doc.text(value || "-", 74, y, { maxWidth: 112 });
+        doc.setFont("times", "normal");
+      };
+      row("Hari/Tanggal", formatDate(form.undangan_tanggal), detailY);
+      row("Waktu", form.undangan_waktu || "-", detailY + 8);
+      row("Tempat", form.undangan_tempat || "-", detailY + 16);
+      row("Acara", form.undangan_acara || form.perihal || "-", detailY + 24);
+
+      const extraLines = form.isi_tambahan.trim()
+        ? doc.splitTextToSize(form.isi_tambahan.trim(), 170)
+        : [];
+      if (extraLines.length) {
+        doc.text(extraLines, 20, detailY + 42);
+      }
+      const closingY = detailY + 42 + (extraLines.length ? extraLines.length * 6 + 8 : 0);
+      const closing = doc.splitTextToSize(
+        "Demikian undangan ini kami sampaikan. Atas perhatian dan kehadirannya, kami ucapkan terima kasih.",
+        170,
+      );
+      doc.text(closing, 20, closingY);
+      doc.text("Wassalamu'alaikum Wr. Wb.", 20, closingY + closing.length * 6 + 8);
+
+      drawSignatureBlock(doc, 125, Math.min(238, closingY + closing.length * 6 + 24), qrDataUrl, validationUrl, "Sariwangi");
+    } else {
+      doc.setFont("times", "bold");
+      doc.setFontSize(12);
+      doc.text(form.jenis_surat.toUpperCase(), 105, 60, { align: "center" });
+      const titleWidth = doc.getTextWidth(form.jenis_surat.toUpperCase());
+      doc.line(105 - (titleWidth/2), 61, 105 + (titleWidth/2), 61);
+      
+      doc.setFont("times", "normal");
+      doc.text(`No : ${form.nomor_surat || "-"}`, 105, 67, { align: "center" });
+      
+      doc.setFontSize(10);
+      const lines = doc.splitTextToSize(preview, 170);
+      doc.text(lines, 20, 80);
+      const signatureY = Math.min(238, 80 + lines.length * 5.3 + 14);
+      drawSignatureBlock(doc, 138, signatureY, qrDataUrl, validationUrl, "Sariwangi");
+    }
+    const blob = doc.output("blob");
+    setPreviewBlob(blob);
+    setPreviewPdfUrl(URL.createObjectURL(blob));
+    } catch (err: any) {
+      setMessage(err.message || "Gagal membuat preview PDF.");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function resetPreview() {
+    setPreviewPdfUrl(null);
+    setPreviewBlob(null);
+    setPreviewValidationId(null);
+  }
+
+  async function saveAndDownloadPdf() {
+    if (!previewBlob) return;
+    setGenerating(true);
+    setMessage("");
+    try {
+      const path = `pesantren/${Date.now()}-${randomCode(6)}.pdf`;
+      const upload = await supabase.storage.from("surat-keluar").upload(path, previewBlob, {
+        contentType: "application/pdf",
+      });
+
+      const { error } = await supabase.from("pp_surat_keluar").insert({
+        ...(previewValidationId ? { id: previewValidationId } : {}),
+        nomor_surat: form.nomor_surat || null,
+        jenis_surat: form.jenis_surat,
+        perihal: form.perihal || null,
+        ditujukan: form.ditujukan || null,
+        tanggal_surat: form.tanggal_surat,
+        santri_id: form.santri_id || null,
+        dibuat_oleh: user?.id || null,
+        file_url: upload.data?.path || null,
+      });
+
+      if (upload.error || error) {
+        setGenerating(false);
+        setMessage(upload.error?.message || error?.message || "Surat belum tersimpan.");
+        return;
+      }
+
+      const link = document.createElement("a");
+      link.href = previewPdfUrl!;
+      link.download = `${form.nomor_surat?.replace(/\//g, "-") || "surat-keluar"}.pdf`;
+      link.click();
+      
+      setMessage("Surat berhasil disimpan dan didownload.");
+      resetPreview();
+      loadData();
+      setActiveTab("log");
+      setActiveCard(null);
+    } catch (err: any) {
+      setMessage(err.message || "Gagal menyimpan surat.");
+    } finally {
+      setGenerating(false);
+    }
   }
 
   async function downloadArchive(row: SuratArchive) {
@@ -3409,54 +4050,244 @@ function SuratModule() {
     URL.revokeObjectURL(link.href);
   }
 
+  async function deleteArchive(row: SuratArchive) {
+    if (!window.confirm("Yakin ingin menghapus log surat ini?")) return;
+    if (row.file_url) {
+      await supabase.storage.from("surat-keluar").remove([row.file_url]);
+    }
+    const { error } = await supabase.from("pp_surat_keluar").delete().eq("id", row.id);
+    if (error) {
+      setMessage(error.message || "Gagal menghapus log.");
+    } else {
+      setMessage("Log surat berhasil dihapus.");
+      loadData();
+    }
+  }
+
   return (
     <ModuleShell
       title="Generate Surat Keluar"
       description="Pilih template, isi data dinamis, preview, generate PDF, dan arsipkan surat."
     >
-      <div className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
-        <div className="rounded bg-white p-5 shadow-soft">
-          <div className="grid gap-3 md:grid-cols-2">
-            <select value={form.jenis_surat} onChange={(event) => setForm((current) => ({ ...current, jenis_surat: event.target.value }))} className={inputClass}>
-              {suratTemplates.map((template) => (
-                <option key={template} value={template}>{template}</option>
-              ))}
-            </select>
-            <input value={form.nomor_surat} onChange={(event) => setForm((current) => ({ ...current, nomor_surat: event.target.value }))} placeholder="Nomor surat" className={inputClass} />
-            <input value={form.perihal} onChange={(event) => setForm((current) => ({ ...current, perihal: event.target.value }))} placeholder="Perihal" className={inputClass} />
-            <input type="date" value={form.tanggal_surat} onChange={(event) => setForm((current) => ({ ...current, tanggal_surat: event.target.value }))} className={inputClass} />
-            <input value={form.ditujukan} onChange={(event) => setForm((current) => ({ ...current, ditujukan: event.target.value }))} placeholder="Ditujukan" className={inputClass} />
-            <select value={form.santri_id} onChange={(event) => setForm((current) => ({ ...current, santri_id: event.target.value }))} className={inputClass}>
-              <option value="">Data santri terkait</option>
-              {santri.map((item) => (
-                <option key={item.id} value={item.id}>{item.nama_lengkap}</option>
-              ))}
-            </select>
-          </div>
-          <textarea value={form.isi_tambahan} onChange={(event) => setForm((current) => ({ ...current, isi_tambahan: event.target.value }))} rows={4} placeholder="Isi tambahan / format fleksibel" className="mt-3 w-full rounded border border-gray-200 px-3 py-3 text-sm" />
-          <button onClick={generatePdf} className="mt-4 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">
-            <FileText className="mr-2" size={17} />
-            Generate PDF
-          </button>
-          {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
-        </div>
-        <pre className="min-h-80 whitespace-pre-wrap rounded bg-white p-5 text-sm leading-7 shadow-soft">
-          {preview}
-        </pre>
+      <div className="mb-6 flex gap-2">
+        <button
+          onClick={() => setActiveTab("buat")}
+          className={`inline-flex items-center rounded border px-4 py-2 text-sm font-semibold ${activeTab === "buat" ? "border-gray-200 bg-white text-gray-900 shadow-sm" : "border-transparent text-gray-500 hover:bg-white/60"}`}
+        >
+          <Plus className="mr-2" size={16} />
+          Buat Surat
+        </button>
+        <button
+          onClick={() => setActiveTab("log")}
+          className={`inline-flex items-center rounded border px-4 py-2 text-sm font-semibold ${activeTab === "log" ? "border-gray-200 bg-white text-gray-900 shadow-sm" : "border-transparent text-gray-500 hover:bg-white/60"}`}
+        >
+          <FileText className="mr-2" size={16} />
+          Log Surat
+        </button>
       </div>
 
-      <DataTable
-        headers={["Tanggal", "Nomor", "Jenis", "Perihal", "Download"]}
-        rows={archive.map((row) => [
-          formatDate(row.tanggal_surat),
-          row.nomor_surat || "-",
-          row.jenis_surat,
-          row.perihal || "-",
-          <button key="download" onClick={() => downloadArchive(row)} className="rounded border px-3 py-2 text-sm font-semibold">
-            Download
-          </button>,
-        ])}
-      />
+      {activeTab === "buat" ? (
+        <div className="mb-6 flex flex-col gap-3 rounded bg-white p-4 shadow-soft sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded bg-emerald-50 text-emerald-700">
+              <QrCode size={20} />
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">Tanda Tangan</h3>
+              <p className="text-xs text-gray-500">Gunakan tanda tangan basah atau digital QR untuk validasi surat.</p>
+            </div>
+          </div>
+          <div className="inline-flex rounded border border-gray-200 bg-gray-50 p-1">
+            {([
+              ["wet", "Basah"],
+              ["digital", "Digital QR"],
+            ] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setSignatureMode(mode)}
+                className={`rounded px-4 py-2 text-sm font-semibold ${signatureMode === mode ? "bg-white text-emerald-800 shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {activeTab === "buat" && !activeCard ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {SURAT_CARDS.map((card) => {
+            const Icon = card.icon;
+            return (
+              <button
+                key={card.id}
+                onClick={() => selectCard(card)}
+                className="relative flex min-h-40 flex-col items-start rounded bg-white p-5 text-left shadow-soft transition hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <div className={`mb-4 rounded p-2 ${card.bg}`}>
+                  <Icon className={card.color} size={21} />
+                </div>
+                <h3 className="font-semibold text-gray-950">{card.title}</h3>
+                <p className="mt-2 text-xs leading-relaxed text-gray-500">{card.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {activeTab === "buat" && activeCard ? (
+        <div className="max-w-4xl mx-auto">
+          <div className="rounded bg-white p-5 shadow-soft">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-950">{form.jenis_surat}</h2>
+                <p className="text-sm text-gray-500">Isi data surat, lalu generate PDF.</p>
+              </div>
+              <button onClick={() => setActiveCard(null)} className="rounded border px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+                Kembali
+              </button>
+            </div>
+            {activeCard === "aktif" ? (
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Nomor Surat</label>
+                  <input value={form.nomor_surat} onChange={(event) => setForm((current) => ({ ...current, nomor_surat: event.target.value }))} placeholder="Nomor surat" className={inputClass} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Tanggal Dikeluarkan</label>
+                  <input type="date" value={form.tanggal_surat} onChange={(event) => setForm((current) => ({ ...current, tanggal_surat: event.target.value }))} className={inputClass} />
+                </div>
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <label className="text-xs font-semibold text-gray-700">Pilih Santri Terkait</label>
+                  <select value={form.santri_id} onChange={(event) => setForm((current) => ({ ...current, santri_id: event.target.value }))} className={inputClass}>
+                    <option value="">-- Pilih Data Santri --</option>
+                    {santri.map((item) => (
+                      <option key={item.id} value={item.id}>{item.nama_lengkap}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Pejabat Penandatangan</label>
+                  <input value={form.nama_penandatangan} onChange={(event) => setForm((current) => ({ ...current, nama_penandatangan: event.target.value }))} placeholder="Nama penandatangan" className={inputClass} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Jabatan</label>
+                  <input value={form.jabatan_penandatangan} onChange={(event) => setForm((current) => ({ ...current, jabatan_penandatangan: event.target.value }))} placeholder="Jabatan penandatangan" className={inputClass} />
+                </div>
+              </div>
+            ) : activeCard === "undangan" ? (
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Nomor Surat</label>
+                  <input value={form.nomor_surat} onChange={(event) => setForm((current) => ({ ...current, nomor_surat: event.target.value }))} placeholder="Nomor surat" className={inputClass} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Tanggal Surat</label>
+                  <input type="date" value={form.tanggal_surat} onChange={(event) => setForm((current) => ({ ...current, tanggal_surat: event.target.value }))} className={inputClass} />
+                </div>
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <label className="text-xs font-semibold text-gray-700">Kepada Yth.</label>
+                  <input value={form.ditujukan} onChange={(event) => setForm((current) => ({ ...current, ditujukan: event.target.value }))} placeholder="Bapak/Ibu/Wali Santri" className={inputClass} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Perihal</label>
+                  <input value={form.perihal} onChange={(event) => setForm((current) => ({ ...current, perihal: event.target.value }))} placeholder="Undangan Acara/Kegiatan" className={inputClass} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Nama Acara/Kegiatan</label>
+                  <input value={form.undangan_acara} onChange={(event) => setForm((current) => ({ ...current, undangan_acara: event.target.value }))} placeholder="Nama acara/kegiatan" className={inputClass} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Tanggal Acara</label>
+                  <input type="date" value={form.undangan_tanggal} onChange={(event) => setForm((current) => ({ ...current, undangan_tanggal: event.target.value }))} className={inputClass} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Waktu Acara</label>
+                  <input value={form.undangan_waktu} onChange={(event) => setForm((current) => ({ ...current, undangan_waktu: event.target.value }))} placeholder="Contoh: 08.00 WIB s.d. selesai" className={inputClass} />
+                </div>
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <label className="text-xs font-semibold text-gray-700">Tempat Acara</label>
+                  <input value={form.undangan_tempat} onChange={(event) => setForm((current) => ({ ...current, undangan_tempat: event.target.value }))} placeholder="Tempat kegiatan" className={inputClass} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Pejabat Penandatangan</label>
+                  <input value={form.nama_penandatangan} onChange={(event) => setForm((current) => ({ ...current, nama_penandatangan: event.target.value }))} placeholder="Nama penandatangan" className={inputClass} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-700">Jabatan</label>
+                  <input value={form.jabatan_penandatangan} onChange={(event) => setForm((current) => ({ ...current, jabatan_penandatangan: event.target.value }))} placeholder="Jabatan penandatangan" className={inputClass} />
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                <input value={form.nomor_surat} onChange={(event) => setForm((current) => ({ ...current, nomor_surat: event.target.value }))} placeholder="Nomor surat" className={inputClass} />
+                <input value={form.perihal} onChange={(event) => setForm((current) => ({ ...current, perihal: event.target.value }))} placeholder="Perihal" className={inputClass} />
+                <input type="date" value={form.tanggal_surat} onChange={(event) => setForm((current) => ({ ...current, tanggal_surat: event.target.value }))} className={inputClass} />
+                <input value={form.ditujukan} onChange={(event) => setForm((current) => ({ ...current, ditujukan: event.target.value }))} placeholder="Ditujukan" className={inputClass} />
+                <select value={form.santri_id} onChange={(event) => setForm((current) => ({ ...current, santri_id: event.target.value }))} className={inputClass}>
+                  <option value="">Data santri terkait</option>
+                  {santri.map((item) => (
+                    <option key={item.id} value={item.id}>{item.nama_lengkap}</option>
+                  ))}
+                </select>
+                <input value={form.jabatan_penandatangan} onChange={(event) => setForm((current) => ({ ...current, jabatan_penandatangan: event.target.value }))} placeholder="Jabatan penandatangan" className={inputClass} />
+                <input value={form.nama_penandatangan} onChange={(event) => setForm((current) => ({ ...current, nama_penandatangan: event.target.value }))} placeholder="Nama penandatangan" className={inputClass} />
+              </div>
+            )}
+            <div className="mt-3">
+              <label className="text-xs font-semibold text-gray-700 mb-1.5 block">{activeCard === "undangan" ? "Catatan Tambahan Undangan (Opsional)" : "Catatan Tambahan (Opsional)"}</label>
+              <textarea value={form.isi_tambahan} onChange={(event) => setForm((current) => ({ ...current, isi_tambahan: event.target.value }))} rows={4} placeholder={activeCard === "undangan" ? "Contoh: Mohon hadir tepat waktu dan mengenakan pakaian rapi." : "Masukkan keterangan tambahan jika ada..."} className="w-full rounded border border-gray-200 px-3 py-3 text-sm" />
+            </div>
+            <div className="border-t pt-5 mt-5">
+              {previewPdfUrl ? (
+                <div className="flex flex-col gap-4">
+                  <div className="flex gap-2 mb-2">
+                    <button onClick={saveAndDownloadPdf} disabled={generating} className="flex-1 rounded bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-70">
+                      {generating ? "Menyimpan..." : "Simpan ke Log & Download"}
+                    </button>
+                    <button onClick={resetPreview} className="rounded border border-gray-200 bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-200">
+                      Batal / Edit
+                    </button>
+                  </div>
+                  <iframe src={previewPdfUrl} className="h-[600px] w-full rounded-lg border border-gray-200 shadow-sm" title="PDF Preview" />
+                </div>
+              ) : (
+                <button onClick={generatePdf} disabled={generating} className="mt-4 inline-flex items-center rounded bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70">
+                  <FileText className="mr-2" size={17} />
+                  {generating ? "Memproses..." : "Preview PDF"}
+                </button>
+              )}
+              {message ? <p className="mt-3 text-sm font-medium text-emerald-800">{message}</p> : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {activeTab === "log" ? (
+        <DataTable
+          headers={["Tanggal", "Nomor", "Jenis", "Perihal", "Aksi"]}
+          rows={archive.map((row) => [
+            formatDate(row.tanggal_surat),
+            row.nomor_surat || "-",
+            row.jenis_surat,
+            row.perihal || "-",
+            <div key="actions" className="flex gap-2">
+              <button onClick={() => downloadArchive(row)} className="rounded border px-3 py-2 text-sm font-semibold">
+                Download
+              </button>
+              <a href={validationUrlFor(row.id)} target="_blank" rel="noreferrer" className="inline-flex items-center rounded border px-3 py-2 text-sm font-semibold text-emerald-800">
+                <ExternalLink className="mr-2" size={15} />
+                Validasi
+              </a>
+              <button onClick={() => deleteArchive(row)} className="inline-flex items-center rounded border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
+                <Trash2 className="mr-2" size={15} />
+                Hapus
+              </button>
+            </div>,
+          ])}
+        />
+      ) : null}
     </ModuleShell>
   );
 }
@@ -3587,11 +4418,28 @@ function PsbModule() {
         "Nomor Pendaftaran": row.nomor_pendaftaran || "",
         "Tahun Ajaran": row.tahun_ajaran || "",
         "Tanggal Daftar": formatDate(row.created_at),
+        "Tanggal Masuk": row.tanggal_masuk || "",
         "Nama Lengkap": row.nama_lengkap,
+        Kewarganegaraan: row.kewarganegaraan || "",
+        NIK: row.nik || "",
+        NISN: row.nisn || "",
         "Jenis Kelamin": row.jenis_kelamin === "L" ? "Laki-laki" : row.jenis_kelamin === "P" ? "Perempuan" : "",
+        "Tempat Lahir": row.tempat_lahir || "",
         "Tanggal Lahir": row.tanggal_lahir || "",
-        "Nama Orang Tua/Wali": row.nama_orang_tua || "",
-        "No HP": row.no_hp || "",
+        Agama: row.agama || "",
+        "No Handphone": row.no_handphone || row.no_hp || "",
+        "Nama Ayah Kandung": row.nama_ayah_kandung || "",
+        "Status Ayah Kandung": row.status_ayah_kandung || "",
+        "NIK Ayah": row.nik_ayah || "",
+        "Nama Ibu Kandung": row.nama_ibu_kandung || "",
+        "Status Ibu Kandung": row.status_ibu_kandung || "",
+        "NIK Ibu": row.nik_ibu || "",
+        "Status Wali": row.status_wali || "",
+        "Nama Wali": row.nama_wali || row.nama_orang_tua || "",
+        Jenjang: row.jenjang || "",
+        "Tingkat Kelas": row.tingkat_kelas || "",
+        KITAS: row.kitas || "",
+        "Asal Negara": row.asal_negara || "",
         Alamat: row.alamat || "",
         "URL Foto": row.foto_url
           ? supabase.storage.from("pp-psb-foto").getPublicUrl(row.foto_url).data.publicUrl
@@ -3779,7 +4627,7 @@ function PsbModule() {
               row.nomor_pendaftaran || "-",
               row.nama_lengkap,
               row.tahun_ajaran || "-",
-              row.no_hp || "-",
+              row.no_handphone || row.no_hp || "-",
               row.status,
               <div key="actions" className="flex flex-wrap gap-2">
                 <button onClick={() => setSelected(row)} className="rounded border px-3 py-2 text-sm font-semibold">Detail</button>
@@ -3825,11 +4673,28 @@ function PsbModule() {
             <div className="grid gap-2 text-sm md:grid-cols-2">
               <p>Nomor: {selected.nomor_pendaftaran || "-"}</p>
               <p>Tahun ajaran: {selected.tahun_ajaran || "-"}</p>
+              <p>Tanggal masuk: {formatDate(selected.tanggal_masuk)}</p>
               <p>Nama: {selected.nama_lengkap}</p>
+              <p>Kewarganegaraan: {selected.kewarganegaraan || "-"}</p>
+              <p>NIK: {selected.nik || "-"}</p>
+              <p>NISN: {selected.nisn || "-"}</p>
               <p>JK: {selected.jenis_kelamin || "-"}</p>
+              <p>Tempat lahir: {selected.tempat_lahir || "-"}</p>
               <p>Tanggal lahir: {formatDate(selected.tanggal_lahir)}</p>
-              <p>Orang tua: {selected.nama_orang_tua || "-"}</p>
-              <p>No HP: {selected.no_hp || "-"}</p>
+              <p>Agama: {selected.agama || "-"}</p>
+              <p>No HP: {selected.no_handphone || selected.no_hp || "-"}</p>
+              <p>Ayah: {selected.nama_ayah_kandung || "-"}</p>
+              <p>Status ayah: {selected.status_ayah_kandung || "-"}</p>
+              <p>NIK ayah: {selected.nik_ayah || "-"}</p>
+              <p>Ibu: {selected.nama_ibu_kandung || "-"}</p>
+              <p>Status ibu: {selected.status_ibu_kandung || "-"}</p>
+              <p>NIK ibu: {selected.nik_ibu || "-"}</p>
+              <p>Status wali: {selected.status_wali || "-"}</p>
+              <p>Nama wali: {selected.nama_wali || selected.nama_orang_tua || "-"}</p>
+              <p>Jenjang: {selected.jenjang || "-"}</p>
+              <p>Tingkat kelas: {selected.tingkat_kelas || "-"}</p>
+              <p>KITAS: {selected.kitas || "-"}</p>
+              <p>Asal negara: {selected.asal_negara || "-"}</p>
               <p>Status: {selected.status}</p>
               <p className="md:col-span-2">Alamat: {selected.alamat || "-"}</p>
             </div>
