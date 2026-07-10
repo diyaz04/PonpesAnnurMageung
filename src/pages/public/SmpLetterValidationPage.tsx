@@ -13,8 +13,16 @@ type ValidationPayload = {
     ditujukan: string | null;
     tanggal_surat: string;
     file_url: string | null;
+    penandatangan?: LetterSigner[];
     created_at: string;
   };
+};
+
+type LetterSigner = {
+  relation?: string;
+  role?: string;
+  name?: string;
+  primary?: boolean;
 };
 
 function formatDate(value?: string | null) {
@@ -85,6 +93,8 @@ export default function SmpLetterValidationPage() {
     };
   }, [payload]);
 
+  const signers = payload?.surat?.penandatangan || [];
+
   return (
     <div className="min-h-[calc(100svh-76px)] bg-[#f7faf7]">
       <section className="bg-emerald-950 px-4 py-14 text-white">
@@ -154,6 +164,25 @@ export default function SmpLetterValidationPage() {
                 <p><span className="text-gray-500">Ditujukan:</span> {payload.surat?.ditujukan || "-"}</p>
                 <p><span className="text-gray-500">Tanggal Surat:</span> {formatDate(payload.surat?.tanggal_surat)}</p>
                 <p><span className="text-gray-500">Diarsipkan:</span> {formatDateTime(payload.surat?.created_at)}</p>
+              </div>
+            </div>
+
+            <div className="rounded bg-white p-6 shadow-soft">
+              <h3 className="font-semibold text-gray-950">Penanda Tangan</h3>
+              <div className="mt-4 grid gap-3">
+                {signers.length ? (
+                  signers.map((signer, index) => (
+                    <div key={`${signer.name || signer.role || index}-${index}`} className="rounded border border-gray-100 bg-gray-50 p-3 text-sm">
+                      <p className="font-semibold text-gray-950">{signer.name || "-"}</p>
+                      <p className="mt-1 text-gray-600">{signer.role || "-"}</p>
+                      <p className="mt-1 text-xs font-semibold text-emerald-800">
+                        {signer.primary ? "Penanda tangan utama" : signer.relation || "Mengetahui"}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">Data penanda tangan belum tercatat pada arsip surat ini.</p>
+                )}
               </div>
             </div>
           </>

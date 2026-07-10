@@ -242,6 +242,18 @@ type WajahData = {
 };
 
 type SignatureMode = "wet" | "digital";
+type SignatureRelation = "" | "Mengetahui" | "Menyetujui";
+type AdditionalSigner = {
+  relation: SignatureRelation;
+  role: string;
+  name: string;
+};
+type LetterSigner = {
+  relation: string;
+  role: string;
+  name: string;
+  primary?: boolean;
+};
 
 const inputClass =
   "min-h-11 rounded border border-gray-200 px-3 font-normal outline-none focus:ring-2 focus:ring-emerald-700";
@@ -2016,6 +2028,7 @@ function SuratModule() {
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [signatureMode, setSignatureMode] = useState<SignatureMode>("wet");
   const [previewValidationId, setPreviewValidationId] = useState<string | null>(null);
+  const [additionalSigners, setAdditionalSigners] = useState<AdditionalSigner[]>([]);
   
   const [logFilterJenis, setLogFilterJenis] = useState('Semua');
   const [logFilterBulan, setLogFilterBulan] = useState('Semua');
@@ -2192,6 +2205,52 @@ function SuratModule() {
     setPreviewValidationId(null);
   }
 
+  function activeAdditionalSigners() {
+    return additionalSigners
+      .filter((signer) => signer.name.trim() || signer.role.trim())
+      .slice(0, 2);
+  }
+
+  function buildLetterSigners(primaryRole: string, primaryName: string): LetterSigner[] {
+    return [
+      ...activeAdditionalSigners().map((signer) => ({
+        relation: signer.relation || "Mengetahui",
+        role: signer.role.trim(),
+        name: signer.name.trim(),
+        primary: false,
+      })),
+      {
+        relation: "Penanda tangan utama",
+        role: (primaryRole || "Kepala Sekolah").trim(),
+        name: (primaryName || primaryRole || "Kepala Sekolah").trim(),
+        primary: true,
+      },
+    ];
+  }
+
+  function updateAdditionalSigner(index: number, patch: Partial<AdditionalSigner>) {
+    setAdditionalSigners((current) =>
+      current.map((signer, signerIndex) =>
+        signerIndex === index ? { ...signer, ...patch } : signer,
+      ),
+    );
+    resetPreview();
+  }
+
+  function addAdditionalSigner() {
+    setAdditionalSigners((current) =>
+      current.length >= 2
+        ? current
+        : [...current, { relation: "Mengetahui", role: "", name: "" }],
+    );
+    resetPreview();
+  }
+
+  function removeAdditionalSigner(index: number) {
+    setAdditionalSigners((current) => current.filter((_, signerIndex) => signerIndex !== index));
+    resetPreview();
+  }
+
   function drawSignatureBlock(
     doc: any,
     x: number,
@@ -2201,35 +2260,74 @@ function SuratModule() {
     signer: string,
     qrDataUrl?: string | null,
     validationUrl?: string,
+    includeAdditional = true,
   ) {
-    doc.setFont('times', 'normal');
-    doc.setFontSize(12);
-    doc.text(placeDate || '', x, y);
-    doc.text(role || 'Kepala Sekolah', x, y + 8);
-
-    if (qrDataUrl) {
-      doc.addImage(qrDataUrl, 'PNG', x, y + 13, 24, 24);
-      doc.setFontSize(7);
-      doc.text('Tanda tangan digital', x + 29, y + 18);
-      doc.text('Scan QR untuk validasi', x + 29, y + 22);
-      if (validationUrl) {
-        doc.setFontSize(5.5);
-        doc.text(doc.splitTextToSize(validationUrl, 46).slice(0, 2), x + 29, y + 26);
-      }
-      doc.setFont('times', 'bold');
-      doc.setFontSize(12);
-      doc.text(signer || '', x + 29, y + 39);
-      const nameWidth = doc.getTextWidth(signer || '');
-      doc.line(x + 29, y + 40, x + 29 + nameWidth, y + 40);
+    const extras = includeAdditional ? activeAdditionalSigners() : [];
+    const startY = extras.length >= 2 ? Math.min(y, qrDataUrl ? 182 : 196) : y;
+    const mainSigner = {
+      relation: "" as SignatureRelation,
+      role: role || "Kepala Sekolah",
+      name: signer || "",
+      placeDate,
+      qrDataUrl,
+      validationUrl,
+    };
+    const drawSingle = (
+      item: AdditionalSigner & {
+        placeDate?: string;
+        qrDataUrl?: string | null;
+        validationUrl?: string;
+      },
+      centerX: number,
+      topY: number,
+      width = 58,
+    ) => {
       doc.setFont('times', 'normal');
+      doc.setFontSize(12);
+      const text = (value: string, offset: number, bold = false) => {
+        doc.setFont('times', bold ? 'bold' : 'normal');
+        doc.text(value || '', centerX, topY + offset, { align: 'center', maxWidth: width });
+      };
+
+      if (item.placeDate) text(item.placeDate, 0);
+      if (item.relation) text(item.relation, item.placeDate ? 8 : 0);
+      text(item.role || '-', item.placeDate || item.relation ? 8 + (item.placeDate && item.relation ? 8 : 0) : 0);
+
+      const signatureTop = topY + (item.placeDate && item.relation ? 24 : item.placeDate || item.relation ? 16 : 8);
+      if (item.qrDataUrl) {
+        doc.addImage(item.qrDataUrl, 'PNG', centerX - 25, signatureTop, 22, 22);
+        doc.setFontSize(7);
+        doc.text('Tanda tangan digital', centerX + 2, signatureTop + 6);
+        doc.text('Scan QR untuk validasi', centerX + 2, signatureTop + 10);
+        if (item.validationUrl) {
+          doc.setFontSize(5.5);
+          doc.text(doc.splitTextToSize(item.validationUrl, 42).slice(0, 2), centerX + 2, signatureTop + 14);
+        }
+        text(item.name || item.role || '', signatureTop - topY + 34, true);
+      } else {
+        text(item.name || item.role || '', signatureTop - topY + 28, true);
+      }
+
+      const nameWidth = Math.min(doc.getTextWidth(item.name || item.role || ''), width);
+      const lineY = item.qrDataUrl ? signatureTop + 35 : signatureTop + 29;
+      doc.line(centerX - nameWidth / 2, lineY, centerX + nameWidth / 2, lineY);
+      doc.setFont('times', 'normal');
+    };
+
+    if (extras.length === 0) {
+      drawSingle(mainSigner, x + 28, startY);
       return;
     }
 
-    doc.setFont('times', 'bold');
-    doc.text(signer || '', x, y + 35);
-    const nameWidth = doc.getTextWidth(signer || '');
-    doc.line(x, y + 36, x + nameWidth, y + 36);
-    doc.setFont('times', 'normal');
+    if (extras.length === 1) {
+      drawSingle({ ...extras[0], qrDataUrl, validationUrl }, 52, startY);
+      drawSingle(mainSigner, 150, startY);
+      return;
+    }
+
+    drawSingle({ ...extras[0], qrDataUrl, validationUrl }, 52, startY);
+    drawSingle({ ...extras[1], qrDataUrl, validationUrl }, 158, startY);
+    drawSingle(mainSigner, 105, startY + 54, 70);
   }
 
   function drawKop(doc: any, logoKiri?: string | null, logoKanan?: string | null) {
@@ -2399,6 +2497,7 @@ function SuratModule() {
       formTugas.pejabat,
       qrDataUrl,
       validationUrl,
+      false,
     );
 
     // Box configurations
@@ -2480,7 +2579,8 @@ function SuratModule() {
         ditujukan: formTugas.tempat,
         tanggal_surat: formTugas.tanggal_dikeluarkan,
         dibuat_oleh: user?.id || null,
-        file_url: upload.data?.path || null
+        file_url: upload.data?.path || null,
+        penandatangan: buildLetterSigners(`Kepala SMP Ma'arif NU Sariwangi`, formTugas.pejabat),
       });
       if (upload.error || error) {
         setGenerating(false);
@@ -2620,7 +2720,8 @@ function SuratModule() {
         ditujukan: 'Siswa / Instansi Terkait',
         tanggal_surat: formAktif.tanggal_dikeluarkan,
         dibuat_oleh: user?.id || null,
-        file_url: upload.data?.path || null
+        file_url: upload.data?.path || null,
+        penandatangan: buildLetterSigners('Kepala Sekolah', formAktif.pejabat),
       });
       if (upload.error || error) {
         setGenerating(false);
@@ -2736,7 +2837,8 @@ function SuratModule() {
         ditujukan: 'Instansi Terkait',
         tanggal_surat: new Date().toISOString().slice(0, 10),
         dibuat_oleh: user?.id || null,
-        file_url: upload.data?.path || null
+        file_url: upload.data?.path || null,
+        penandatangan: buildLetterSigners('Kepala Sekolah', formWali.pejabat),
       });
       if (upload.error || error) {
         setGenerating(false);
@@ -2907,7 +3009,8 @@ function SuratModule() {
         ditujukan: 'Instansi / Panitia Terkait',
         tanggal_surat: new Date().toISOString().slice(0, 10),
         dibuat_oleh: user?.id || null,
-        file_url: upload.data?.path || null
+        file_url: upload.data?.path || null,
+        penandatangan: buildLetterSigners('Kepala Sekolah', formRekomendasi.pejabat),
       });
       if (upload.error || error) {
         setGenerating(false);
@@ -2957,37 +3060,93 @@ function SuratModule() {
       </div>
 
       {activeTab === 'buat' && (
-        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-soft sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded bg-emerald-50 text-emerald-700">
-              <QrCode size={20} />
-            </span>
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Tanda Tangan</h3>
-              <p className="text-xs text-gray-500">Pilih tanda tangan basah atau digital QR untuk validasi surat.</p>
+        <div className="mb-6 rounded-xl border border-gray-100 bg-white p-4 shadow-soft">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded bg-emerald-50 text-emerald-700">
+                <QrCode size={20} />
+              </span>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Tanda Tangan</h3>
+                <p className="text-xs text-gray-500">Pejabat utama tetap menjadi penanda tangan tertinggi; tambahan bisa Mengetahui atau Menyetujui.</p>
+              </div>
+            </div>
+            <div className="inline-flex rounded border border-gray-200 bg-gray-50 p-1">
+              {([
+                ["wet", "Basah"],
+                ["digital", "Digital QR"],
+              ] as const).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => {
+                    setSignatureMode(mode);
+                    resetPreview();
+                  }}
+                  className={`rounded px-4 py-2 text-sm font-semibold transition ${
+                    signatureMode === mode
+                      ? "bg-white text-emerald-800 shadow-sm"
+                      : "text-gray-500 hover:text-gray-900"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="inline-flex rounded border border-gray-200 bg-gray-50 p-1">
-            {([
-              ["wet", "Basah"],
-              ["digital", "Digital QR"],
-            ] as const).map(([mode, label]) => (
+
+          <div className="mt-4 border-t border-gray-100 pt-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">Penanda tangan tambahan</h4>
+                <p className="text-xs text-gray-500">Maksimal dua tambahan. Jika total tiga, pejabat utama dicetak di bawah tengah.</p>
+              </div>
               <button
-                key={mode}
                 type="button"
-                onClick={() => {
-                  setSignatureMode(mode);
-                  resetPreview();
-                }}
-                className={`rounded px-4 py-2 text-sm font-semibold transition ${
-                  signatureMode === mode
-                    ? "bg-white text-emerald-800 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900"
-                }`}
+                onClick={addAdditionalSigner}
+                disabled={additionalSigners.length >= 2}
+                className="inline-flex items-center justify-center rounded border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {label}
+                <Plus className="mr-2" size={16} />
+                Tambah Penanda Tangan
               </button>
-            ))}
+            </div>
+            {additionalSigners.length ? (
+              <div className="mt-3 grid gap-3">
+                {additionalSigners.map((signer, index) => (
+                  <div key={index} className="grid gap-2 rounded border border-gray-100 bg-gray-50 p-3 md:grid-cols-[150px_1fr_1fr_auto]">
+                    <select
+                      value={signer.relation}
+                      onChange={(event) => updateAdditionalSigner(index, { relation: event.target.value as SignatureRelation })}
+                      className={inputClass}
+                    >
+                      <option value="Mengetahui">Mengetahui</option>
+                      <option value="Menyetujui">Menyetujui</option>
+                    </select>
+                    <input
+                      value={signer.role}
+                      onChange={(event) => updateAdditionalSigner(index, { role: event.target.value })}
+                      placeholder="Kedudukan/Jabatan"
+                      className={inputClass}
+                    />
+                    <input
+                      value={signer.name}
+                      onChange={(event) => updateAdditionalSigner(index, { name: event.target.value })}
+                      placeholder="Nama penanda tangan"
+                      className={inputClass}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeAdditionalSigner(index)}
+                      className="inline-flex min-h-11 items-center justify-center rounded border border-red-100 px-3 text-sm font-semibold text-red-600 hover:bg-red-50"
+                      title="Hapus penanda tangan"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       )}

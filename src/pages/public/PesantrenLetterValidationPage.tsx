@@ -13,6 +13,7 @@ type ValidationPayload = {
     ditujukan: string | null;
     tanggal_surat: string;
     file_url: string | null;
+    penandatangan?: LetterSigner[];
     created_at: string;
   };
   santri?: {
@@ -21,6 +22,13 @@ type ValidationPayload = {
     kelas_pengajian: string | null;
     tahun_masuk: number;
   } | null;
+};
+
+type LetterSigner = {
+  relation?: string;
+  role?: string;
+  name?: string;
+  primary?: boolean;
 };
 
 function formatDate(value?: string | null) {
@@ -90,6 +98,8 @@ export default function PesantrenLetterValidationPage() {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [payload]);
+
+  const signers = payload?.surat?.penandatangan || [];
 
   return (
     <div className="min-h-[calc(100svh-76px)] bg-[#f7faf7]">
@@ -172,6 +182,25 @@ export default function PesantrenLetterValidationPage() {
                   <p><span className="text-gray-500">Kelas Pengajian:</span> {payload.santri?.kelas_pengajian || "-"}</p>
                   <p><span className="text-gray-500">Tahun Masuk:</span> {payload.santri?.tahun_masuk || "-"}</p>
                 </div>
+              </div>
+            </div>
+
+            <div className="rounded bg-white p-6 shadow-soft">
+              <h3 className="font-semibold text-gray-950">Penanda Tangan</h3>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {signers.length ? (
+                  signers.map((signer, index) => (
+                    <div key={`${signer.name || signer.role || index}-${index}`} className="rounded border border-gray-100 bg-gray-50 p-3 text-sm">
+                      <p className="font-semibold text-gray-950">{signer.name || "-"}</p>
+                      <p className="mt-1 text-gray-600">{signer.role || "-"}</p>
+                      <p className="mt-1 text-xs font-semibold text-emerald-800">
+                        {signer.primary ? "Penanda tangan utama" : signer.relation || "Mengetahui"}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">Data penanda tangan belum tercatat pada arsip surat ini.</p>
+                )}
               </div>
             </div>
           </>
